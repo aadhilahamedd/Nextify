@@ -1,0 +1,30 @@
+.main-navbar.home-navbar {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.main-navbar.home-navbar .navbar-toggler {
+  background: transparent !important;
+  border-color: rgba(255,255,255,0.18) !important;
+}
+
+.main-navbar.home-navbar .navbar-collapse {
+  backdrop-filter: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.main-navbar.home-navbar .navbar-collapse.show {
+  backdrop-filter: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.main-navbar .navbar-collapse {
+  backdrop-filter: blur(18px);
+  background: rgba(0, 0, 0, 0.92);
+}
+
+.main-navbar .navbar-collapse.show {
+  background: rgba(0, 0, 0, 0.95);
+}
