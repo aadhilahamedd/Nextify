@@ -1,3 +1,3 @@
-const serverURL = "http://localhost:3000";
+const serverURL = "https://nextify-egkj.onrender.com";
 
 export default serverURL;
