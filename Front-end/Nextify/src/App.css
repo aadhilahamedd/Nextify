@@ -108,33 +108,52 @@
 
 /* Home Booking Tab Button Border Adaptation */
 .booking-tab-btn {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+  padding: 0.8rem 0.4rem !important;
+  font-size: 0.75rem !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-bottom: none !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 4px !important;
+}
+.booking-tab-btn:last-child {
   border-right: none !important;
 }
 @media (min-width: 768px) {
   .booking-tab-btn {
-    border-bottom: none !important;
-    border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
-  }
-  .booking-tab-btn:last-child {
-    border-right: none !important;
+    padding: 1.5rem 2rem !important;
+    font-size: 1rem !important;
+    flex-direction: row !important;
+    gap: 8px !important;
   }
 }
 
 /* Booking Page Tab Button Border Adaptation */
 .booking-page-tab-btn {
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06) !important;
+  padding: 0.8rem 0.4rem !important;
+  font-size: 0.75rem !important;
+  border-right: 1px solid rgba(0, 0, 0, 0.06) !important;
+  border-bottom: none !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 4px !important;
+}
+.booking-page-tab-btn:last-child {
   border-right: none !important;
 }
 @media (min-width: 768px) {
   .booking-page-tab-btn {
-    border-bottom: none !important;
-    border-right: 1px solid rgba(0, 0, 0, 0.06) !important;
-  }
-  .booking-page-tab-btn:last-child {
-    border-right: none !important;
+    padding: 1.5rem 2rem !important;
+    font-size: 1rem !important;
+    flex-direction: row !important;
+    gap: 8px !important;
   }
 }
+
 
 /* Hero Bottom Action Bar & Buttons */
 .hero-bottom-bar {

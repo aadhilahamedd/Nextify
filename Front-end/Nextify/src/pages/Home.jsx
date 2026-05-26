@@ -511,7 +511,8 @@ function Home() {
 
           <div className="p-0 rounded-4 shadow-lg overflow-hidden" style={{ backgroundColor: '#ffffff', color: '#333', border: '1px solid rgba(0,0,0,0.08)' }}>
             {/* Tab Bar */}
-            <div className="d-flex w-100 flex-column flex-md-row" style={{ borderBottom: '1px solid #ddd' }}>
+            <div className="d-flex w-100 flex-row" style={{ borderBottom: '1px solid #ddd' }}>
+
               <button
                 type="button"
                 className="flex-fill border-0 py-4 px-4 d-flex align-items-center justify-content-center gap-2 text-uppercase fw-semibold booking-tab-btn"

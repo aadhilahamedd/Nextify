@@ -138,7 +138,8 @@ function Booking() {
         )}
 
         <div className="p-0 rounded-4 shadow-sm overflow-hidden" style={{ backgroundColor: '#ffffff', border: '1px solid rgba(0,0,0,0.06)' }}>
-          <div className="d-flex w-100 flex-column flex-md-row" style={{ borderBottom: '1px solid #eee' }}>
+          <div className="d-flex w-100 flex-row" style={{ borderBottom: '1px solid #eee' }}>
+
             <button
               type="button"
               className="flex-fill border-0 py-3 px-3 d-flex align-items-center justify-content-center gap-2 text-uppercase fw-semibold booking-page-tab-btn"
