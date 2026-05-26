@@ -1,3 +1,10 @@
+html,
+body,
+#root {
+  min-width: 1280px !important;
+  overflow-x: auto !important;
+}
+
 .main-navbar.home-navbar {
   background: transparent !important;
   box-shadow: none !important;

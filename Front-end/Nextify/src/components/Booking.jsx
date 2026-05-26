@@ -165,7 +165,7 @@ function Booking() {
             </button>
           </div>
 
-          <form onSubmit={handleBookingSubmit} className="p-4 p-md-5 row g-4">
+          <form onSubmit={handleBookingSubmit} className="p-4 p-md-5 row g-4 force-three">
             <div className="col-md-4">
               <label className="form-label fw-bold">Name <span className="text-danger">*</span></label>
               <input type="text" required value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="form-control p-3" placeholder="Enter your name" />

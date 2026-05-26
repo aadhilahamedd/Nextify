@@ -27,7 +27,7 @@ function Header() {
   };
 
   return (
-    <div className="position-fixed w-100 z-3" style={{ top: 0, left: 0, zIndex: 1100 }}>
+    <div className="position-absolute w-100 z-3" style={{ top: 0, left: 0, zIndex: 1100 }}>
       <Navbar
         expand="lg"
         variant="dark"

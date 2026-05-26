@@ -275,7 +275,7 @@ function Carlist() {
             )}
           </div>
 
-          <div className="row g-4">
+          <div className="row g-4 force-three">
             {cars.map((car) => (
               <div key={car.id} className="col-lg-4 col-md-6 mb-4">
                 <div

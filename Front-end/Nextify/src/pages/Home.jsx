@@ -251,7 +251,7 @@ function Home() {
                 </p>
                 <button
                   className="btn rounded-pill px-5 py-3 fw-bold border-0"
-                  style={{ background: 'linear-gradient(135deg, #231b12, #a98231, #d4b56d)', color: '#000', fontSize: '0.9rem', boxShadow: '0 10px 20px rgba(212, 181, 109, 0.25)' }}
+                  style={{ backgroundColor: '#eefe31', color: '#000', fontSize: '0.9rem' }}
                 >
                   Discover Our Story
                 </button>
@@ -317,7 +317,7 @@ function Home() {
                   <h3 className="h4 mb-3" style={{ fontFamily: 'Georgia, serif' }}>{car.name}</h3>
                   <div className="d-flex justify-content-between align-items-center mt-auto pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.1)' }}>
                     <span className="fw-bold fs-5">{car.price}</span>
-                    <button className="btn btn-sm px-3 rounded-0 text-uppercase" style={{ fontSize: '0.7rem', letterSpacing: '1px', background: 'linear-gradient(135deg, #231b12, #a98231, #d4b56d)', color: '#000', boxShadow: '0 8px 16px rgba(212, 181, 109, 0.18)' }}>
+                    <button className="btn btn-outline-light btn-sm px-3 rounded-0 text-uppercase" style={{ fontSize: '0.7rem', letterSpacing: '1px' }}>
                       Rent Now
                     </button>
                   </div>
@@ -379,7 +379,7 @@ function Home() {
               </div>
             </div>
 
-            <button className="btn rounded-pill px-5 py-3 fw-bold border-0" style={{ background: 'linear-gradient(135deg, #231b12, #a98231, #d4b56d)', color: '#000', fontSize: '0.9rem', boxShadow: '0 10px 20px rgba(212, 181, 109, 0.25)' }}>
+            <button className="btn rounded-pill px-5 py-3 fw-bold border-0" style={{ backgroundColor: '#eefe31', color: '#000', fontSize: '0.9rem' }}>
               Experience the Difference
             </button>
           </div>
@@ -426,7 +426,7 @@ function Home() {
             <p className="mb-4" style={{ color: '#888', fontSize: '1.05rem', lineHeight: '1.6', maxWidth: '600px' }}>
               Planning large-scale celebrations? We provide bulk car rentals tailored for all your events, from weddings to corporate gatherings. Choose from our extensive fleet for seamless transport.
             </p>
-            <button className="btn rounded-pill px-4 py-2 mt-3 fw-medium border-0" style={{ background: 'linear-gradient(135deg, #231b12, #a98231, #d4b56d)', color: '#000', fontSize: '0.95rem', boxShadow: '0 10px 24px rgba(212, 181, 109, 0.25)' }}>
+            <button className="btn rounded-pill px-4 py-2 mt-3 fw-medium border-0" style={{ backgroundColor: '#f0f424', color: '#000', fontSize: '0.95rem' }}>
               Contact Us
             </button>
           </div>
@@ -515,7 +515,7 @@ function Home() {
                 type="button"
                 className="flex-fill border-0 py-4 px-4 d-flex align-items-center justify-content-center gap-2 text-uppercase fw-semibold"
                 style={{
-                  background: activeTab === 'airport' ? 'linear-gradient(135deg, #231b12, #a98231, #d4b56d)' : 'linear-gradient(135deg, #1b150f, #6b552d, #8e743f)',
+                  background: activeTab === 'airport' ? 'linear-gradient(135deg, #c5a880, #a88358)' : '#000000',
                   color: '#ffffff',
                   fontSize: '1rem',
                   letterSpacing: '1px',
@@ -531,7 +531,7 @@ function Home() {
                 type="button"
                 className="flex-fill border-0 py-4 px-4 d-flex align-items-center justify-content-center gap-2 text-uppercase fw-semibold"
                 style={{
-                  background: activeTab === 'pointToPoint' ? 'linear-gradient(135deg, #231b12, #a98231, #d4b56d)' : 'linear-gradient(135deg, #1b150f, #6b552d, #8e743f)',
+                  background: activeTab === 'pointToPoint' ? 'linear-gradient(135deg, #c5a880, #a88358)' : '#000000',
                   color: '#ffffff',
                   fontSize: '1rem',
                   letterSpacing: '1px',
@@ -547,7 +547,7 @@ function Home() {
                 type="button"
                 className="flex-fill border-0 py-4 px-4 d-flex align-items-center justify-content-center gap-2 text-uppercase fw-semibold"
                 style={{
-                  background: activeTab === 'hourly' ? 'linear-gradient(135deg, #231b12, #a98231, #d4b56d)' : 'linear-gradient(135deg, #1b150f, #6b552d, #8e743f)',
+                  background: activeTab === 'hourly' ? 'linear-gradient(135deg, #c5a880, #a88358)' : '#000000',
                   color: '#ffffff',
                   fontSize: '1rem',
                   letterSpacing: '1px',
@@ -879,22 +879,22 @@ function Home() {
                   type="submit"
                   className="btn px-5 py-3 text-uppercase fw-bold border-0 text-white"
                   style={{
-                    background: 'linear-gradient(135deg, #231b12, #a98231, #d4b56d)',
+                    background: 'linear-gradient(135deg, #a88448 0%, #c8a261 100%)',
                     fontFamily: 'Georgia, serif',
                     letterSpacing: '1px',
                     fontSize: '0.95rem',
-                    boxShadow: '0 8px 16px rgba(212,181,109,0.2)',
+                    boxShadow: '0 8px 16px rgba(168,132,72,0.2)',
                     transition: 'all 0.3s ease',
                     cursor: 'pointer',
                     borderRadius: '30px'
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.transform = 'translateY(-2px)';
-                    e.currentTarget.style.boxShadow = '0 12px 20px rgba(212,181,109,0.3)';
+                    e.currentTarget.style.boxShadow = '0 12px 20px rgba(168,132,72,0.3)';
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '0 8px 16px rgba(212,181,109,0.2)';
+                    e.currentTarget.style.boxShadow = '0 8px 16px rgba(168,132,72,0.2)';
                   }}
                 >
                   BOOK NOW
