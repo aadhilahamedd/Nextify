@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import Container from 'react-bootstrap/Container'
 import { useNavigate } from 'react-router-dom'
 import bmw7 from '../assets/bmw_7_series.png'
@@ -275,7 +275,7 @@ function Carlist() {
             )}
           </div>
 
-          <div className="row g-4 force-three">
+          <div className="row g-4">
             {cars.map((car) => (
               <div key={car.id} className="col-lg-4 col-md-6 mb-4">
                 <div

@@ -109,10 +109,10 @@ function Home() {
               <p className="mb-3 fw-semibold" style={{ color: '#a0a0a0', letterSpacing: '2px', fontSize: '0.85rem' }}>
                 ARRIVE IN STYLE
               </p>
-              <h1 className="mb-4" style={{ fontFamily: 'Georgia, serif', fontSize: '4rem', lineHeight: '1.1' }}>
-                Luxury Cars, First-Class<br />Experience
+              <h1 className="mb-4 hero-title" style={{ fontFamily: 'Georgia, serif', lineHeight: '1.1' }}>
+                Luxury Cars, First-Class<br className="d-none d-md-inline" />Experience
               </h1>
-              <p className="mb-5" style={{ color: '#e0e0e0', fontSize: '1.15rem', maxWidth: '85%', lineHeight: '1.6' }}>
+              <p className="mb-5 hero-desc" style={{ color: '#e0e0e0', lineHeight: '1.6' }}>
                 Redefine your journey with Nextify. Experience a curated fleet of world-class vehicles paired with the personalized, first-class service you deserve.
               </p>
             </div>
@@ -120,13 +120,14 @@ function Home() {
         </Container>
 
         {/* Bottom Buttons Row */}
-        <div className="position-absolute bottom-0 w-100 d-flex flex-column flex-md-row" style={{ borderTop: '1px solid rgba(255,255,255,0.2)', backgroundColor: 'transparent', zIndex: 10 }}>
-          <Link to="/carlist" className="text-white text-decoration-none py-4 px-4 px-md-5 d-flex justify-content-between align-items-center w-100" style={{ borderRight: '1px solid rgba(255,255,255,0.2)' }}>
-            <span className="fs-5">See Our Collection</span>
+        <div className="position-absolute bottom-0 w-100 d-flex flex-row hero-bottom-bar" style={{ zIndex: 10 }}>
+
+          <Link to="/carlist" className="text-white text-decoration-none d-flex justify-content-between align-items-center w-100 hero-bottom-btn">
+            <span>See Our Collection</span>
             <i className="bi bi-arrow-right fs-4"></i>
           </Link>
-          <a href="#reservation" className="text-white text-decoration-none py-4 px-4 px-md-5 d-flex justify-content-between align-items-center w-100">
-            <span className="fs-5">Start Reservation</span>
+          <a href="#reservation" className="text-white text-decoration-none d-flex justify-content-between align-items-center w-100 hero-bottom-btn">
+            <span>Start Reservation</span>
             <i className="bi bi-arrow-right fs-4"></i>
           </a>
         </div>
@@ -420,8 +421,8 @@ function Home() {
               <div style={{ width: '40px', height: '1px', backgroundColor: '#8a8940' }}></div>
               <span className="text-uppercase" style={{ color: '#777', letterSpacing: '2px', fontSize: '0.8rem' }}>EVENTS</span>
             </div>
-            <h2 className="mb-4" style={{ fontFamily: 'Georgia, serif', fontSize: '3.5rem', lineHeight: '1.1' }}>
-              Bulk Car Rentals for<br />Functions
+            <h2 className="mb-4 events-title" style={{ fontFamily: 'Georgia, serif', lineHeight: '1.1' }}>
+              Bulk Car Rentals for<br className="d-none d-md-inline" />Functions
             </h2>
             <p className="mb-4" style={{ color: '#888', fontSize: '1.05rem', lineHeight: '1.6', maxWidth: '600px' }}>
               Planning large-scale celebrations? We provide bulk car rentals tailored for all your events, from weddings to corporate gatherings. Choose from our extensive fleet for seamless transport.
@@ -435,19 +436,19 @@ function Home() {
         {/* Statistics Row */}
         <div className="row text-center pt-2">
           <div className="col-md-3 col-6 mb-4 mb-md-0">
-            <h3 className="mb-3" style={{ fontFamily: 'Georgia, serif', fontSize: '4rem', fontWeight: '400' }}>34K+</h3>
+            <h3 className="mb-3 stat-number" style={{ fontFamily: 'Georgia, serif', fontWeight: '400' }}>34K+</h3>
             <p className="mb-0" style={{ color: '#777', fontSize: '1rem' }}>Happy Clients</p>
           </div>
           <div className="col-md-3 col-6 mb-4 mb-md-0">
-            <h3 className="mb-3" style={{ fontFamily: 'Georgia, serif', fontSize: '4rem', fontWeight: '400' }}>99%</h3>
+            <h3 className="mb-3 stat-number" style={{ fontFamily: 'Georgia, serif', fontWeight: '400' }}>99%</h3>
             <p className="mb-0" style={{ color: '#777', fontSize: '1rem' }}>Accident-Free Rentals</p>
           </div>
           <div className="col-md-3 col-6 mb-4 mb-md-0">
-            <h3 className="mb-3" style={{ fontFamily: 'Georgia, serif', fontSize: '4rem', fontWeight: '400' }}>210+</h3>
+            <h3 className="mb-3 stat-number" style={{ fontFamily: 'Georgia, serif', fontWeight: '400' }}>210+</h3>
             <p className="mb-0" style={{ color: '#777', fontSize: '1rem' }}>Luxury Cars</p>
           </div>
           <div className="col-md-3 col-6">
-            <h3 className="mb-3" style={{ fontFamily: 'Georgia, serif', fontSize: '4rem', fontWeight: '400' }}>100%</h3>
+            <h3 className="mb-3 stat-number" style={{ fontFamily: 'Georgia, serif', fontWeight: '400' }}>100%</h3>
             <p className="mb-0" style={{ color: '#777', fontSize: '1rem' }}>Fully Insured Vehicles</p>
           </div>
         </div>
@@ -513,15 +514,14 @@ function Home() {
             <div className="d-flex w-100 flex-column flex-md-row" style={{ borderBottom: '1px solid #ddd' }}>
               <button
                 type="button"
-                className="flex-fill border-0 py-4 px-4 d-flex align-items-center justify-content-center gap-2 text-uppercase fw-semibold"
+                className="flex-fill border-0 py-4 px-4 d-flex align-items-center justify-content-center gap-2 text-uppercase fw-semibold booking-tab-btn"
                 style={{
                   background: activeTab === 'airport' ? 'linear-gradient(135deg, #c5a880, #a88358)' : '#000000',
                   color: '#ffffff',
                   fontSize: '1rem',
                   letterSpacing: '1px',
                   transition: 'all 0.3s ease',
-                  cursor: 'pointer',
-                  borderRight: '1px solid rgba(255,255,255,0.1)'
+                  cursor: 'pointer'
                 }}
                 onClick={() => setActiveTab('airport')}
               >
@@ -529,15 +529,14 @@ function Home() {
               </button>
               <button
                 type="button"
-                className="flex-fill border-0 py-4 px-4 d-flex align-items-center justify-content-center gap-2 text-uppercase fw-semibold"
+                className="flex-fill border-0 py-4 px-4 d-flex align-items-center justify-content-center gap-2 text-uppercase fw-semibold booking-tab-btn"
                 style={{
                   background: activeTab === 'pointToPoint' ? 'linear-gradient(135deg, #c5a880, #a88358)' : '#000000',
                   color: '#ffffff',
                   fontSize: '1rem',
                   letterSpacing: '1px',
                   transition: 'all 0.3s ease',
-                  cursor: 'pointer',
-                  borderRight: '1px solid rgba(255,255,255,0.1)'
+                  cursor: 'pointer'
                 }}
                 onClick={() => setActiveTab('pointToPoint')}
               >
@@ -545,7 +544,7 @@ function Home() {
               </button>
               <button
                 type="button"
-                className="flex-fill border-0 py-4 px-4 d-flex align-items-center justify-content-center gap-2 text-uppercase fw-semibold"
+                className="flex-fill border-0 py-4 px-4 d-flex align-items-center justify-content-center gap-2 text-uppercase fw-semibold booking-tab-btn"
                 style={{
                   background: activeTab === 'hourly' ? 'linear-gradient(135deg, #c5a880, #a88358)' : '#000000',
                   color: '#ffffff',

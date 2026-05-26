@@ -141,23 +141,23 @@ function Booking() {
           <div className="d-flex w-100 flex-column flex-md-row" style={{ borderBottom: '1px solid #eee' }}>
             <button
               type="button"
-              className="flex-fill border-0 py-3 px-3 d-flex align-items-center justify-content-center gap-2 text-uppercase fw-semibold"
-              style={{ background: activeTab === 'airport' ? '#111' : '#f8f8f8', color: activeTab === 'airport' ? '#fff' : '#333', cursor: 'pointer', borderRight: '1px solid rgba(0,0,0,0.04)' }}
+              className="flex-fill border-0 py-3 px-3 d-flex align-items-center justify-content-center gap-2 text-uppercase fw-semibold booking-page-tab-btn"
+              style={{ background: activeTab === 'airport' ? '#111' : '#f8f8f8', color: activeTab === 'airport' ? '#fff' : '#333', cursor: 'pointer' }}
               onClick={() => setActiveTab('airport')}
             >
               <i className="bi bi-airplane-fill me-2"></i> Airport Transfer
             </button>
             <button
               type="button"
-              className="flex-fill border-0 py-3 px-3 d-flex align-items-center justify-content-center gap-2 text-uppercase fw-semibold"
-              style={{ background: activeTab === 'pointToPoint' ? '#111' : '#f8f8f8', color: activeTab === 'pointToPoint' ? '#fff' : '#333', cursor: 'pointer', borderRight: '1px solid rgba(0,0,0,0.04)' }}
+              className="flex-fill border-0 py-3 px-3 d-flex align-items-center justify-content-center gap-2 text-uppercase fw-semibold booking-page-tab-btn"
+              style={{ background: activeTab === 'pointToPoint' ? '#111' : '#f8f8f8', color: activeTab === 'pointToPoint' ? '#fff' : '#333', cursor: 'pointer' }}
               onClick={() => setActiveTab('pointToPoint')}
             >
               <i className="bi bi-geo-alt-fill me-2"></i> Point to Point
             </button>
             <button
               type="button"
-              className="flex-fill border-0 py-3 px-3 d-flex align-items-center justify-content-center gap-2 text-uppercase fw-semibold"
+              className="flex-fill border-0 py-3 px-3 d-flex align-items-center justify-content-center gap-2 text-uppercase fw-semibold booking-page-tab-btn"
               style={{ background: activeTab === 'hourly' ? '#111' : '#f8f8f8', color: activeTab === 'hourly' ? '#fff' : '#333', cursor: 'pointer' }}
               onClick={() => setActiveTab('hourly')}
             >
@@ -165,7 +165,7 @@ function Booking() {
             </button>
           </div>
 
-          <form onSubmit={handleBookingSubmit} className="p-4 p-md-5 row g-4 force-three">
+          <form onSubmit={handleBookingSubmit} className="p-4 p-md-5 row g-4">
             <div className="col-md-4">
               <label className="form-label fw-bold">Name <span className="text-danger">*</span></label>
               <input type="text" required value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="form-control p-3" placeholder="Enter your name" />

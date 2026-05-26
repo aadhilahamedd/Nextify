@@ -36,7 +36,7 @@ function Header() {
       >
         <Container>
           <Navbar.Brand as={Link} to="/" className="border-0 text-decoration-none shadow-none" style={{ outline: "none" }}>
-            <img src={logo} alt="Nextify Logo" width="100" style={{ transform: 'scale(1.8)', transformOrigin: 'left center', border: 'none', outline: 'none' }}/>
+            <img src={logo} alt="Nextify Logo" className="navbar-logo" style={{ border: 'none', outline: 'none' }}/>
           </Navbar.Brand>
           <Navbar.Toggle aria-controls="basic-navbar-nav" style={{ borderColor: 'rgba(255,255,255,0.18)', background: 'transparent' }} />
           <Navbar.Collapse id="basic-navbar-nav">

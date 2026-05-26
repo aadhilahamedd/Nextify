@@ -58,10 +58,12 @@
   }
 }
 
-/* Force three columns layout for small screens where needed */
-.force-three > [class*="col-"] {
-  flex: 0 0 33.333333%;
-  max-width: 33.333333%;
+/* Restrict force-three layout to desktop/large screens only */
+@media (min-width: 992px) {
+  .force-three > [class*="col-"] {
+    flex: 0 0 33.333333%;
+    max-width: 33.333333%;
+  }
 }
 
 /* Ensure form controls inside force-three keep full width */
@@ -69,3 +71,116 @@
 .force-three .form-select {
   width: 100%;
 }
+
+/* Responsive Helper Styles for Nextify */
+
+/* Hero Title Scaling */
+.hero-title {
+  font-size: 4rem;
+}
+@media (max-width: 768px) {
+  .hero-title {
+    font-size: 2.2rem !important;
+  }
+}
+
+/* Hero Description Scaling */
+.hero-desc {
+  font-size: 1.15rem;
+  max-width: 85%;
+}
+@media (max-width: 768px) {
+  .hero-desc {
+    font-size: 1rem !important;
+    max-width: 100% !important;
+  }
+}
+
+/* Statistics Number Scaling */
+.stat-number {
+  font-size: 4rem;
+}
+@media (max-width: 768px) {
+  .stat-number {
+    font-size: 2.5rem !important;
+  }
+}
+
+/* Home Booking Tab Button Border Adaptation */
+.booking-tab-btn {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-right: none !important;
+}
+@media (min-width: 768px) {
+  .booking-tab-btn {
+    border-bottom: none !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
+  }
+  .booking-tab-btn:last-child {
+    border-right: none !important;
+  }
+}
+
+/* Booking Page Tab Button Border Adaptation */
+.booking-page-tab-btn {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06) !important;
+  border-right: none !important;
+}
+@media (min-width: 768px) {
+  .booking-page-tab-btn {
+    border-bottom: none !important;
+    border-right: 1px solid rgba(0, 0, 0, 0.06) !important;
+  }
+  .booking-page-tab-btn:last-child {
+    border-right: none !important;
+  }
+}
+
+/* Hero Bottom Action Bar & Buttons */
+.hero-bottom-bar {
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  background-color: rgba(10, 10, 10, 0.85);
+  backdrop-filter: blur(10px);
+}
+@media (min-width: 768px) {
+  .hero-bottom-bar {
+    background-color: transparent;
+    backdrop-filter: none;
+  }
+}
+
+.hero-bottom-btn {
+  padding: 1rem 0.8rem !important;
+  font-size: 0.85rem !important;
+}
+.hero-bottom-btn:first-child {
+  border-right: 1px solid rgba(255, 255, 255, 0.2);
+}
+@media (min-width: 576px) {
+  .hero-bottom-btn {
+    padding: 1.2rem 1.5rem !important;
+    font-size: 1rem !important;
+  }
+}
+@media (min-width: 768px) {
+  .hero-bottom-btn {
+    padding: 1.5rem 3rem !important;
+    font-size: 1.25rem !important; /* Matches fs-5 */
+  }
+}
+
+
+/* Responsive Navbar Logo */
+.navbar-logo {
+  width: 80px;
+  transform: scale(1.35);
+  transform-origin: left center;
+}
+@media (min-width: 992px) {
+  .navbar-logo {
+    width: 100px;
+    transform: scale(1.8);
+  }
+}
+
+

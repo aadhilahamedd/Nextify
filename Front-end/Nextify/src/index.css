@@ -1,8 +1,9 @@
+/* Enable standard responsive layouts by letting width scale with viewport */
 html,
 body,
 #root {
-  min-width: 1280px !important;
-  overflow-x: auto !important;
+  width: 100%;
+  overflow-x: hidden;
 }
 
 .main-navbar.home-navbar {
