@@ -29,7 +29,7 @@ function Header() {
   return (
     <div className="position-absolute w-100 z-3" style={{ top: 0, left: 0, zIndex: 1100 }}>
       <Navbar
-        expand="lg"
+        expand={false}
         variant="dark"
         className={`main-navbar ${isLogin || isAdminPage ? 'bg-black pt-2' : 'home-navbar pt-4'}`}
         style={{ borderBottom: isAdminPage ? '1px solid rgba(255,255,255,0.08)' : 'transparent', transition: 'background 0.25s ease' }}
@@ -40,7 +40,7 @@ function Header() {
           </Navbar.Brand>
           <Navbar.Toggle aria-controls="basic-navbar-nav" style={{ borderColor: 'rgba(255,255,255,0.18)', background: 'transparent' }} />
           <Navbar.Collapse id="basic-navbar-nav">
-            <Nav className="ms-auto gap-4 align-items-center">
+            <Nav className="flex-column gap-3 align-items-start py-3 w-100">
               <Nav.Link as={Link} to="/" className="text-decoration-none border-0" style={{ color: '#cda274' }}>Home</Nav.Link>
               <Nav.Link as={Link} to="/about" className="text-decoration-none border-0 text-white">About Us</Nav.Link>
               <Nav.Link as={Link} to="/carlist" className="text-decoration-none border-0 text-white">Car List</Nav.Link>
@@ -50,7 +50,7 @@ function Header() {
                   <span className="text-white" style={{ fontSize: '0.95rem', fontWeight: 600 }}>Hii, {user.username}</span>
                   <button
                     onClick={handleLogout}
-                    className="btn text-white rounded-pill px-4 py-2 ms-lg-3"
+                    className="btn text-white rounded-pill px-4 py-2"
                     style={{ border: '1px solid rgba(255,255,255,0.18)', backgroundColor: 'transparent' }}
                   >
                     Logout <i className="bi bi-box-arrow-right"></i>
@@ -59,7 +59,7 @@ function Header() {
               ) : (
                 <Link
                   to="/login"
-                  className="btn text-white rounded-pill px-4 py-2 ms-lg-3 text-decoration-none"
+                  className="btn text-white rounded-pill px-4 py-2 text-decoration-none"
                   style={{ border: '1px solid rgba(255,255,255,0.18)', backgroundColor: 'transparent', display: 'flex', alignItems: 'center', gap: '8px' }}
                 >
                   Login <i className="bi bi-box-arrow-in-right"></i>
