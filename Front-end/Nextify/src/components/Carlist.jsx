@@ -139,11 +139,21 @@ const initialCars = [
 
 function Carlist() {
   const navigate = useNavigate();
-  const [cars, setCars] = useState(() => { const saved = localStorage.getItem('cars'); return saved ? JSON.parse(saved) : initialCars; })
+  const [cars, setCars] = useState(() => {
+    try {
+      const saved = localStorage.getItem('cars')
+      if (!saved) return initialCars
+      const parsed = JSON.parse(saved)
+      return Array.isArray(parsed) ? parsed : initialCars
+    } catch {
+      return initialCars
+    }
+  })
   const [showModal, setShowModal] = useState(false)
   const [editingCar, setEditingCar] = useState(null)
   const [editData, setEditData] = useState({ name: '', price: '', type: '', seats: '', luggage: '', img: '' })
   const [preview, setPreview] = useState(null)
+  const [activeFilter, setActiveFilter] = useState('All')
 
   const user = useMemo(() => {
     try {
@@ -233,7 +243,22 @@ function Carlist() {
 
   // Sync cars to localStorage whenever they change
   useEffect(() => {
-    localStorage.setItem('cars', JSON.stringify(cars));
+    const isDataUrl = (value) => typeof value === 'string' && value.startsWith('data:')
+
+    // Avoid exceeding localStorage quota by not persisting huge base64 images.
+    // If the user uploads an image (data URL), we keep it in memory for this session
+    // but persist a lightweight version (empty img => UI will still render from memory).
+    const safeCars = cars.map((car) => ({
+      ...car,
+      img: isDataUrl(car.img) ? '' : car.img,
+    }))
+
+    try {
+      localStorage.setItem('cars', JSON.stringify(safeCars));
+    } catch (err) {
+      // QuotaExceededError / storage blocked by browser: do not crash the whole page.
+      console.warn('Skipping cars localStorage sync:', err)
+    }
   }, [cars]);
 
   const saveEdit = () => {
@@ -250,6 +275,27 @@ function Carlist() {
     if (!window.confirm('Delete this car from the list?')) return
     setCars((prev) => prev.filter((car) => car.id !== carId))
   }
+
+  const getCarCategory = (car) => {
+    const type = String(car.type || '').toLowerCase()
+    const name = String(car.name || '').toLowerCase()
+
+    if (type.includes('suv') || name.includes('yukon')) return 'SUV'
+    if (type.includes('coach') || type.includes('bus') || type.includes('mini bus') || name.includes('coaster')) return 'Coaches'
+    if (type.includes('van') || type.includes('minivan') || type.includes('passenger van') || name.includes('hiace') || name.includes('sprinter') || name.includes('v-class')) return 'Van'
+    if (type.includes('sedan')) return 'Sedan'
+
+    // Premium tiers (simple mapping by model keywords)
+    if (name.includes('s-class') || name.includes('7 series')) return 'First class'
+    return 'Bussiness class'
+  }
+
+  const filterOptions = ['All', 'First class', 'Business class', 'SUV', 'Sedan', 'Van', 'Coaches']
+
+  const filteredCars = cars.filter((car) => {
+    if (activeFilter === 'All') return true
+    return getCarCategory(car) === activeFilter
+  })
 
   return (
     <div style={{ backgroundColor: '#0a0a0a', minHeight: '100vh', color: 'white', paddingTop: '140px', paddingBottom: '80px' }}>
@@ -280,8 +326,29 @@ function Carlist() {
             )}
           </div>
 
+          <div className="d-flex flex-wrap justify-content-center gap-2 gap-md-3 mb-4">
+            {filterOptions.map((option) => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => setActiveFilter(option)}
+                className="btn btn-sm text-uppercase fw-semibold"
+                style={{
+                  borderRadius: '999px',
+                  padding: '10px 16px',
+                  letterSpacing: '1px',
+                  border: activeFilter === option ? '1px solid rgba(238, 176, 18, 0.9)' : '1px solid rgba(255,255,255,0.16)',
+                  background: activeFilter === option ? 'rgba(238, 176, 18, 0.18)' : 'rgba(255,255,255,0.04)',
+                  color: activeFilter === option ? '#f6d26e' : 'rgba(255,255,255,0.85)',
+                }}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+
           <div className="row g-4">
-            {cars.map((car) => (
+            {filteredCars.map((car) => (
               <div key={car.id} className="col-lg-4 col-md-6 mb-4">
                 <div
                   className="h-100 p-4 d-flex flex-column"
@@ -329,6 +396,15 @@ function Carlist() {
                 <p className="mb-1 text-uppercase" style={{ fontSize: '0.7rem', color: '#a0a0a0', letterSpacing: '1px' }}>{car.type}</p>
                 <h3 className="h4 mb-3" style={{ fontFamily: 'Georgia, serif' }}>{car.name}</h3>
 
+                <div className="mb-3">
+                  <span
+                    className="badge bg-dark border border-secondary text-light fw-normal py-2 px-3 rounded-pill"
+                    style={{ fontSize: '0.72rem' }}
+                  >
+                    {getCarCategory(car)}
+                  </span>
+                </div>
+
                 <div className="d-flex flex-wrap gap-2 mb-4 mt-auto">
                   <span className="badge bg-dark border border-secondary text-light fw-normal py-2 px-3 rounded-pill" style={{ fontSize: '0.75rem' }}>
                     <i className="bi bi-people-fill me-2" style={{ color: '#eeb012' }}></i>
@@ -374,7 +450,9 @@ function Carlist() {
               <div style={{ display: 'grid', gap: '10px' }}>
                 <label style={{ color: '#f3f3f3', fontSize: '0.9rem' }}>Cover Image</label>
                 <div style={{ width: '100%', minHeight: '180px', borderRadius: '16px', overflow: 'hidden', background: '#111', border: '1px solid rgba(255,255,255,0.08)' }}>
-                  <img src={preview || editData.img} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  {(preview || editData.img) ? (
+                    <img src={preview || editData.img} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : null}
                 </div>
                 <input type="file" accept="image/*" onChange={handleImageSelect} style={{ color: '#fff' }} />
               </div>
