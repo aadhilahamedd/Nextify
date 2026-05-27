@@ -29,18 +29,18 @@ function Header() {
   return (
     <div className="position-absolute w-100 z-3" style={{ top: 0, left: 0, zIndex: 1100 }}>
       <Navbar
-        expand={false}
+        expand="lg"
         variant="dark"
         className={`main-navbar ${isLogin || isAdminPage ? 'bg-black pt-2' : 'home-navbar pt-4'}`}
         style={{ borderBottom: isAdminPage ? '1px solid rgba(255,255,255,0.08)' : 'transparent', transition: 'background 0.25s ease' }}
       >
-        <Container>
-          <Navbar.Brand as={Link} to="/" className="border-0 text-decoration-none shadow-none" style={{ outline: "none" }}>
+        <Container className="main-navbar-container">
+          <Navbar.Brand as={Link} to="/" className="border-0 text-decoration-none shadow-none me-auto" style={{ outline: "none" }}>
             <img src={logo} alt="Nextify Logo" className="navbar-logo" style={{ border: 'none', outline: 'none' }}/>
           </Navbar.Brand>
           <Navbar.Toggle aria-controls="basic-navbar-nav" style={{ borderColor: 'rgba(255,255,255,0.18)', background: 'transparent' }} />
-          <Navbar.Collapse id="basic-navbar-nav">
-            <Nav className="flex-column gap-3 align-items-start py-3 w-100">
+          <Navbar.Collapse id="basic-navbar-nav" className="main-navbar-collapse justify-content-lg-end">
+            <Nav className="main-navbar-nav flex-column flex-lg-row gap-3 gap-lg-4 align-items-start align-items-lg-center py-3 py-lg-0">
               <Nav.Link as={Link} to="/" className="text-decoration-none border-0" style={{ color: '#cda274' }}>Home</Nav.Link>
               <Nav.Link as={Link} to="/about" className="text-decoration-none border-0 text-white">About Us</Nav.Link>
               <Nav.Link as={Link} to="/carlist" className="text-decoration-none border-0 text-white">Car List</Nav.Link>

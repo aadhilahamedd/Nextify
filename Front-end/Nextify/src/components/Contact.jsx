@@ -3,6 +3,8 @@ import Container from 'react-bootstrap/Container'
 import Row from 'react-bootstrap/Row'
 import Col from 'react-bootstrap/Col'
 import serverURL from '../Services/serverURL'
+import { submitContactMessageAPI } from '../Services/allAPI'
+import { saveLocalContactMessage } from '../utils/contactMessagesStorage'
 
 function Contact() {
   const [formData, setFormData] = useState({
@@ -13,6 +15,8 @@ function Contact() {
     message: ''
   })
   const [status, setStatus] = useState('')
+  const [statusType, setStatusType] = useState('success')
+  const [submitting, setSubmitting] = useState(false)
   const contactDefaults = {
     phone: '+1 234 567 8900',
     email: 'hello@nextify.com',
@@ -92,11 +96,36 @@ function Contact() {
     setTimeout(() => setSaveMessage(''), 4000)
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
-    setStatus('Thank you! Your message has been sent.')
-    setFormData({ name: '', email: '', phone: '', subject: '', message: '' })
-    setTimeout(() => setStatus(''), 5000)
+    setStatus('')
+    setSubmitting(true)
+
+    try {
+      const response = await submitContactMessageAPI(formData)
+
+      if (response?.status === 201 || response?.status === 200) {
+        setStatusType('success')
+        setStatus('Thank you! Your message has been sent.')
+        setFormData({ name: '', email: '', phone: '', subject: '', message: '' })
+        setTimeout(() => setStatus(''), 5000)
+      } else {
+        saveLocalContactMessage(formData)
+        setStatusType('success')
+        setStatus(
+          response?.status === 404
+            ? 'Thank you! Your message was saved. The server is being updated — it will sync once the latest backend is deployed.'
+            : 'Thank you! Your message was saved and will be reviewed shortly.'
+        )
+        setFormData({ name: '', email: '', phone: '', subject: '', message: '' })
+        setTimeout(() => setStatus(''), 7000)
+      }
+    } catch (err) {
+      setStatusType('danger')
+      setStatus('Failed to send message. Please check your connection and try again.')
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -214,7 +243,7 @@ function Contact() {
           <Col lg={6}>
             <div className="p-4 p-md-5 rounded-4" style={{ backgroundColor: '#111111', border: '1px solid rgba(255,255,255,0.08)' }}>
               {status && (
-                <div className="alert alert-success" role="alert">
+                <div className={`alert alert-${statusType}`} role="alert">
                   {status}
                 </div>
               )}
@@ -240,8 +269,8 @@ function Contact() {
                   <textarea required value={formData.message} onChange={(e) => setFormData({ ...formData, message: e.target.value })} className="form-control p-3 bg-dark border-0 text-white" rows="5" placeholder="Tell us how we can help"></textarea>
                 </div>
                 <div className="col-12 text-end">
-                  <button type="submit" className="btn px-5 py-3 rounded-pill text-uppercase fw-bold" style={{ backgroundColor: '#eeb012', color: '#000' }}>
-                    Send Message
+                  <button type="submit" disabled={submitting} className="btn px-5 py-3 rounded-pill text-uppercase fw-bold" style={{ backgroundColor: submitting ? '#9a7a0c' : '#eeb012', color: '#000' }}>
+                    {submitting ? 'Sending...' : 'Send Message'}
                   </button>
                 </div>
               </form>

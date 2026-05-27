@@ -2,6 +2,7 @@ import React from 'react'
 import logo from '../assets/Logo_Nextify_2.png';
 import Container from 'react-bootstrap/Container';
 import { Link } from 'react-router-dom';
+import { COMPANY_PHONE } from '../utils/whatsapp';
 
 function Footer() {
   return (
@@ -19,7 +20,7 @@ function Footer() {
               <div className="d-flex align-items-center justify-content-center border border-secondary rounded-circle" style={{ width: '40px', height: '40px' }}>
                 <i className="bi bi-telephone text-warning"></i>
               </div>
-              <span className="fw-semibold">+1 (333) 000-0000</span>
+              <span className="fw-semibold">{COMPANY_PHONE}</span>
             </div>
           </div>
 

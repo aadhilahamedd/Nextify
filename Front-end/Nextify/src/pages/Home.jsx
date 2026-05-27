@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import Container from 'react-bootstrap/Container'
 import bmw7 from '../assets/bmw_7_series.png'
 import benzS from '../assets/benz_s_class.png'
@@ -12,6 +12,7 @@ import toyotaLogo from '../assets/Brands/Toyota logo.jpg'
 import fordLogo from '../assets/Brands/Ford logo.webp'
 import gmcLogo from '../assets/Brands/GMC logo.jpg'
 import bmwLogo from '../assets/Brands/BMWlogo.webp'
+import { buildBookingWhatsAppMessage, openCompanyWhatsApp } from '../utils/whatsapp'
 
 const backgrounds = [bmw7, benzS, lexusES];
 
@@ -51,10 +52,36 @@ function Home() {
     "Mercedes-Benz eVito Tourer"
   ];
 
+  const navigate = useNavigate()
+
+  const handleEliteCarClick = (car) => {
+    navigate('/cardetails', { state: { car } })
+  }
+
   const handleBookingSubmit = (e) => {
     e.preventDefault();
-    const eventInfo = formData.eventType ? `\nEvent: ${formData.eventType}${formData.eventType === 'Other' && formData.eventOther ? ` (${formData.eventOther})` : ''}` : '';
-    alert(`Thank you for booking! Details:\nService: ${activeTab === 'airport' ? 'Airport Transfer' : activeTab === 'pointToPoint' ? 'Point to Point' : 'Hourly Service'}\nVehicle: ${formData.vehicle}\nName: ${formData.name}${eventInfo}`);
+
+    const bookingPayload = {
+      name: formData.name,
+      mobile: formData.mobile,
+      email: formData.email,
+      eventType: formData.eventType,
+      eventOther: formData.eventOther,
+      flightNumber: formData.flightNumber,
+      arrivalDateTime: formData.arrivalDateTime,
+      vehicle: formData.vehicle,
+      pickupLocation: formData.pickupLocation,
+      otherPickupLocation: formData.otherPickupLocation,
+      dropoffLocation: formData.dropoffLocation,
+      hours: formData.hours,
+    };
+
+    const message = buildBookingWhatsAppMessage(bookingPayload, activeTab);
+    const result = openCompanyWhatsApp(message);
+
+    if (!result.ok) {
+      alert(result.error);
+    }
   };
 
   useEffect(() => {
@@ -277,9 +304,9 @@ function Home() {
 
           <div className="row g-4">
             {[
-              { name: 'BMW 7 Series', img: bmw7, price: '$250/day', type: 'Luxury Sedan' },
-              { name: 'Mercedes S-Class', img: benzS, price: '$280/day', type: 'Premium Executive' },
-              { name: 'Lexus ES 350', img: lexusES, price: '$200/day', type: 'Elegant Comfort' }
+              { name: 'BMW 7 Series', img: bmw7, price: '$250/day', type: 'Luxury Sedan', seats: '3–5 passengers', luggage: '515–540 Liters' },
+              { name: 'Mercedes S-Class', img: benzS, price: '$280/day', type: 'Premium Executive', seats: '3–4 passengers', luggage: '3-4 Bags' },
+              { name: 'Lexus ES 350', img: lexusES, price: '$200/day', type: 'Elegant Comfort', seats: '3 passengers', luggage: '3-4 Bags' }
             ].map((car, i) => (
               <div key={i} className="col-lg-4 col-md-6">
                 <div
@@ -290,6 +317,7 @@ function Home() {
                     transition: 'transform 0.3s ease, border-color 0.3s ease',
                     cursor: 'pointer'
                   }}
+                  onClick={() => handleEliteCarClick(car)}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.transform = 'translateY(-10px)';
                     e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)';
@@ -318,7 +346,14 @@ function Home() {
                   <h3 className="h4 mb-3" style={{ fontFamily: 'Georgia, serif' }}>{car.name}</h3>
                   <div className="d-flex justify-content-between align-items-center mt-auto pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.1)' }}>
                     <span className="fw-bold fs-5">{car.price}</span>
-                    <button className="btn btn-outline-light btn-sm px-3 rounded-0 text-uppercase" style={{ fontSize: '0.7rem', letterSpacing: '1px' }}>
+                    <button
+                      className="btn btn-outline-light btn-sm px-3 rounded-0 text-uppercase"
+                      style={{ fontSize: '0.7rem', letterSpacing: '1px' }}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleEliteCarClick(car)
+                      }}
+                    >
                       Rent Now
                     </button>
                   </div>

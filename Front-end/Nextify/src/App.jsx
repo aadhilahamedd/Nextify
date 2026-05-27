@@ -11,6 +11,7 @@ import Carlist from './components/Carlist'
 import Contact from './components/Contact'
 import Cardetails from './components/Cardetails'
 import Booking from './components/Booking'
+import { COMPANY_PHONE, getWhatsAppUrl } from './utils/whatsapp'
 
 function App() {
   
@@ -33,7 +34,7 @@ function App() {
       </Routes>
       <Footer/>
       <a
-        href="https://wa.me/1234567890?text=Hello%20Nextify,%20I%20need%20help%20with%20a%20booking"
+        href={getWhatsAppUrl(COMPANY_PHONE, 'Hello Nextify, I need help with a booking')}
         target="_blank"
         rel="noreferrer"
         className="whatsapp-float"

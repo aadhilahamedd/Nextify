@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import Container from 'react-bootstrap/Container'
 import { useLocation } from 'react-router-dom'
 import { addBookingAPI } from '../Services/allAPI'
+import { buildBookingWhatsAppMessage, openCompanyWhatsApp } from '../utils/whatsapp'
 
 function Booking() {
   const location = useLocation()
@@ -76,10 +77,19 @@ function Booking() {
         hours: formData.hours
       }
 
+      const whatsappMessage = buildBookingWhatsAppMessage(bookingPayload, activeTab)
+      const whatsappResult = openCompanyWhatsApp(whatsappMessage)
+
+      if (!whatsappResult.ok) {
+        setError(`❌ ${whatsappResult.error}`)
+        setLoading(false)
+        return
+      }
+
       const response = await addBookingAPI(bookingPayload)
       
       if (response?.status === 201 || response?.status === 200) {
-        setSuccess('✅ Booking submitted successfully! We will contact you soon.')
+        setSuccess('✅ Booking submitted! WhatsApp opened with your booking details — tap Send to confirm.')
         // Reset form
         setFormData({
           name: '',

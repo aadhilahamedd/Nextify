@@ -139,7 +139,7 @@ const initialCars = [
 
 function Carlist() {
   const navigate = useNavigate();
-  const [cars, setCars] = useState(initialCars)
+  const [cars, setCars] = useState(() => { const saved = localStorage.getItem('cars'); return saved ? JSON.parse(saved) : initialCars; })
   const [showModal, setShowModal] = useState(false)
   const [editingCar, setEditingCar] = useState(null)
   const [editData, setEditData] = useState({ name: '', price: '', type: '', seats: '', luggage: '', img: '' })
@@ -229,7 +229,12 @@ function Carlist() {
     return () => {
       document.body.style.overflow = 'auto'
     }
-  }, [showModal])
+  }, [showModal]);
+
+  // Sync cars to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('cars', JSON.stringify(cars));
+  }, [cars]);
 
   const saveEdit = () => {
     if (!editingCar) return

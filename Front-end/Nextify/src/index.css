@@ -36,3 +36,33 @@ body,
 .main-navbar .navbar-collapse.show {
   background: rgba(0, 0, 0, 0.95);
 }
+
+@media (min-width: 992px) {
+  .main-navbar .navbar-collapse,
+  .main-navbar .navbar-collapse.show {
+    backdrop-filter: none !important;
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+
+  .main-navbar-container {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-start;
+  }
+
+  .main-navbar .navbar-brand {
+    margin-right: auto;
+  }
+
+  .main-navbar-collapse {
+    flex-grow: 1;
+    flex-basis: auto;
+    justify-content: flex-end;
+  }
+
+  .main-navbar-nav {
+    margin-left: auto;
+  }
+}

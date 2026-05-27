@@ -1,14 +1,100 @@
 import commonAPI from "./commonAPI";
 import serverURL from "./serverURL";
 
+const getAuthHeaders = () => {
+  const token = localStorage.getItem("token");
+  return {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+};
+
+// ====== CONTACT MESSAGE APIs ======
+
+export const submitContactMessageAPI = async (messageData) => {
+  try {
+    const response = await commonAPI(
+      "POST",
+      `${serverURL}/api/messages`,
+      messageData,
+      { "Content-Type": "application/json" }
+    );
+    if (response.status === 201 || response.status === 200) {
+      return response;
+    }
+    const status = response.response?.status || 500;
+    const error =
+      response.response?.data?.message || "Failed to send message";
+    return { status, error };
+  } catch (err) {
+    console.error("Error submitting message:", err);
+    return { status: 500, error: err.message };
+  }
+};
+
+export const getContactMessagesAPI = async () => {
+  try {
+    const response = await commonAPI(
+      "GET",
+      `${serverURL}/api/messages`,
+      "",
+      getAuthHeaders()
+    );
+    if (response.status === 200) {
+      return response;
+    }
+    const status = response.response?.status || 500;
+    const error =
+      response.response?.data?.message || "Failed to fetch messages";
+    return { status, error };
+  } catch (err) {
+    console.error("Error fetching messages:", err);
+    return { status: 500, error: err.message };
+  }
+};
+
+export const markMessageReadAPI = async (id) => {
+  try {
+    const response = await commonAPI(
+      "PATCH",
+      `${serverURL}/api/messages/${id}/read`,
+      {},
+      getAuthHeaders()
+    );
+    if (response.status === 200) {
+      return response;
+    }
+    throw new Error(response.response?.data?.message || "Failed to update message");
+  } catch (err) {
+    console.error("Error updating message:", err);
+    return { status: 500, error: err.message };
+  }
+};
+
+export const deleteContactMessageAPI = async (id) => {
+  try {
+    const response = await commonAPI(
+      "DELETE",
+      `${serverURL}/api/messages/${id}`,
+      "",
+      getAuthHeaders()
+    );
+    if (response.status === 200) {
+      return response;
+    }
+    throw new Error(response.response?.data?.message || "Failed to delete message");
+  } catch (err) {
+    console.error("Error deleting message:", err);
+    return { status: 500, error: err.message };
+  }
+};
+
 // ====== BOOKING APIs ======
 
 // Add booking
 export const addBookingAPI = async (bookingData) => {
   try {
-    const response = await commonAPI("POST", `${serverURL}/api/bookings`, bookingData, {
-      "Content-Type": "application/json"
-    });
+    const response = await commonAPI("POST", `${serverURL}/api/bookings`, bookingData, getAuthHeaders());
     if (response.status === 201 || response.status === 200) {
       return response;
     } else {
@@ -23,9 +109,7 @@ export const addBookingAPI = async (bookingData) => {
 // Get all bookings
 export const getBookingsAPI = async () => {
   try {
-    const response = await commonAPI("GET", `${serverURL}/api/bookings`, "", {
-      "Content-Type": "application/json"
-    });
+    const response = await commonAPI("GET", `${serverURL}/api/bookings`, "", getAuthHeaders());
     if (response.status === 200) {
       return response;
     } else {
@@ -40,9 +124,7 @@ export const getBookingsAPI = async () => {
 // Get booking by ID
 export const getBookingByIdAPI = async (id) => {
   try {
-    const response = await commonAPI("GET", `${serverURL}/api/bookings/${id}`, "", {
-      "Content-Type": "application/json"
-    });
+    const response = await commonAPI("GET", `${serverURL}/api/bookings/${id}`, "", getAuthHeaders());
     if (response.status === 200) {
       return response;
     } else {
@@ -74,9 +156,7 @@ export const updateBookingAPI = async (id, bookingData) => {
 // Delete booking
 export const deleteBookingAPI = async (id) => {
   try {
-    const response = await commonAPI("DELETE", `${serverURL}/api/bookings/${id}`, "", {
-      "Content-Type": "application/json"
-    });
+    const response = await commonAPI("DELETE", `${serverURL}/api/bookings/${id}`, "", getAuthHeaders());
     if (response.status === 200) {
       return response;
     } else {
@@ -141,4 +221,4 @@ export const adminLoginAPI = async (credentials) => {
     console.error("Error during admin login:", err);
     return err;
   }
-};
+};
