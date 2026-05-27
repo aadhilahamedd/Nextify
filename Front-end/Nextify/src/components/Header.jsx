@@ -47,6 +47,14 @@ function Header() {
               <Nav.Link as={Link} to="/contact" className="text-decoration-none border-0 text-white">Contact Us</Nav.Link>
               {isAdmin ? (
                 <>
+                  <Nav.Link
+                    as={Link}
+                    to="/admin"
+                    className="text-decoration-none border-0 text-white"
+                    style={{ fontWeight: 600 }}
+                  >
+                    Admin Dashboard
+                  </Nav.Link>
                   <span className="text-white" style={{ fontSize: '0.95rem', fontWeight: 600 }}>Hii, {user.username}</span>
                   <button
                     onClick={handleLogout}
