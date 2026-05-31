@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react'
 import Container from 'react-bootstrap/Container'
 import { useLocation } from 'react-router-dom'
-import { addBookingAPI } from '../Services/allAPI'
 import { buildBookingWhatsAppMessage, openCompanyWhatsApp } from '../utils/whatsapp'
+import { getStoredCars, initialCars } from '../utils/carsStorage'
 
 function Booking() {
   const location = useLocation()
   const carFromDetails = location.state?.car
-  
+
   const [activeTab, setActiveTab] = useState('airport')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -37,85 +37,67 @@ function Booking() {
     }
   }, [carFromDetails])
 
-  const vehicles = [
-    "Mercedes-Benz Sprinter",
-    "Lexus ES 350",
-    "Chevrolet Impala",
-    "Toyota Hiace",
-    "Toyota Coaster",
-    "Mercedes-Benz Coach Bus",
-    "Mercedes-Benz V-Class",
-    "Mercedes-Benz S-Class",
-    "Ford Taurus",
-    "GMC Yukon XL AT4",
-    "BMW 7 Series",
-    "BMW 5 Series",
-    "Mercedes-Benz E-Class",
-    "Mercedes-Benz eVito Tourer"
-  ]
+  const [vehicles, setVehicles] = useState(() => initialCars.map(car => car.name))
 
-  const handleBookingSubmit = async (e) => {
+  useEffect(() => {
+    const fetchCars = async () => {
+      const stored = await getStoredCars()
+      if (stored && Array.isArray(stored) && stored.length > 0) {
+        setVehicles(stored.map(car => car.name))
+      }
+    }
+    fetchCars()
+  }, [])
+
+  const handleBookingSubmit = (e) => {
     e.preventDefault()
     setError('')
     setSuccess('')
     setLoading(true)
 
-    try {
-      const bookingPayload = {
-        name: formData.name,
-        mobile: formData.mobile,
-        email: formData.email,
-        serviceType: activeTab,
-          eventType: formData.eventType,
-          eventOther: formData.eventOther,
-        flightNumber: formData.flightNumber,
-        arrivalDateTime: formData.arrivalDateTime,
-        vehicle: formData.vehicle,
-        pickupLocation: formData.pickupLocation,
-        otherPickupLocation: formData.otherPickupLocation,
-        dropoffLocation: formData.dropoffLocation,
-        hours: formData.hours
-      }
-
-      const whatsappMessage = buildBookingWhatsAppMessage(bookingPayload, activeTab)
-      const whatsappResult = openCompanyWhatsApp(whatsappMessage)
-
-      if (!whatsappResult.ok) {
-        setError(`❌ ${whatsappResult.error}`)
-        setLoading(false)
-        return
-      }
-
-      const response = await addBookingAPI(bookingPayload)
-      
-      if (response?.status === 201 || response?.status === 200) {
-        setSuccess('✅ Booking submitted! WhatsApp opened with your booking details — tap Send to confirm.')
-        // Reset form
-        setFormData({
-          name: '',
-          mobile: '',
-          email: '',
-            eventType: '',
-            eventOther: '',
-          flightNumber: '',
-          arrivalDateTime: '',
-          vehicle: '',
-          pickupLocation: '',
-          otherPickupLocation: '',
-          dropoffLocation: '',
-          hours: '5 HRS'
-        })
-        setTimeout(() => setSuccess(''), 5000)
-      } else {
-        const errorMsg = response?.response?.data?.message || response?.error || 'Failed to submit booking. Please try again.'
-        setError('❌ ' + errorMsg)
-      }
-    } catch (err) {
-      console.error('Booking error:', err)
-      setError('❌ Error submitting booking. Please check your connection and try again.')
-    } finally {
-      setLoading(false)
+    const bookingPayload = {
+      name: formData.name,
+      mobile: formData.mobile,
+      email: formData.email,
+      serviceType: activeTab,
+      eventType: formData.eventType,
+      eventOther: formData.eventOther,
+      flightNumber: formData.flightNumber,
+      arrivalDateTime: formData.arrivalDateTime,
+      vehicle: formData.vehicle,
+      pickupLocation: formData.pickupLocation,
+      otherPickupLocation: formData.otherPickupLocation,
+      dropoffLocation: formData.dropoffLocation,
+      hours: formData.hours
     }
+
+    const whatsappMessage = buildBookingWhatsAppMessage(bookingPayload, activeTab)
+    const whatsappResult = openCompanyWhatsApp(whatsappMessage)
+
+    if (!whatsappResult.ok) {
+      setError(`❌ ${whatsappResult.error}`)
+      setLoading(false)
+      return
+    }
+
+    // WhatsApp opened successfully — reset form and show confirmation
+    setSuccess('✅ WhatsApp opened with your booking details — tap Send to confirm your reservation!')
+    setFormData({
+      name: '',
+      mobile: '',
+      email: '',
+      eventType: '',
+      eventOther: '',
+      flightNumber: '',
+      arrivalDateTime: '',
+      vehicle: '',
+      pickupLocation: '',
+      otherPickupLocation: '',
+      dropoffLocation: '',
+      hours: '5 HRS'
+    })
+    setLoading(false)
+    setTimeout(() => setSuccess(''), 8000)
   }
 
   return (

@@ -29,7 +29,7 @@ function Login() {
     setTimeout(() => setAlert({ type: '', message: '' }), 5000);
   };
 
-    // Handle login
+  // Handle login
   const handleLogin = async (e) => {
     e.preventDefault();
     if (!loginData.email || !loginData.password) {
@@ -268,11 +268,11 @@ function Login() {
               </div>
 
               <button
-                  type="submit"
-                  className={`login-submit-btn`}
-                  disabled={loading}
-                  id="login-submit"
-                >
+                type="submit"
+                className={`login-submit-btn`}
+                disabled={loading}
+                id="login-submit"
+              >
                 {loading && <span className="btn-spinner"></span>}
                 {loading ? 'Signing in...' : 'Sign In'}
               </button>
@@ -287,7 +287,7 @@ function Login() {
                 </button>
               </div>
             )}
-          
+
           </div>
         )}
       </div>
