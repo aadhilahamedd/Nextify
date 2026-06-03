@@ -1,11 +1,12 @@
-import React, { useEffect, useMemo, useState, useRef } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import Container from 'react-bootstrap/Container'
 import { useNavigate } from 'react-router-dom'
-import { initialCars, getStoredCars, saveStoredCars } from '../utils/carsStorage'
+import { getCarImageUrl } from '../utils/carsStorage'
+import { getCarsAPI, addCarAPI, updateCarAPI, deleteCarAPI } from '../Services/allAPI'
 
 function Carlist() {
   const navigate = useNavigate();
-  const [cars, setCars] = useState(initialCars)
+  const [cars, setCars] = useState([])
   const [showModal, setShowModal] = useState(false)
   const [editingCar, setEditingCar] = useState(null)
   const [editData, setEditData] = useState({ name: '', price: '', type: '', seats: '', luggage: '', img: '' })
@@ -35,7 +36,7 @@ function Carlist() {
       luggage: car.luggage,
       img: car.img
     })
-    setPreview(car.img)
+    setPreview(getCarImageUrl(car.img))
     setShowModal(true)
   }
 
@@ -67,23 +68,37 @@ function Carlist() {
     reader.readAsDataURL(file)
   }
 
-  const saveAdd = () => {
+  const fetchCars = async () => {
+    const response = await getCarsAPI()
+    if (response && response.data && Array.isArray(response.data)) {
+      setCars(response.data)
+    }
+  }
+
+  useEffect(() => {
+    fetchCars()
+  }, [])
+
+  const saveAdd = async () => {
     const trimmedName = editData.name.trim()
     if (!trimmedName) return
-    const nextId = cars.length ? Math.max(...cars.map((car) => car.id)) + 1 : 1
-    setCars((prev) => [
-      ...prev,
-      {
-        id: nextId,
-        name: trimmedName,
-        price: editData.price || '$0/day',
-        type: editData.type || 'Unknown',
-        seats: editData.seats || 'N/A',
-        luggage: editData.luggage || 'N/A',
-        img: editData.img || 'https://images.unsplash.com/photo-1570125909232-eb263c188f7e?auto=format&fit=crop&q=80&w=800'
-      }
-    ])
-    closeModal()
+    
+    const newCar = {
+      name: trimmedName,
+      price: editData.price || '$0/day',
+      type: editData.type || 'Unknown',
+      seats: editData.seats || 'N/A',
+      luggage: editData.luggage || 'N/A',
+      img: editData.img
+    }
+
+    const response = await addCarAPI(newCar)
+    if (response.status === 201 || response.status === 200) {
+      fetchCars()
+      closeModal()
+    } else {
+      alert(response.error || 'Failed to add car')
+    }
   }
 
   useEffect(() => {
@@ -98,40 +113,25 @@ function Carlist() {
     }
   }, [showModal]);
 
-  // Load cars from IndexedDB on mount
-  useEffect(() => {
-    const loadData = async () => {
-      const saved = await getStoredCars()
-      if (saved && Array.isArray(saved) && saved.length > 0) {
-        setCars(saved)
-      }
-    }
-    loadData()
-  }, [])
-
-  // Sync cars to IndexedDB whenever they change (skipping the initial render write)
-  const isFirstRender = useRef(true)
-  useEffect(() => {
-    if (isFirstRender.current) {
-      isFirstRender.current = false
-      return
-    }
-    saveStoredCars(cars)
-  }, [cars])
-
-  const saveEdit = () => {
+  const saveEdit = async () => {
     if (!editingCar) return
-    setCars((prev) => prev.map((car) => (
-      car.id === editingCar.id
-        ? { ...car, ...editData }
-        : car
-    )))
-    closeModal()
+    const response = await updateCarAPI(editingCar.id, editData)
+    if (response.status === 200) {
+      fetchCars()
+      closeModal()
+    } else {
+      alert(response.error || 'Failed to update car')
+    }
   }
 
-  const deleteCar = (carId) => {
+  const deleteCar = async (carId) => {
     if (!window.confirm('Delete this car from the list?')) return
-    setCars((prev) => prev.filter((car) => car.id !== carId))
+    const response = await deleteCarAPI(carId)
+    if (response.status === 200) {
+      fetchCars()
+    } else {
+      alert(response.error || 'Failed to delete car')
+    }
   }
 
   const getCarCategory = (car) => {
@@ -227,19 +227,21 @@ function Carlist() {
                   }}
                 >
                   <div className="position-relative mb-4" style={{ height: '220px', backgroundColor: '#1a1a1a', borderRadius: '8px', overflow: 'hidden' }}>
-                  <img 
-                    src={car.img} 
-                    alt={car.name} 
-                    style={{ 
-                      width: '100%', 
-                      height: '100%', 
-                      objectFit: 'cover', 
-                      filter: 'contrast(1.1) saturate(1.1)',
-                      transition: 'transform 0.5s ease'
-                    }} 
-                    onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
-                    onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                  />
+                  {car.img && (
+                    <img
+                      src={getCarImageUrl(car.img)}
+                      alt={car.name}
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                        filter: 'contrast(1.1) saturate(1.1)',
+                        transition: 'transform 0.5s ease'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
+                      onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                    />
+                  )}
                   {isAdmin && (
                     <div style={{ position: 'absolute', top: 12, right: 12, display: 'flex', gap: '10px' }}>
                       <button type="button" onClick={(e) => { e.stopPropagation(); openEditModal(car) }} style={actionIconStyle} title="Edit car">
@@ -309,7 +311,7 @@ function Carlist() {
                 <label style={{ color: '#f3f3f3', fontSize: '0.9rem' }}>Cover Image</label>
                 <div style={{ width: '100%', minHeight: '180px', borderRadius: '16px', overflow: 'hidden', background: '#111', border: '1px solid rgba(255,255,255,0.08)' }}>
                   {(preview || editData.img) ? (
-                    <img src={preview || editData.img} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <img src={preview || getCarImageUrl(editData.img)} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   ) : null}
                 </div>
                 <input type="file" accept="image/*" onChange={handleImageSelect} style={{ color: '#fff' }} />

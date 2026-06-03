@@ -5,6 +5,22 @@ import impala from '../assets/Car list/Chevrolet Impala LTZ 2014-20.jpeg'
 import hiace from '../assets/Car list/Toyota Hiace.png'
 import lexusES from '../assets/Car list/Lexus ES 350.jpeg'
 
+const localImages = {
+  'local_sprinter': sprinter,
+  'local_lexus_es': lexusES,
+  'local_impala': impala,
+  'local_hiace': hiace,
+  'local_benz_s': benzS,
+  'local_bmw_7': bmw7
+}
+
+export function getCarImageUrl(imgStr) {
+  if (localImages[imgStr]) {
+    return localImages[imgStr]
+  }
+  return imgStr
+}
+
 export const initialCars = [
   {
     id: 1,

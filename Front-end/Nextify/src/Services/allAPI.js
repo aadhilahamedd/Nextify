@@ -222,3 +222,65 @@ export const adminLoginAPI = async (credentials) => {
     return err;
   }
 };
+
+// ====== CAR FLEET APIs ======
+
+// Get all cars
+export const getCarsAPI = async () => {
+  try {
+    const response = await commonAPI("GET", `${serverURL}/api/cars`, "");
+    if (response.status === 200) {
+      return response;
+    } else {
+      throw new Error(response.response?.data?.message || "Failed to fetch cars");
+    }
+  } catch (err) {
+    console.error("Error fetching cars:", err);
+    return { status: 500, error: err.message };
+  }
+};
+
+// Add new car (admin only)
+export const addCarAPI = async (carData) => {
+  try {
+    const response = await commonAPI("POST", `${serverURL}/api/cars`, carData, getAuthHeaders());
+    if (response.status === 201 || response.status === 200) {
+      return response;
+    } else {
+      throw new Error(response.response?.data?.message || "Failed to add car");
+    }
+  } catch (err) {
+    console.error("Error adding car:", err);
+    return { status: 500, error: err.message };
+  }
+};
+
+// Update existing car (admin only)
+export const updateCarAPI = async (id, carData) => {
+  try {
+    const response = await commonAPI("PUT", `${serverURL}/api/cars/${id}`, carData, getAuthHeaders());
+    if (response.status === 200) {
+      return response;
+    } else {
+      throw new Error(response.response?.data?.message || "Failed to update car");
+    }
+  } catch (err) {
+    console.error("Error updating car:", err);
+    return { status: 500, error: err.message };
+  }
+};
+
+// Delete car (admin only)
+export const deleteCarAPI = async (id) => {
+  try {
+    const response = await commonAPI("DELETE", `${serverURL}/api/cars/${id}`, "", getAuthHeaders());
+    if (response.status === 200) {
+      return response;
+    } else {
+      throw new Error(response.response?.data?.message || "Failed to delete car");
+    }
+  } catch (err) {
+    console.error("Error deleting car:", err);
+    return { status: 500, error: err.message };
+  }
+};

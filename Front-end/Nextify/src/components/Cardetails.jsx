@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { getCarImageUrl } from '../utils/carsStorage';
 import Container from 'react-bootstrap/Container';
 import Row from 'react-bootstrap/Row';
 import Col from 'react-bootstrap/Col';
@@ -35,7 +36,7 @@ function Cardetails() {
           <Col lg={7}>
             <div className="position-relative" style={{ borderRadius: '12px', overflow: 'hidden', backgroundColor: '#141414', border: '1px solid rgba(255,255,255,0.05)', boxShadow: '0 20px 40px rgba(0,0,0,0.5)' }}>
               <img 
-                src={car.img} 
+                src={getCarImageUrl(car.img)} 
                 alt={car.name} 
                 className="img-fluid w-100" 
                 style={{ objectFit: 'cover', height: '100%', minHeight: '400px', maxHeight: '550px', filter: 'contrast(1.1) saturate(1.1)' }} 

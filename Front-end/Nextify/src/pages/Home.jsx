@@ -13,7 +13,8 @@ import fordLogo from '../assets/Brands/Ford logo.webp'
 import gmcLogo from '../assets/Brands/GMC logo.jpg'
 import bmwLogo from '../assets/Brands/BMWlogo.webp'
 import { buildBookingWhatsAppMessage, openCompanyWhatsApp } from '../utils/whatsapp'
-import { getStoredCars, initialCars } from '../utils/carsStorage'
+import { getCarImageUrl } from '../utils/carsStorage'
+import { getCarsAPI } from '../Services/allAPI'
 
 const backgrounds = [bmw7, benzS, lexusES];
 
@@ -36,15 +37,15 @@ function Home() {
     hours: '5 HRS'
   });
 
-  const [dbCars, setDbCars] = useState(initialCars);
-  const [vehicles, setVehicles] = useState(() => initialCars.map(car => car.name));
+  const [dbCars, setDbCars] = useState([]);
+  const [vehicles, setVehicles] = useState([]);
 
   useEffect(() => {
     const fetchCars = async () => {
-      const stored = await getStoredCars();
-      if (stored && Array.isArray(stored) && stored.length > 0) {
-        setDbCars(stored);
-        setVehicles(stored.map(car => car.name));
+      const response = await getCarsAPI();
+      if (response && response.data && Array.isArray(response.data)) {
+        setDbCars(response.data);
+        setVehicles(response.data.map(car => car.name));
       }
     };
     fetchCars();
@@ -312,66 +313,60 @@ function Home() {
           </div>
 
           <div className="row g-4">
-            {[
-              { name: 'BMW 7 Series', img: bmw7, price: '$250/day', type: 'Luxury Sedan', seats: '3–5 passengers', luggage: '515–540 Liters' },
-              { name: 'Mercedes S-Class', img: benzS, price: '$280/day', type: 'Premium Executive', seats: '3–4 passengers', luggage: '3-4 Bags' },
-              { name: 'Lexus ES 350', img: lexusES, price: '$200/day', type: 'Elegant Comfort', seats: '3 passengers', luggage: '3-4 Bags' }
-            ].map((car, i) => {
-              const matchedCar = findDbCar(car.name) || car;
-              return (
-                <div key={i} className="col-lg-4 col-md-6">
-                  <div
-                    className="h-100 p-4 d-flex flex-column"
-                    style={{
-                      backgroundColor: '#141414',
-                      border: '1px solid rgba(255,255,255,0.05)',
-                      transition: 'transform 0.3s ease, border-color 0.3s ease',
-                      cursor: 'pointer'
-                    }}
-                    onClick={() => handleEliteCarClick(matchedCar)}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.transform = 'translateY(-10px)';
-                      e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.transform = 'translateY(0)';
-                      e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)';
-                    }}
-                  >
-                    <div className="mb-4" style={{ height: '220px', backgroundColor: '#1a1a1a', borderRadius: '8px', overflow: 'hidden' }}>
-                      <img 
-                        src={matchedCar.img} 
-                        alt={matchedCar.name} 
-                        style={{ 
-                          width: '100%', 
-                          height: '100%', 
-                          objectFit: 'cover', 
-                          filter: 'contrast(1.2) saturate(1.3)',
-                          transition: 'transform 0.5s ease'
-                        }} 
-                        onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
-                        onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                      />
-                    </div>
-                    <p className="mb-1 text-uppercase" style={{ fontSize: '0.7rem', color: '#a0a0a0', letterSpacing: '1px' }}>{matchedCar.type}</p>
-                    <h3 className="h4 mb-3" style={{ fontFamily: 'Georgia, serif' }}>{matchedCar.name}</h3>
-                    <div className="d-flex justify-content-between align-items-center mt-auto pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-                      <span className="fw-bold fs-5">{matchedCar.price}</span>
-                      <button
-                        className="btn btn-outline-light btn-sm px-3 rounded-0 text-uppercase"
-                        style={{ fontSize: '0.7rem', letterSpacing: '1px' }}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleEliteCarClick(matchedCar)
-                        }}
-                      >
-                        Rent Now
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
+            {
+  dbCars.slice(0, 6).map((car, i) => (
+    <div key={i} className="col-lg-4 col-md-6">
+      <div
+        className="h-100 p-4 d-flex flex-column"
+        style={{
+          backgroundColor: '#141414',
+          border: '1px solid rgba(255,255,255,0.05)',
+          transition: 'transform 0.3s ease, border-color 0.5s ease',
+          cursor: 'pointer'
+        }}
+        onClick={() => handleEliteCarClick(car)}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.transform = 'translateY(-10px)';
+          e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)';
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.transform = 'translateY(0)';
+          e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)';
+        }}
+      >
+        <div className="mb-4" style={{ height: '220px', backgroundColor: '#1a1a1a', borderRadius: '8px', overflow: 'hidden' }}>
+          {car.img && (
+            <img
+              src={getCarImageUrl(car.img)}
+              alt={car.name}
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                filter: 'contrast(1.2) saturate(1.3)',
+                transition: 'transform 0.5s ease'
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.1)')}
+              onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
+            />
+          )}
+        </div>
+        <p className="mb-1 text-uppercase" style={{ fontSize: '0.7rem', color: '#a0a0a0', letterSpacing: '1px' }}>{car.type}</p>
+        <h3 className="h4 mb-3" style={{ fontFamily: 'Georgia, serif' }}>{car.name}</h3>
+        <div className="d-flex justify-content-between align-items-center mt-auto pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+          <span className="fw-bold fs-5">{car.price}</span>
+          <button
+            className="btn btn-outline-light btn-sm px-3 rounded-0 text-uppercase"
+            style={{ fontSize: '0.7rem', letterSpacing: '1px' }}
+            onClick={(e) => { e.stopPropagation(); handleEliteCarClick(car); }}
+          >
+            Rent Now
+          </button>
+        </div>
+      </div>
+    </div>
+  ))
+}
           </div>
         </Container>
       </section>

@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react'
 import Container from 'react-bootstrap/Container'
 import { useLocation } from 'react-router-dom'
 import { buildBookingWhatsAppMessage, openCompanyWhatsApp } from '../utils/whatsapp'
-import { getStoredCars, initialCars } from '../utils/carsStorage'
+import { getCarsAPI } from '../Services/allAPI'
+import { initialCars } from '../utils/carsStorage'
 
 function Booking() {
   const location = useLocation()
@@ -41,9 +42,9 @@ function Booking() {
 
   useEffect(() => {
     const fetchCars = async () => {
-      const stored = await getStoredCars()
-      if (stored && Array.isArray(stored) && stored.length > 0) {
-        setVehicles(stored.map(car => car.name))
+      const response = await getCarsAPI()
+      if (response && response.data && Array.isArray(response.data)) {
+        setVehicles(response.data.map(car => car.name))
       }
     }
     fetchCars()
