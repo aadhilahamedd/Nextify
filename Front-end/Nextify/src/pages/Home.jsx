@@ -13,7 +13,7 @@ import fordLogo from '../assets/Brands/Ford logo.webp'
 import gmcLogo from '../assets/Brands/GMC logo.jpg'
 import bmwLogo from '../assets/Brands/BMWlogo.webp'
 import { buildBookingWhatsAppMessage, openCompanyWhatsApp } from '../utils/whatsapp'
-import { getCarImageUrl } from '../utils/carsStorage'
+import { getCarImageUrl, initialCars } from '../utils/carsStorage'
 import { getCarsAPI } from '../Services/allAPI'
 
 const backgrounds = [bmw7, benzS, lexusES];
@@ -46,6 +46,10 @@ function Home() {
       if (response && response.data && Array.isArray(response.data)) {
         setDbCars(response.data);
         setVehicles(response.data.map(car => car.name));
+      } else {
+        console.warn('Car API fetch failed, falling back to local data:', response)
+        setDbCars(initialCars);
+        setVehicles(initialCars.map(car => car.name));
       }
     };
     fetchCars();

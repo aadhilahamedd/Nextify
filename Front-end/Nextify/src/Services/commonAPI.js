@@ -6,13 +6,20 @@ const commonAPI = async (httpMethod, url, reqBody,reqHeaders) => {
         method: httpMethod,
         url: url,
         data: reqBody,
-        headers:reqHeaders
+        headers: reqHeaders
     }
-    return await axios(reqConfig).then(res => {
-        return res
-    }).catch(err => {
-        return err
-    })
+    return await axios(reqConfig)
+        .then(res => res)
+        .catch(err => {
+            if (err.response) {
+                return err.response
+            }
+            return {
+                status: 500,
+                data: { message: err.message || 'Network error' },
+                error: err.message || 'Network error'
+            }
+        })
 }
 
 export default commonAPI;

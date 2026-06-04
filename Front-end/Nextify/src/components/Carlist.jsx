@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import Container from 'react-bootstrap/Container'
 import { useNavigate } from 'react-router-dom'
-import { getCarImageUrl } from '../utils/carsStorage'
+import { getCarImageUrl, initialCars } from '../utils/carsStorage'
 import { getCarsAPI, addCarAPI, updateCarAPI, deleteCarAPI } from '../Services/allAPI'
 
 function Carlist() {
@@ -72,6 +72,9 @@ function Carlist() {
     const response = await getCarsAPI()
     if (response && response.data && Array.isArray(response.data)) {
       setCars(response.data)
+    } else {
+      console.warn('Car API fetch failed, falling back to local data:', response)
+      setCars(initialCars)
     }
   }
 
