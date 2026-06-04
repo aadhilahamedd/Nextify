@@ -67,7 +67,7 @@ function Header() {
               ) : (
                 <Link
                   to="/login"
-                  className="btn text-white rounded-pill px-4 py-2 text-decoration-none"
+                  className="btn text-white rounded-pill px-3 py-2 text-decoration-none"
                   style={{ border: '1px solid rgba(255,255,255,0.18)', backgroundColor: 'transparent', display: 'flex', alignItems: 'center', gap: '8px' }}
                 >
                   Login <i className="bi bi-box-arrow-in-right"></i>
