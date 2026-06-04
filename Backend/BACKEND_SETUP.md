@@ -38,10 +38,22 @@ The server will run on `http://localhost:3000`
 
 ### Bookings
 - **POST** `/api/bookings` - Create a new booking
-- **GET** `/api/bookings` - Get all bookings
+- **GET** `/api/bookings` - Get all bookings (admin)
 - **GET** `/api/bookings/:id` - Get booking by ID
 - **PUT** `/api/bookings/:id` - Update booking
 - **DELETE** `/api/bookings/:id` - Delete booking
+
+### Contact messages
+- **POST** `/api/messages` - Submit contact form (public)
+- **GET** `/api/messages` - List all messages (admin, requires JWT)
+- **PATCH** `/api/messages/:id/read` - Mark message as read (admin)
+- **DELETE** `/api/messages/:id` - Delete message (admin)
+
+**Deploy note:** If `POST /api/messages` returns 404 on Render, push these files and redeploy:
+- `Backend/models/Message.js`
+- `Backend/controllers/messageController.js`
+- `Backend/middleware/adminMiddleware.js`
+- `Backend/routes/route.js` (updated)
 
 ## Request/Response Examples
 

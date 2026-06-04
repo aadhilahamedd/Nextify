@@ -3,7 +3,7 @@ const Booking = require('../models/Booking');
 // Add booking
 exports.addBooking = async (req, res) => {
   try {
-    const { name, mobile, email, serviceType, flightNumber, arrivalDateTime, vehicle, pickupLocation, otherPickupLocation, dropoffLocation, hours } = req.body;
+    const { name, mobile, email, eventType, eventOther, serviceType, flightNumber, arrivalDateTime, vehicle, pickupLocation, otherPickupLocation, dropoffLocation, hours } = req.body;
 
     // Validate required fields
     if (!name || !mobile || !email || !serviceType || !arrivalDateTime || !vehicle || !pickupLocation || !dropoffLocation) {
@@ -14,6 +14,8 @@ exports.addBooking = async (req, res) => {
       name,
       mobile,
       email,
+      eventType: eventType || '',
+      eventOther: eventOther || '',
       serviceType,
       flightNumber: flightNumber || '',
       arrivalDateTime: new Date(arrivalDateTime),
@@ -38,7 +40,7 @@ exports.addBooking = async (req, res) => {
 // Get all bookings
 exports.getBookings = async (req, res) => {
   try {
-    const bookings = await Booking.find();
+    const bookings = await Booking.find().sort({ createdAt: -1 });
     return res.status(200).json(bookings);
   } catch (err) {
     console.log(err);

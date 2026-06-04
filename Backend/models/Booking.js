@@ -13,6 +13,14 @@ const bookingSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  eventType: {
+    type: String,
+    default: ''
+  },
+  eventOther: {
+    type: String,
+    default: ''
+  },
   serviceType: {
     type: String,
     enum: ['airport', 'pointToPoint', 'hourly'],
