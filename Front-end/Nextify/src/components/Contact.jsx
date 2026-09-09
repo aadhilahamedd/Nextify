@@ -18,9 +18,9 @@ function Contact() {
   const [statusType, setStatusType] = useState('success')
   const [submitting, setSubmitting] = useState(false)
   const contactDefaults = {
-    phone: '+1 234 567 8900',
-    email: 'hello@nextify.com',
-    location: 'Los Angeles, CA'
+    phone: '+966 11 234 5678',
+    email: 'hello@nextify.sa',
+    location: 'Riyadh, Saudi Arabia'
   }
   const [contactInfo, setContactInfo] = useState(() => {
     const saved = localStorage.getItem('nextifyContactInfo')

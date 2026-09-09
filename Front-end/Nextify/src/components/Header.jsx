@@ -44,6 +44,8 @@ function Header() {
               <Nav.Link as={Link} to="/" className="text-decoration-none border-0" style={{ color: '#cda274' }}>Home</Nav.Link>
               <Nav.Link as={Link} to="/about" className="text-decoration-none border-0 text-white">About Us</Nav.Link>
               <Nav.Link as={Link} to="/carlist" className="text-decoration-none border-0 text-white">Car List</Nav.Link>
+              <Nav.Link as={Link} to="/booking" className="text-decoration-none border-0 text-white">Book Now</Nav.Link>
+              <Nav.Link as={Link} to="/track-booking" className="text-decoration-none border-0 text-white">Track Booking</Nav.Link>
               <Nav.Link as={Link} to="/contact" className="text-decoration-none border-0 text-white">Contact Us</Nav.Link>
               {isAdmin ? (
                 <>

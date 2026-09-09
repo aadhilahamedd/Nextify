@@ -6,7 +6,14 @@ import {
   getBookingsAPI,
   getContactMessagesAPI,
   markMessageReadAPI,
+  getBookingStatsAPI,
+  getDriversAPI,
+  assignDriverAPI,
+  updateBookingAPI,
+  getPaymentsAPI,
 } from '../Services/allAPI';
+import AdminDriversPanel from '../components/admin/AdminDriversPanel';
+import AdminPricingPanel from '../components/admin/AdminPricingPanel';
 import {
   getLocalContactMessages,
   markLocalContactMessageRead,
@@ -15,14 +22,30 @@ import {
 
 const SERVICE_LABELS = {
   airport: 'Airport Transfer',
-  pointToPoint: 'Point to Point',
-  hourly: 'Hourly Service',
+  pointToPoint: 'City Transfer',
+  hourly: 'Chauffeur Service',
+  AIRPORT_TRANSFER: 'Airport Transfer',
+  POINT_TO_POINT: 'City Transfer',
+  HOURLY: 'Chauffeur Service',
+  airport_transfer: 'Airport Transfer',
+  city_transfer: 'City Transfer',
+  chauffeur: 'Chauffeur Service',
+  intercity_transfer: 'Intercity Transfer',
+  gcc_transfer: 'GCC Transfer',
 };
 
 const STATUS_COLORS = {
   pending: '#eeb012',
+  PAYMENT_PENDING: '#eeb012',
+  PENDING: '#eeb012',
   confirmed: '#43e97b',
+  CONFIRMED: '#43e97b',
+  DRIVER_ASSIGNED: '#667eea',
+  DRIVER_ON_THE_WAY: '#764ba2',
+  IN_PROGRESS: '#43e97b',
+  COMPLETED: '#43e97b',
   cancelled: '#f5576c',
+  CANCELLED: '#f5576c',
 };
 
 const sectionCardStyle = {
@@ -66,6 +89,9 @@ function Admin() {
   const [bookingsLoading, setBookingsLoading] = useState(true);
   const [bookingsError, setBookingsError] = useState('');
   const [expandedBookingId, setExpandedBookingId] = useState(null);
+  const [stats, setStats] = useState(null);
+  const [drivers, setDrivers] = useState([]);
+  const [payments, setPayments] = useState([]);
 
   const fetchMessages = useCallback(async () => {
     setMessagesLoading(true);
@@ -118,6 +144,21 @@ function Admin() {
     setBookingsLoading(false);
   }, []);
 
+  const fetchStats = useCallback(async () => {
+    const res = await getBookingStatsAPI();
+    if (res?.status === 200) setStats(res.data?.stats || res.data);
+  }, []);
+
+  const fetchDrivers = useCallback(async () => {
+    const res = await getDriversAPI();
+    if (res?.status === 200) setDrivers(Array.isArray(res.data) ? res.data : []);
+  }, []);
+
+  const fetchPayments = useCallback(async () => {
+    const res = await getPaymentsAPI();
+    if (res?.status === 200) setPayments(res.data?.payments || []);
+  }, []);
+
   useEffect(() => {
     const token = localStorage.getItem('token');
     const userData = localStorage.getItem('user');
@@ -136,7 +177,10 @@ function Admin() {
     setUser(parsedUser);
     fetchMessages();
     fetchBookings();
-  }, [navigate, fetchMessages, fetchBookings]);
+    fetchStats();
+    fetchDrivers();
+    fetchPayments();
+  }, [navigate, fetchMessages, fetchBookings, fetchStats, fetchDrivers, fetchPayments]);
 
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -199,10 +243,39 @@ function Admin() {
     if (response?.status === 200) {
       setBookings((prev) => prev.filter((item) => item._id !== id));
       if (expandedBookingId === id) setExpandedBookingId(null);
+      fetchStats();
     } else {
       alert(response?.response?.data?.message || 'Failed to delete booking.');
     }
   };
+
+  const handleStatusChange = async (bookingId, bookingStatus) => {
+    const res = await updateBookingAPI(bookingId, { bookingStatus });
+    if (res?.status === 200) {
+      fetchBookings();
+      fetchStats();
+    } else {
+      alert(res?.error || 'Failed to update status');
+    }
+  };
+
+  const handleAssignDriver = async (bookingId, driverId) => {
+    if (!driverId) return;
+    const res = await assignDriverAPI(bookingId, driverId);
+    if (res?.status === 200) {
+      fetchBookings();
+      fetchDrivers();
+      fetchStats();
+    } else {
+      alert(res?.error || res?.data?.message || 'Failed to assign driver');
+    }
+  };
+
+  const getBookingDisplayName = (booking) =>
+    booking.customer?.name || booking.name || 'Guest';
+
+  const getBookingVehicle = (booking) =>
+    booking.vehicle?.name || booking.vehicleName || booking.vehicle || '—';
 
   const formatDate = (dateStr) => {
     if (!dateStr) return '—';
@@ -210,7 +283,9 @@ function Admin() {
   };
 
   const newCount = messages.filter((m) => m.status === 'new').length;
-  const pendingBookings = bookings.filter((b) => b.bookingStatus === 'pending').length;
+  const pendingBookings = bookings.filter((b) =>
+    ['pending', 'PAYMENT_PENDING', 'PENDING'].includes(b.bookingStatus)
+  ).length;
 
   if (!user) return null;
 
@@ -283,8 +358,10 @@ function Admin() {
         >
           {[
             { label: 'New Messages', value: String(newCount), icon: '✉', color: '#eeb012' },
-            { label: 'Total Bookings', value: String(bookings.length), icon: '🚗', color: '#667eea' },
-            { label: 'Pending Bookings', value: String(pendingBookings), icon: '⏳', color: '#f5576c' },
+            { label: 'Total Bookings', value: String(stats?.totalBookings ?? bookings.length), icon: '🚗', color: '#667eea' },
+            { label: 'Pending', value: String(stats?.pendingBookings ?? pendingBookings), icon: '⏳', color: '#f5576c' },
+            { label: 'Revenue (SAR)', value: String(stats?.totalRevenue ?? 0), icon: '💰', color: '#43e97b' },
+            { label: 'Active Trips', value: String(stats?.activeTrips ?? 0), icon: '🛣', color: '#764ba2' },
           ].map((item, i) => (
             <div
               key={i}
@@ -351,7 +428,7 @@ function Admin() {
                 borderRadius: '10px',
                 background: 'rgba(245, 87, 108, 0.12)',
                 border: '1px solid rgba(245, 87, 108, 0.35)',
-                color: '#f5576c',
+                color: '#8e8e8e',
                 marginBottom: '16px',
               }}
             >
@@ -375,7 +452,7 @@ function Admin() {
                     key={msg._id}
                     style={{
                       background: 'rgba(0,0,0,0.25)',
-                      border: `1px solid ${msg.status === 'new' ? 'rgba(238, 176, 18, 0.35)' : 'rgba(255,255,255,0.08)'}`,
+                      border: `1px solid ${msg.status === 'new' ? 'rgba(255, 255, 255, 0.35)' : 'rgba(255,255,255,0.08)'}`,
                       borderRadius: '12px',
                       overflow: 'hidden',
                     }}
@@ -409,8 +486,8 @@ function Admin() {
                                 letterSpacing: '0.5px',
                                 padding: '3px 8px',
                                 borderRadius: '20px',
-                                background: 'rgba(238, 176, 18, 0.2)',
-                                color: '#eeb012',
+                                background: 'rgba(255, 255, 255, 0.2)',
+                                color: '#ffffff',
                               }}
                             >
                               New
@@ -484,7 +561,7 @@ function Admin() {
                               background: 'rgba(245, 87, 108, 0.12)',
                               border: '1px solid rgba(245, 87, 108, 0.35)',
                               borderRadius: '8px',
-                              color: '#f5576c',
+                              color: '#8e8e8e',
                               fontSize: '13px',
                               fontWeight: '600',
                               cursor: 'pointer',
@@ -537,7 +614,7 @@ function Admin() {
                 borderRadius: '10px',
                 background: 'rgba(245, 87, 108, 0.12)',
                 border: '1px solid rgba(245, 87, 108, 0.35)',
-                color: '#f5576c',
+                color: '#8e8e8e',
                 marginBottom: '16px',
               }}
             >
@@ -567,7 +644,7 @@ function Admin() {
                     key={booking._id}
                     style={{
                       background: 'rgba(0,0,0,0.25)',
-                      border: `1px solid ${status === 'pending' ? 'rgba(102, 126, 234, 0.35)' : 'rgba(255,255,255,0.08)'}`,
+                      border: `1px solid ${status === 'pending' ? 'rgba(51, 51, 51, 0.35)' : 'rgba(255,255,255,0.08)'}`,
                       borderRadius: '12px',
                       overflow: 'hidden',
                     }}
@@ -591,7 +668,7 @@ function Admin() {
                     >
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', marginBottom: '6px' }}>
-                          <span style={{ fontWeight: '700', fontSize: '15px' }}>{booking.name}</span>
+                          <span style={{ fontWeight: '700', fontSize: '15px' }}>{getBookingDisplayName(booking)}</span>
                           <span
                             style={{
                               fontSize: '10px',
@@ -600,15 +677,17 @@ function Admin() {
                               letterSpacing: '0.5px',
                               padding: '3px 8px',
                               borderRadius: '20px',
-                              background: `${STATUS_COLORS[status] || '#eeb012'}22`,
-                              color: STATUS_COLORS[status] || '#eeb012',
+                              background: `${STATUS_COLORS[status] || '#ffffff'}22`,
+                              color: STATUS_COLORS[status] || '#ffffff',
                             }}
                           >
                             {status}
                           </span>
                         </div>
                         <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: '13px' }}>
-                          {booking.vehicle} • {SERVICE_LABELS[booking.serviceType] || booking.serviceType}
+                          {booking.bookingNumber && `${booking.bookingNumber} · `}
+                          {getBookingVehicle(booking)} • {SERVICE_LABELS[booking.serviceType] || booking.serviceType}
+                          {booking.pricing?.totalAmount ? ` · ${booking.pricing.totalAmount} ${booking.pricing.currency || 'SAR'}` : ''}
                         </div>
                         <div style={{ color: 'rgba(255,255,255,0.35)', fontSize: '12px', marginTop: '4px' }}>
                           {formatDate(booking.createdAt)}
@@ -630,24 +709,49 @@ function Admin() {
                             marginBottom: '16px',
                           }}
                         >
-                          <DetailField label="Customer Name" value={booking.name} />
-                          <DetailField label="Car / Vehicle" value={booking.vehicle} />
+                          <DetailField label="Booking #" value={booking.bookingNumber} />
+                          <DetailField label="Customer Name" value={getBookingDisplayName(booking)} />
+                          <DetailField label="Vehicle + Chauffeur" value={getBookingVehicle(booking)} />
                           <DetailField label="Service Type" value={SERVICE_LABELS[booking.serviceType] || booking.serviceType} />
-                          <DetailField label="Mobile" value={booking.mobile} />
-                          <DetailField label="Email" value={booking.email} />
-                          <DetailField label="Status" value={status} />
+                          <DetailField label="Mobile" value={booking.customer?.mobile || booking.mobile} />
+                          <DetailField label="Email" value={booking.customer?.email || booking.email} />
+                          <DetailField label="Booking Status" value={status} />
+                          <DetailField label="Payment Status" value={booking.paymentStatus || '—'} />
+                          <DetailField label="Total" value={booking.pricing?.totalAmount ? `${booking.pricing.totalAmount} ${booking.pricing.currency || 'SAR'}` : '—'} />
                           {eventLabel && <DetailField label="Event" value={eventLabel} />}
-                          {booking.flightNumber && <DetailField label="Flight Number" value={booking.flightNumber} />}
-                          <DetailField label="Date & Time" value={formatDate(booking.arrivalDateTime)} />
-                          <DetailField label="Pick-up Location" value={booking.pickupLocation} />
-                          {booking.otherPickupLocation && (
-                            <DetailField label="Other Pick-up" value={booking.otherPickupLocation} />
+                          {(booking.flight?.flightNumber || booking.flightNumber) && (
+                            <DetailField label="Flight Number" value={booking.flight?.flightNumber || booking.flightNumber} />
                           )}
-                          <DetailField label="Drop-off Location" value={booking.dropoffLocation} />
-                          {booking.serviceType === 'hourly' && (
-                            <DetailField label="Hours" value={booking.hours} />
+                          <DetailField label="Date & Time" value={formatDate(booking.schedule?.pickupDateTime || booking.arrivalDateTime)} />
+                          <DetailField label="Pick-up" value={booking.pickup?.address || booking.pickupLocation} />
+                          <DetailField label="Destination" value={booking.destination?.address || booking.dropoffLocation} />
+                          {(booking.serviceType === 'hourly' || booking.serviceType === 'HOURLY') && (
+                            <DetailField label="Hours" value={booking.hourlyBooking?.hours || booking.hours} />
                           )}
                           <DetailField label="Booked On" value={formatDate(booking.createdAt)} />
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 12 }}>
+                          <select
+                            className="form-select form-select-sm"
+                            style={{ maxWidth: 220 }}
+                            value={status}
+                            onChange={(e) => handleStatusChange(booking._id, e.target.value)}
+                          >
+                            {['PAYMENT_PENDING', 'CONFIRMED', 'DRIVER_ASSIGNED', 'DRIVER_ON_THE_WAY', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'].map((s) => (
+                              <option key={s} value={s}>{s}</option>
+                            ))}
+                          </select>
+                          <select
+                            className="form-select form-select-sm"
+                            style={{ maxWidth: 220 }}
+                            defaultValue=""
+                            onChange={(e) => handleAssignDriver(booking._id, e.target.value)}
+                          >
+                            <option value="">Assign driver...</option>
+                            {drivers.filter((d) => d.active).map((d) => (
+                              <option key={d._id} value={d._id}>{d.name} ({d.status})</option>
+                            ))}
+                          </select>
                         </div>
                         <div style={{ marginTop: '8px', textAlign: 'right' }}>
                           <button
@@ -658,7 +762,7 @@ function Admin() {
                               background: 'rgba(245, 87, 108, 0.12)',
                               border: '1px solid rgba(245, 87, 108, 0.35)',
                               borderRadius: '8px',
-                              color: '#f5576c',
+                              color: '#8e8e8e',
                               fontSize: '13px',
                               fontWeight: '600',
                               cursor: 'pointer',
@@ -675,6 +779,21 @@ function Admin() {
             </div>
           )}
         </div>
+
+        <AdminPricingPanel />
+
+        <AdminDriversPanel />
+
+        {payments.length > 0 && (
+          <div style={{ ...sectionCardStyle, marginTop: 24 }}>
+            <h3 style={{ color: '#fff' }}>Recent Payments</h3>
+            {payments.slice(0, 8).map((p) => (
+              <div key={p._id} className="py-2 border-bottom border-secondary small text-white-50">
+                {p.bookingNumber} · {p.amount} {p.currency} · {p.status}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

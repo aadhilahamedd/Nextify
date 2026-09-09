@@ -12,9 +12,9 @@ import toyotaLogo from '../assets/Brands/Toyota logo.jpg'
 import fordLogo from '../assets/Brands/Ford logo.webp'
 import gmcLogo from '../assets/Brands/GMC logo.jpg'
 import bmwLogo from '../assets/Brands/BMWlogo.webp'
-import { buildBookingWhatsAppMessage, openCompanyWhatsApp } from '../utils/whatsapp'
 import { getCarImageUrl, initialCars } from '../utils/carsStorage'
 import { getCarsAPI } from '../Services/allAPI'
+import ServiceRates from '../components/pricing/ServiceRates'
 
 const backgrounds = [bmw7, benzS, lexusES];
 
@@ -74,28 +74,15 @@ function Home() {
 
   const handleBookingSubmit = (e) => {
     e.preventDefault();
-
-    const bookingPayload = {
-      name: formData.name,
-      mobile: formData.mobile,
-      email: formData.email,
-      eventType: formData.eventType,
-      eventOther: formData.eventOther,
-      flightNumber: formData.flightNumber,
-      arrivalDateTime: formData.arrivalDateTime,
-      vehicle: formData.vehicle,
-      pickupLocation: formData.pickupLocation,
-      otherPickupLocation: formData.otherPickupLocation,
-      dropoffLocation: formData.dropoffLocation,
-      hours: formData.hours,
-    };
-
-    const message = buildBookingWhatsAppMessage(bookingPayload, activeTab);
-    const result = openCompanyWhatsApp(message);
-
-    if (!result.ok) {
-      alert(result.error);
-    }
+    navigate('/booking', {
+      state: {
+        prefill: {
+          serviceType: activeTab === 'airport' ? 'airport_transfer' : activeTab === 'pointToPoint' ? 'city_transfer' : 'chauffeur',
+          formData,
+          activeTab,
+        },
+      },
+    });
   };
 
   useEffect(() => {
@@ -434,6 +421,8 @@ function Home() {
       </Container>
     </section>
 
+    <ServiceRates />
+
     {/* Events & Testimonial Section */}
     <section className="py-5" style={{ backgroundColor: '#000000', color: 'white' }}>
       <Container className="py-5">
@@ -453,7 +442,7 @@ function Home() {
               </div>
             </div>
             <p className="mb-4" style={{ color: '#aaa', fontSize: '1.05rem', lineHeight: '1.7', maxWidth: '380px' }}>
-              I never knew renting a car could feel this premium. The entire process was seamless, and the Ferrari was in mint condition. Luzurio exceeded every expectation.
+              I never knew renting a chauffeur service could feel this premium. The entire process was seamless, and the Mercedes was in mint condition. Nextify exceeded every expectation.
             </p>
             <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '20px', maxWidth: '380px' }}>
               <span className="fw-bold text-white" style={{ fontSize: '0.9rem' }}>Julian Maddox, </span>
@@ -528,7 +517,7 @@ function Home() {
               </div>
               <h2 className="display-4 mb-4" style={{ fontFamily: 'Georgia, serif', color: '#1a1a1a' }}>Your Journey Begins with One Click</h2>
               <p className="mb-0" style={{ color: '#777', lineHeight: '1.8', maxWidth: '600px' }}>
-                Tellus sed sed odio enim sem mauris mattis. Pellentesque aliquet integer non neque id. Ac nisl imperdiet tellus placerat venenatis. Habitant ullamcorper ornare est arcu elit pellentesque.
+                Tell us your journey details and our team will assign a professional chauffeur and premium vehicle. Every reservation includes vehicle plus driver.
               </p>
             </div>
             <div className="col-lg-5">
@@ -943,7 +932,7 @@ function Home() {
                     e.currentTarget.style.boxShadow = '0 8px 16px rgba(168,132,72,0.2)';
                   }}
                 >
-                  BOOK NOW
+                  BOOK NOW — SECURE CHECKOUT
                 </button>
               </div>
             </form>

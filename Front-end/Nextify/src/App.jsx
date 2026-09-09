@@ -11,34 +11,39 @@ import Carlist from './components/Carlist'
 import Contact from './components/Contact'
 import Cardetails from './components/Cardetails'
 import Booking from './components/Booking'
+import BookingConfirmation from './pages/BookingConfirmation'
+import TrackBooking from './pages/TrackBooking'
+import MockPaymentCheckout from './pages/MockPaymentCheckout'
+import ChatBot from './components/ChatBot'
 import { COMPANY_PHONE, getWhatsAppUrl } from './utils/whatsapp'
 
 function App() {
-  
-
   return (
     <>
-    <Header/>
+      <Header />
       <Routes>
-        <Route path='/' element={<Home/>}></Route>
-        <Route path='/login' element={<Login/>}></Route>
-        <Route path='/admin' element={<Admin/>}></Route>
-        <Route path='/about' element={<About/>}></Route>
-        <Route path='/carlist' element={<Carlist/>}></Route>
-        <Route path='/contact' element={<Contact/>}></Route>
-        <Route path='/cardetails' element={<Cardetails/>}></Route>
-        <Route path='/booking' element={<Booking/>}></Route>
-        <Route path='*' element={<Pnf/>}></Route>
-        <Route path='/carlist/:id' element={<Booking/>}></Route>
-        
+        <Route path="/" element={<Home />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/admin" element={<Admin />} />
+        <Route path="/about" element={<About />} />
+        <Route path="/carlist" element={<Carlist />} />
+        <Route path="/contact" element={<Contact />} />
+        <Route path="/cardetails" element={<Cardetails />} />
+        <Route path="/booking" element={<Booking />} />
+        <Route path="/carlist/:id" element={<Booking />} />
+        <Route path="/payment" element={<MockPaymentCheckout />} />
+        <Route path="/booking-confirmation/:bookingNumber" element={<BookingConfirmation />} />
+        <Route path="/track-booking" element={<TrackBooking />} />
+        <Route path="*" element={<Pnf />} />
       </Routes>
-      <Footer/>
+      <Footer />
+      <ChatBot />
       <a
         href={getWhatsAppUrl(COMPANY_PHONE, 'Hello Nextify, I need help with a booking')}
         target="_blank"
         rel="noreferrer"
         className="whatsapp-float"
-        aria-label="Chat with us on WhatsApp"
+        aria-label="Chat with us on WhatsApp for support"
       >
         <i className="bi bi-whatsapp"></i>
       </a>
@@ -47,4 +52,3 @@ function App() {
 }
 
 export default App
-

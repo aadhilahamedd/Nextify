@@ -1,14 +1,20 @@
 const mongoose = require('mongoose');
-const connectionString = process.env.connectionString;
 
-if (!connectionString) {
-  console.error('ERROR: connectionString not found in .env file');
+const uri = process.env.MONGODB_URI || process.env.connectionString;
+
+if (!uri) {
+  console.error('ERROR: MONGODB_URI (or legacy connectionString) not found in environment');
   process.exit(1);
 }
 
-mongoose.connect(connectionString).then(res => {
-  console.log("✅ Successfully connected to MongoDB!");
-}).catch(err => {
-  console.error("❌ MongoDB connection failed:", err.message);
-  process.exit(1);
-});                                               
+mongoose
+  .connect(uri)
+  .then(async () => {
+    console.log('✅ Successfully connected to MongoDB!');
+    const { seedDefaults } = require('../services/seedService');
+    await seedDefaults();
+  })
+  .catch((err) => {
+    console.error('❌ MongoDB connection failed:', err.message);
+    process.exit(1);
+  });

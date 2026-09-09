@@ -9,278 +9,351 @@ const getAuthHeaders = () => {
   };
 };
 
-// ====== CONTACT MESSAGE APIs ======
+const unwrap = (response) => {
+  if (response?.data?.success && response.data.data !== undefined) {
+    return { ...response, data: response.data.data, message: response.data.message };
+  }
+  return response;
+};
 
+const handleError = (err, fallback) => ({
+  status: err?.response?.status || 500,
+  error: err?.response?.data?.message || err?.message || fallback,
+  data: err?.response?.data,
+});
+
+// ====== CONTACT ======
 export const submitContactMessageAPI = async (messageData) => {
   try {
-    const response = await commonAPI(
-      "POST",
-      `${serverURL}/api/messages`,
-      messageData,
-      { "Content-Type": "application/json" }
-    );
-    if (response.status === 201 || response.status === 200) {
-      return response;
-    }
-    const status = response.response?.status || 500;
-    const error =
-      response.response?.data?.message || "Failed to send message";
-    return { status, error };
+    const response = await commonAPI("POST", `${serverURL}/api/messages`, messageData, { "Content-Type": "application/json" });
+    return unwrap(response);
   } catch (err) {
-    console.error("Error submitting message:", err);
-    return { status: 500, error: err.message };
+    return handleError(err, "Failed to send message");
   }
 };
 
 export const getContactMessagesAPI = async () => {
   try {
-    const response = await commonAPI(
-      "GET",
-      `${serverURL}/api/messages`,
-      "",
-      getAuthHeaders()
-    );
-    if (response.status === 200) {
-      return response;
-    }
-    const status = response.response?.status || 500;
-    const error =
-      response.response?.data?.message || "Failed to fetch messages";
-    return { status, error };
+    const response = await commonAPI("GET", `${serverURL}/api/messages`, "", getAuthHeaders());
+    return unwrap(response);
   } catch (err) {
-    console.error("Error fetching messages:", err);
-    return { status: 500, error: err.message };
+    return handleError(err, "Failed to fetch messages");
   }
 };
 
 export const markMessageReadAPI = async (id) => {
   try {
-    const response = await commonAPI(
-      "PATCH",
-      `${serverURL}/api/messages/${id}/read`,
-      {},
-      getAuthHeaders()
-    );
-    if (response.status === 200) {
-      return response;
-    }
-    throw new Error(response.response?.data?.message || "Failed to update message");
+    return await commonAPI("PATCH", `${serverURL}/api/messages/${id}/read`, {}, getAuthHeaders());
   } catch (err) {
-    console.error("Error updating message:", err);
-    return { status: 500, error: err.message };
+    return handleError(err, "Failed to update message");
   }
 };
 
 export const deleteContactMessageAPI = async (id) => {
   try {
-    const response = await commonAPI(
-      "DELETE",
-      `${serverURL}/api/messages/${id}`,
-      "",
-      getAuthHeaders()
-    );
-    if (response.status === 200) {
-      return response;
-    }
-    throw new Error(response.response?.data?.message || "Failed to delete message");
+    return await commonAPI("DELETE", `${serverURL}/api/messages/${id}`, "", getAuthHeaders());
   } catch (err) {
-    console.error("Error deleting message:", err);
-    return { status: 500, error: err.message };
+    return handleError(err, "Failed to delete message");
   }
 };
 
-// ====== BOOKING APIs ======
-
-// Add booking
-export const addBookingAPI = async (bookingData) => {
+// ====== BOOKINGS ======
+export const createBookingAPI = async (bookingData) => {
   try {
     const response = await commonAPI("POST", `${serverURL}/api/bookings`, bookingData, getAuthHeaders());
-    if (response.status === 201 || response.status === 200) {
-      return response;
-    } else {
-      throw new Error(response.response?.data?.message || "Failed to add booking");
-    }
+    return unwrap(response);
   } catch (err) {
-    console.error("Error adding booking:", err);
-    return { status: 500, error: err.message };
+    return handleError(err, "Failed to create booking");
   }
 };
 
-// Get all bookings
+export const addBookingAPI = createBookingAPI;
+
 export const getBookingsAPI = async () => {
   try {
     const response = await commonAPI("GET", `${serverURL}/api/bookings`, "", getAuthHeaders());
-    if (response.status === 200) {
-      return response;
-    } else {
-      throw new Error(response.response?.data?.message || "Failed to fetch bookings");
+    const unwrapped = unwrap(response);
+    if (unwrapped.status === 200 && unwrapped.data?.bookings) {
+      return { ...unwrapped, data: unwrapped.data.bookings };
     }
+    return unwrapped;
   } catch (err) {
-    console.error("Error fetching bookings:", err);
-    return { status: 500, error: err.message };
+    return handleError(err, "Failed to fetch bookings");
   }
 };
 
-// Get booking by ID
+export const getBookingStatsAPI = async () => {
+  try {
+    const response = await commonAPI("GET", `${serverURL}/api/bookings/stats`, "", getAuthHeaders());
+    return unwrap(response);
+  } catch (err) {
+    return handleError(err, "Failed to fetch stats");
+  }
+};
+
 export const getBookingByIdAPI = async (id) => {
   try {
     const response = await commonAPI("GET", `${serverURL}/api/bookings/${id}`, "", getAuthHeaders());
-    if (response.status === 200) {
-      return response;
-    } else {
-      throw new Error(response.response?.data?.message || "Failed to fetch booking");
-    }
+    return unwrap(response);
   } catch (err) {
-    console.error("Error fetching booking:", err);
-    return { status: 500, error: err.message };
+    return handleError(err, "Failed to fetch booking");
   }
 };
 
-// Update booking
+export const trackBookingAPI = async (bookingNumber, { email, mobile }) => {
+  try {
+    const params = new URLSearchParams();
+    if (email) params.set("email", email);
+    if (mobile) params.set("mobile", mobile);
+    const response = await commonAPI("GET", `${serverURL}/api/bookings/track/${bookingNumber}?${params}`, "");
+    return unwrap(response);
+  } catch (err) {
+    return handleError(err, "Booking not found");
+  }
+};
+
 export const updateBookingAPI = async (id, bookingData) => {
   try {
-    const response = await commonAPI("PUT", `${serverURL}/api/bookings/${id}`, bookingData, {
-      "Content-Type": "application/json"
-    });
-    if (response.status === 200) {
-      return response;
-    } else {
-      throw new Error(response.response?.data?.message || "Failed to update booking");
-    }
+    const response = await commonAPI("PUT", `${serverURL}/api/bookings/${id}`, bookingData, getAuthHeaders());
+    return unwrap(response);
   } catch (err) {
-    console.error("Error updating booking:", err);
-    return { status: 500, error: err.message };
+    return handleError(err, "Failed to update booking");
   }
 };
 
-// Delete booking
+export const assignDriverAPI = async (bookingId, driverId) => {
+  try {
+    const response = await commonAPI("POST", `${serverURL}/api/bookings/${bookingId}/assign-driver`, { driverId }, getAuthHeaders());
+    return unwrap(response);
+  } catch (err) {
+    return handleError(err, "Failed to assign driver");
+  }
+};
+
 export const deleteBookingAPI = async (id) => {
   try {
-    const response = await commonAPI("DELETE", `${serverURL}/api/bookings/${id}`, "", getAuthHeaders());
-    if (response.status === 200) {
-      return response;
-    } else {
-      throw new Error(response.response?.data?.message || "Failed to delete booking");
-    }
+    return await commonAPI("DELETE", `${serverURL}/api/bookings/${id}`, "", getAuthHeaders());
   } catch (err) {
-    console.error("Error deleting booking:", err);
-    return { status: 500, error: err.message };
+    return handleError(err, "Failed to delete booking");
   }
 };
 
-// ====== Additional APIs can be added below ======
+// ====== PRICING ======
+export const calculatePriceAPI = async (payload) => {
+  try {
+    const response = await commonAPI("POST", `${serverURL}/api/pricing/calculate`, payload, { "Content-Type": "application/json" });
+    return unwrap(response);
+  } catch (err) {
+    return handleError(err, "Price calculation failed");
+  }
+};
 
-// ====== AUTH APIs ======
+export const getPricingSummaryAPI = async () => {
+  try {
+    const response = await commonAPI("GET", `${serverURL}/api/pricing/summary`, "");
+    return unwrap(response);
+  } catch (err) {
+    return handleError(err, "Failed to fetch pricing summary");
+  }
+};
 
-// Register new user
+export const getPricingRulesAPI = async ({ serviceType, search } = {}) => {
+  try {
+    const params = new URLSearchParams();
+    if (serviceType) params.set("serviceType", serviceType);
+    if (search) params.set("search", search);
+    const qs = params.toString();
+    const response = await commonAPI(
+      "GET",
+      `${serverURL}/api/pricing${qs ? `?${qs}` : ""}`,
+      "",
+      getAuthHeaders()
+    );
+    return unwrap(response);
+  } catch (err) {
+    return handleError(err, "Failed to fetch pricing rules");
+  }
+};
+
+export const createPricingRuleAPI = async (ruleData) => {
+  try {
+    const response = await commonAPI("POST", `${serverURL}/api/pricing`, ruleData, getAuthHeaders());
+    return unwrap(response);
+  } catch (err) {
+    return handleError(err, "Failed to create pricing rule");
+  }
+};
+
+export const updatePricingRuleAPI = async (id, ruleData) => {
+  try {
+    const response = await commonAPI("PUT", `${serverURL}/api/pricing/${id}`, ruleData, getAuthHeaders());
+    return unwrap(response);
+  } catch (err) {
+    return handleError(err, "Failed to update pricing rule");
+  }
+};
+
+export const deletePricingRuleAPI = async (id) => {
+  try {
+    const response = await commonAPI("DELETE", `${serverURL}/api/pricing/${id}`, "", getAuthHeaders());
+    return unwrap(response);
+  } catch (err) {
+    return handleError(err, "Failed to delete pricing rule");
+  }
+};
+
+export const getAirportRoutesAPI = async () => {
+  try {
+    const response = await commonAPI("GET", `${serverURL}/api/airport-routes`, "");
+    return unwrap(response);
+  } catch (err) {
+    return handleError(err, "Failed to fetch airport routes");
+  }
+};
+
+// ====== PAYMENTS ======
+export const createPaymentAPI = async (bookingId) => {
+  try {
+    const response = await commonAPI("POST", `${serverURL}/api/payments/create`, { bookingId }, getAuthHeaders());
+    return unwrap(response);
+  } catch (err) {
+    return handleError(err, "Failed to create payment");
+  }
+};
+
+export const mockCompletePaymentAPI = async (paymentId) => {
+  try {
+    const response = await commonAPI("POST", `${serverURL}/api/payments/mock/complete`, { paymentId }, { "Content-Type": "application/json" });
+    return unwrap(response);
+  } catch (err) {
+    return handleError(err, "Payment completion failed");
+  }
+};
+
+export const mockFailPaymentAPI = async (paymentId) => {
+  try {
+    const response = await commonAPI("POST", `${serverURL}/api/payments/mock/fail`, { paymentId }, { "Content-Type": "application/json" });
+    return unwrap(response);
+  } catch (err) {
+    return handleError(err, "Payment failure update failed");
+  }
+};
+
+export const getPaymentsAPI = async () => {
+  try {
+    const response = await commonAPI("GET", `${serverURL}/api/payments`, "", getAuthHeaders());
+    return unwrap(response);
+  } catch (err) {
+    return handleError(err, "Failed to fetch payments");
+  }
+};
+
+// ====== DRIVERS ======
+export const getDriversAPI = async () => {
+  try {
+    const response = await commonAPI("GET", `${serverURL}/api/drivers`, "", getAuthHeaders());
+    const unwrapped = unwrap(response);
+    if (unwrapped.status === 200 && unwrapped.data?.drivers) {
+      return { ...unwrapped, data: unwrapped.data.drivers };
+    }
+    return unwrapped;
+  } catch (err) {
+    return handleError(err, "Failed to fetch drivers");
+  }
+};
+
+export const createDriverAPI = async (driverData) => {
+  try {
+    const response = await commonAPI("POST", `${serverURL}/api/drivers`, driverData, getAuthHeaders());
+    return unwrap(response);
+  } catch (err) {
+    return handleError(err, "Failed to create driver");
+  }
+};
+
+export const updateDriverAPI = async (id, driverData) => {
+  try {
+    const response = await commonAPI("PUT", `${serverURL}/api/drivers/${id}`, driverData, getAuthHeaders());
+    return unwrap(response);
+  } catch (err) {
+    return handleError(err, "Failed to update driver");
+  }
+};
+
+export const deleteDriverAPI = async (id) => {
+  try {
+    return await commonAPI("DELETE", `${serverURL}/api/drivers/${id}`, "", getAuthHeaders());
+  } catch (err) {
+    return handleError(err, "Failed to delete driver");
+  }
+};
+
+// ====== CHAT ======
+export const sendChatMessageAPI = async (payload) => {
+  try {
+    const response = await commonAPI("POST", `${serverURL}/api/chat`, payload, { "Content-Type": "application/json" });
+    return unwrap(response);
+  } catch (err) {
+    return handleError(err, "Chat unavailable");
+  }
+};
+
+// ====== AUTH ======
 export const registerAPI = async (userData) => {
   try {
-    const response = await commonAPI("POST", `${serverURL}/api/register`, userData, {
-      "Content-Type": "application/json"
-    });
-    if (response.status === 201 || response.status === 200) {
-      return response;
-    } else {
-      throw new Error(response.response?.data?.message || "Registration failed");
-    }
+    const response = await commonAPI("POST", `${serverURL}/api/register`, userData, { "Content-Type": "application/json" });
+    return unwrap(response);
   } catch (err) {
-    console.error("Error during registration:", err);
-    return err;
+    return handleError(err, "Registration failed");
   }
 };
 
-// User login
 export const userLoginAPI = async (credentials) => {
   try {
-    const response = await commonAPI("POST", `${serverURL}/api/user/login`, credentials, {
-      "Content-Type": "application/json"
-    });
-    if (response.status === 200) {
-      return response;
-    } else {
-      throw new Error(response.response?.data?.message || "Login failed");
+    const response = await commonAPI("POST", `${serverURL}/api/user/login`, credentials, { "Content-Type": "application/json" });
+    const unwrapped = unwrap(response);
+    if (unwrapped.status === 200 && unwrapped.data?.token) {
+      return { ...unwrapped, data: { token: unwrapped.data.token, user: unwrapped.data.user } };
     }
+    return unwrapped;
   } catch (err) {
-    console.error("Error during user login:", err);
-    return err;
+    return handleError(err, "Login failed");
   }
 };
 
-// Admin login
-export const adminLoginAPI = async (credentials) => {
-  try {
-    const response = await commonAPI("POST", `${serverURL}/api/admin/login`, credentials, {
-      "Content-Type": "application/json"
-    });
-    if (response.status === 200) {
-      return response;
-    } else {
-      throw new Error(response.response?.data?.message || "Admin login failed");
-    }
-  } catch (err) {
-    console.error("Error during admin login:", err);
-    return err;
-  }
-};
+export const adminLoginAPI = userLoginAPI;
 
-// ====== CAR FLEET APIs ======
-
-// Get all cars
+// ====== CARS ======
 export const getCarsAPI = async () => {
   try {
     const response = await commonAPI("GET", `${serverURL}/api/cars`, "");
-    if (response.status === 200) {
-      return response;
-    } else {
-      throw new Error(response.response?.data?.message || "Failed to fetch cars");
-    }
+    if (response.status === 200) return response;
+    return handleError({ response }, "Failed to fetch cars");
   } catch (err) {
-    console.error("Error fetching cars:", err);
-    return { status: 500, error: err.message };
+    return handleError(err, "Failed to fetch cars");
   }
 };
 
-// Add new car (admin only)
 export const addCarAPI = async (carData) => {
   try {
-    const response = await commonAPI("POST", `${serverURL}/api/cars`, carData, getAuthHeaders());
-    if (response.status === 201 || response.status === 200) {
-      return response;
-    } else {
-      throw new Error(response.response?.data?.message || "Failed to add car");
-    }
+    return await commonAPI("POST", `${serverURL}/api/cars`, carData, getAuthHeaders());
   } catch (err) {
-    console.error("Error adding car:", err);
-    return { status: 500, error: err.message };
+    return handleError(err, "Failed to add car");
   }
 };
 
-// Update existing car (admin only)
 export const updateCarAPI = async (id, carData) => {
   try {
-    const response = await commonAPI("PUT", `${serverURL}/api/cars/${id}`, carData, getAuthHeaders());
-    if (response.status === 200) {
-      return response;
-    } else {
-      throw new Error(response.response?.data?.message || "Failed to update car");
-    }
+    return await commonAPI("PUT", `${serverURL}/api/cars/${id}`, carData, getAuthHeaders());
   } catch (err) {
-    console.error("Error updating car:", err);
-    return { status: 500, error: err.message };
+    return handleError(err, "Failed to update car");
   }
 };
 
-// Delete car (admin only)
 export const deleteCarAPI = async (id) => {
   try {
-    const response = await commonAPI("DELETE", `${serverURL}/api/cars/${id}`, "", getAuthHeaders());
-    if (response.status === 200) {
-      return response;
-    } else {
-      throw new Error(response.response?.data?.message || "Failed to delete car");
-    }
+    return await commonAPI("DELETE", `${serverURL}/api/cars/${id}`, "", getAuthHeaders());
   } catch (err) {
-    console.error("Error deleting car:", err);
-    return { status: 500, error: err.message };
+    return handleError(err, "Failed to delete car");
   }
 };

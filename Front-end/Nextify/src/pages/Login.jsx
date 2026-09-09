@@ -51,7 +51,7 @@ function Login() {
           if (user.role === 'admin') navigate('/admin'); else navigate('/');
         }, 1000);
       } else {
-        showAlert('error', response.response?.data?.message || 'Login failed. Please check your credentials.');
+        showAlert('error', response.error || response.data?.message || 'Login failed. Please check your credentials.');
       }
     } catch (err) {
       showAlert('error', 'Something went wrong. Please try again.');
@@ -83,7 +83,7 @@ function Login() {
         password: registerData.password
       });
 
-      if (response.status === 201) {
+      if (response.status === 201 || response.status === 200) {
         const { token, user } = response.data;
         localStorage.setItem('token', token);
         localStorage.setItem('user', JSON.stringify(user));
@@ -93,7 +93,7 @@ function Login() {
           navigate('/');
         }, 1000);
       } else {
-        showAlert('error', response.response?.data?.message || 'Registration failed. Please try again.');
+        showAlert('error', response.error || response.data?.message || 'Registration failed. Please try again.');
       }
     } catch (err) {
       showAlert('error', 'Something went wrong. Please try again.');

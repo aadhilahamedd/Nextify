@@ -145,6 +145,21 @@ exports.getCars = async (req, res) => {
   }
 };
 
+exports.getCarById = async (req, res) => {
+  try {
+    const carId = parseInt(req.params.id, 10);
+    if (Number.isNaN(carId)) {
+      return res.status(400).json({ message: 'Invalid car ID' });
+    }
+    const car = await Car.findOne({ id: carId });
+    if (!car) return res.status(404).json({ message: 'Car not found' });
+    return res.status(200).json(car);
+  } catch (err) {
+    console.error('Error fetching car:', err);
+    return res.status(500).json({ message: 'Error fetching car', error: err.message });
+  }
+};
+
 // Add new car
 exports.addCar = async (req, res) => {
   try {

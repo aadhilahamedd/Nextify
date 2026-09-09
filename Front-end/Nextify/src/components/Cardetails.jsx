@@ -1,14 +1,23 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { getCarImageUrl } from '../utils/carsStorage';
 import Container from 'react-bootstrap/Container';
 import Row from 'react-bootstrap/Row';
 import Col from 'react-bootstrap/Col';
+import { getPricingRulesAPI } from '../Services/allAPI';
+import VehiclePricingDisplay from './pricing/VehiclePricingDisplay';
 
 function Cardetails() {
   const location = useLocation();
   const navigate = useNavigate();
   const car = location.state?.car;
+  const [pricingRules, setPricingRules] = useState([]);
+
+  useEffect(() => {
+    getPricingRulesAPI().then((res) => {
+      if (res?.status === 200) setPricingRules(res.data?.rules || []);
+    });
+  }, []);
 
   useEffect(() => {
     window.scrollTo(0, 0);
@@ -53,7 +62,7 @@ function Cardetails() {
           <Col lg={5}>
             <div>
               <h1 className="display-4 fw-normal mb-2" style={{ fontFamily: 'Georgia, serif' }}>{car.name}</h1>
-              <p className="fs-3 fw-bold mb-4" style={{ color: '#eeb012' }}>{car.price}</p>
+              <VehiclePricingDisplay rules={pricingRules} car={car} compact />
               
               <div style={{ width: '60px', height: '2px', backgroundColor: '#eeb012', marginBottom: '30px' }}></div>
               

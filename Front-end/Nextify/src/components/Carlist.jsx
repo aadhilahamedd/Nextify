@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react'
 import Container from 'react-bootstrap/Container'
 import { useNavigate } from 'react-router-dom'
 import { getCarImageUrl, initialCars } from '../utils/carsStorage'
-import { getCarsAPI, addCarAPI, updateCarAPI, deleteCarAPI } from '../Services/allAPI'
+import { getCarsAPI, addCarAPI, updateCarAPI, deleteCarAPI, getPricingRulesAPI } from '../Services/allAPI'
+import VehiclePricingDisplay from './pricing/VehiclePricingDisplay'
 
 function Carlist() {
   const navigate = useNavigate();
@@ -12,6 +13,7 @@ function Carlist() {
   const [editData, setEditData] = useState({ name: '', price: '', type: '', seats: '', luggage: '', img: '' })
   const [preview, setPreview] = useState(null)
   const [activeFilter, setActiveFilter] = useState('All')
+  const [pricingRules, setPricingRules] = useState([])
 
   const user = useMemo(() => {
     try {
@@ -80,6 +82,9 @@ function Carlist() {
 
   useEffect(() => {
     fetchCars()
+    getPricingRulesAPI().then((res) => {
+      if (res?.status === 200) setPricingRules(res.data?.rules || [])
+    })
   }, [])
 
   const saveAdd = async () => {
@@ -279,8 +284,10 @@ function Carlist() {
                   </span>
                 </div>
 
+                <VehiclePricingDisplay rules={pricingRules} car={car} />
+
                 <div className="d-flex justify-content-between align-items-center pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-                  <span className="fw-bold fs-5">{car.price}</span>
+                  <span className="fw-bold fs-6" style={{ color: '#888' }}>Chauffeur included</span>
                   <button 
                     onClick={(e) => { e.stopPropagation(); handleCardClick(car); }} 
                     className="btn btn-sm px-3 rounded-0 text-uppercase"
