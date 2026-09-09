@@ -1,7 +1,7 @@
 const PricingRule = require('../models/PricingRule');
 const Settings = require('../models/Settings');
 
-const PRICING_VERSION = 3;
+const PRICING_VERSION = 4;
 const AIRPORTS = ['Riyadh', 'Jeddah', 'Dammam'];
 
 const APPROVED_RATES = [
@@ -27,7 +27,9 @@ const APPROVED_RATES = [
   { serviceType: 'chauffeur', vehicleCategory: 'gmc_yukon', vehicleNames: ['GMC Yukon'], durationType: 'full_day', displayLabel: 'GMC Yukon – Full Day', price: 1400 },
 
   // ── Intercity ──
-  { serviceType: 'intercity_transfer', origin: 'Riyadh', destination: 'Khobar', vehicleApplicability: 'all', displayLabel: 'Riyadh ↔ Khobar (All Vehicles)', price: 1500 },
+  { serviceType: 'intercity_transfer', origin: 'Riyadh', destination: 'Khobar', vehicleCategory: 'sedan', vehicleNames: ['Sedan'], displayLabel: 'Riyadh ↔ Khobar – Sedan', price: 1000 },
+  { serviceType: 'intercity_transfer', origin: 'Riyadh', destination: 'Khobar', vehicleCategory: 'prado_fortuner', vehicleNames: ['Prado / Fortuner', 'Prado', 'Fortuner', 'Mini SUV'], displayLabel: 'Riyadh ↔ Khobar – Prado / Fortuner (Mini SUV)', price: 1200 },
+  { serviceType: 'intercity_transfer', origin: 'Riyadh', destination: 'Khobar', vehicleCategory: 'gmc_yukon', vehicleNames: ['GMC Yukon', 'GMC', 'GMC Tahoe', 'Chevrolet Suburban'], displayLabel: 'Riyadh ↔ Khobar – GMC', price: 1400 },
   { serviceType: 'intercity_transfer', origin: 'Riyadh', destination: 'Jubail', vehicleCategory: 'sedan', vehicleNames: ['Sedan'], displayLabel: 'Riyadh ↔ Jubail – Sedan', price: 900 },
   { serviceType: 'intercity_transfer', origin: 'Riyadh', destination: 'Jubail', vehicleCategory: 'prado_fortuner', vehicleNames: ['Prado / Fortuner'], displayLabel: 'Riyadh ↔ Jubail – Prado / Fortuner', price: 1000 },
   { serviceType: 'intercity_transfer', origin: 'Riyadh', destination: 'Jubail', vehicleCategory: 'gmc_yukon', vehicleNames: ['GMC Yukon'], displayLabel: 'Riyadh ↔ Jubail – GMC Yukon', price: 1400 },
