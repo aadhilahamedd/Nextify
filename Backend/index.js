@@ -6,6 +6,7 @@ const errorHandler = require('./middleware/errorHandler');
 require('./dbConnect/dbConnect');
 
 const NextifyServer = express();
+console.log("🔥 INDEX.JS IS RUNNING FROM:", __dirname);
 const port = process.env.PORT || 5000;
 
 NextifyServer.use(cors());

@@ -2,6 +2,7 @@ import React from 'react'
 import Container from 'react-bootstrap/Container'
 import Row from 'react-bootstrap/Row'
 import Col from 'react-bootstrap/Col'
+import { COMPANY } from '../utils/company'
 
 function About() {
   return (
@@ -15,7 +16,7 @@ function About() {
             Luxury travel tailored to your every need
           </h2>
           <p className="mx-auto" style={{ maxWidth: '720px', color: '#bfbfbf', lineHeight: '1.8' }}>
-            Nextify combines premium vehicles, trusted chauffeurs, and seamless service to create an elevated ground transportation experience in Saudi Arabia. Whether you need airport transfers, point-to-point rides, hourly luxury service, or fleet support for events, we make every journey feel exceptional.
+            Founded in {COMPANY.foundedYear} by {COMPANY.founder}, Nextify combines premium vehicles, trusted chauffeurs, and seamless service across Saudi Arabia. Whether you need airport transfers, city rides, chauffeur service, intercity travel, or GCC transfers, we make every journey feel exceptional.
           </p>
         </div>
 
@@ -62,14 +63,14 @@ function About() {
                 To deliver the highest level of luxury travel with transparency, reliability, and personalized service. Every ride with Nextify is carefully curated to provide comfort, professionalism, and peace of mind.
               </p>
               <p style={{ color: '#bfbfbf', lineHeight: '1.8' }}>
-                From corporate transfers to special events, our team is committed to meeting your exact requirements and exceeding expectations at every mile.
+                Founded by {COMPANY.founder} in {COMPANY.foundedYear}, we operate from {COMPANY.addressShort} and remain committed to meeting your exact requirements at every mile.
               </p>
             </div>
           </Col>
           <Col lg={6}>
             <div className="row g-4">
               {[
-                { label: 'Years of Trust', value: '12+', color: '#eeb012' },
+                { label: 'Years of Trust', value: `${new Date().getFullYear() - COMPANY.foundedYear}+`, color: '#eeb012' },
                 { label: 'Luxury Vehicles', value: '210+', color: '#fff' },
                 { label: 'Happy Clients', value: '34K+', color: '#fff' },
                 { label: 'Available 24/7', value: 'Yes', color: '#fff' }

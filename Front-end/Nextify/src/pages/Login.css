@@ -15,7 +15,7 @@
   position: relative;
   overflow: hidden;
   padding: 20px;
-  padding-top: 96px; /* space for absolute navbar */
+  padding-top: 32px;
 }
 
 @keyframes gradientShift {
@@ -73,7 +73,7 @@
     0 8px 32px rgba(0, 0, 0, 0.3),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
   animation: cardSlideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-  margin-top: 8px; /* small gap from navbar area */
+  margin-top: 0;
 }
 
 @keyframes cardSlideUp {
@@ -481,9 +481,9 @@
   background-repeat: no-repeat;
   background-size: cover;
   background-position: center;
-  background-image: linear-gradient(rgba(19,20,21,0.55), rgba(19,20,21,0.55)), url('../assets/bmw_7_series.png');
+  background-image: linear-gradient(rgba(19,20,21,0.55), rgba(19,20,21,0.55)), url('/images/hero/bmw-7-series.webp');
 }
 
 @media (max-width: 768px) {
-  .login-page { padding-top: 76px; }
+  .login-page { padding-top: 24px; }
 }

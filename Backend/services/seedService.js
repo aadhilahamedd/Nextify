@@ -4,11 +4,14 @@ const Settings = require('../models/Settings');
 const { seedApprovedPricing } = require('../seed/pricingSeed');
 
 const DEFAULT_CONTACT = {
-  phone: '+966 11 234 5678',
-  email: 'hello@nextify.sa',
-  location: 'Riyadh, Saudi Arabia',
-  whatsapp: '+966512345678',
+  phone: '+966 55 587 6331',
+  email: 'info@nextify.sa',
+  location: 'Building Number 4576, Prince Ahmed Ibn Abdulaziz Street, District Laban, Postal Code 12935, Riyadh, Kingdom of Saudi Arabia',
+  whatsapp: '+966555876331',
+  phoneSecondary: '+966 53 762 8099',
+  phoneLandline: '+966 13 823 3882',
 };
+const CONTACT_VERSION = 2;
 
 const SAMPLE_DRIVERS = [
   { name: 'Ahmed Al-Rashid', phone: '+966501234567', email: 'ahmed.driver@nextify.sa', licenseNumber: 'SA-DL-10001', languages: ['Arabic', 'English'], status: 'AVAILABLE' },
@@ -25,9 +28,19 @@ async function seedDefaults() {
   }
 
   const contactSetting = await Settings.findOne({ key: 'contact' });
-  if (!contactSetting) {
-    await Settings.create({ key: 'contact', value: DEFAULT_CONTACT });
-    console.log('✅ Seeded contact settings');
+  const contactVersion = await Settings.findOne({ key: 'contactVersion' });
+  if (!contactSetting || contactVersion?.value !== CONTACT_VERSION) {
+    await Settings.findOneAndUpdate(
+      { key: 'contact' },
+      { value: DEFAULT_CONTACT },
+      { upsert: true }
+    );
+    await Settings.findOneAndUpdate(
+      { key: 'contactVersion' },
+      { value: CONTACT_VERSION },
+      { upsert: true }
+    );
+    console.log('✅ Seeded official Nextify contact details');
   }
 
   // Update car display prices to SAR

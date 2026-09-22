@@ -12,20 +12,8 @@ body,
 }
 
 .main-navbar.home-navbar .navbar-toggler {
-  background: transparent !important;
+  background: rgba(0, 0, 0, 0.45) !important;
   border-color: rgba(255,255,255,0.18) !important;
-}
-
-.main-navbar.home-navbar .navbar-collapse {
-  backdrop-filter: none !important;
-  background: transparent !important;
-  box-shadow: none !important;
-}
-
-.main-navbar.home-navbar .navbar-collapse.show {
-  backdrop-filter: none !important;
-  background: transparent !important;
-  box-shadow: none !important;
 }
 
 .main-navbar .navbar-collapse {
@@ -37,33 +25,26 @@ body,
   background: rgba(0, 0, 0, 0.95);
 }
 
-@media (max-width: 768px) {
+@media (max-width: 991.98px) {
   .main-navbar {
     position: relative;
   }
 
   .main-navbar .navbar-collapse,
   .main-navbar.home-navbar .navbar-collapse,
-  .main-navbar.home-navbar .navbar-collapse.show {
+  .main-navbar.home-navbar .navbar-collapse.show,
+  .main-navbar.home-navbar .navbar-collapse.collapsing {
     position: absolute;
     top: 100%;
     left: 0;
     right: 0;
     width: 100%;
-    background: rgba(0, 0, 0, 0.95) !important;
-    z-index: 9999;
-    padding: 20px 0;
-    transform: translateY(-10px);
-    opacity: 0;
-    visibility: hidden;
-    transition: transform 220ms ease, opacity 220ms ease, visibility 220ms ease;
-  }
-
-  .main-navbar .navbar-collapse.show,
-  .main-navbar.home-navbar .navbar-collapse.show {
-    transform: translateY(0);
-    opacity: 1;
-    visibility: visible;
+    background: #0a0a0a !important;
+    box-shadow: 0 24px 40px rgba(0, 0, 0, 0.55) !important;
+    backdrop-filter: none !important;
+    z-index: 1200;
+    padding: 12px 0 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   }
 
   .main-navbar .navbar-nav {
@@ -96,6 +77,16 @@ body,
     color: #ffffff !important;
     background-color: rgba(255, 255, 255, 0.08) !important;
   }
+
+  body.nav-open {
+    overflow: hidden;
+  }
+
+  body.nav-open .hero-bottom-bar {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
 }
 
 @media (min-width: 992px) {
@@ -125,5 +116,66 @@ body,
 
   .main-navbar-nav {
     margin-left: auto;
+  }
+}
+
+.site-header-bar {
+  position: sticky;
+  top: 0;
+  z-index: 1100;
+  background: #0a0a0a;
+}
+
+.login-navbar {
+  background: #0a0a0a !important;
+  padding: 8px 0 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: none !important;
+}
+
+.login-navbar .navbar-logo {
+  width: 86px !important;
+  transform: none !important;
+  margin-top: 0 !important;
+}
+
+.login-navbar .nav-link {
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  padding: 6px 4px !important;
+  color: rgba(255, 255, 255, 0.78) !important;
+}
+
+.login-navbar .nav-link:hover {
+  color: #eeb012 !important;
+}
+
+.header-admin-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: #eeb012;
+  color: #0a0a0a !important;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.header-admin-pill:hover {
+  color: #0a0a0a !important;
+  background: #f0c14b;
+}
+
+@media (max-width: 991.98px) {
+  .login-navbar .navbar-collapse {
+    background: #0a0a0a !important;
+  }
+
+  .header-admin-actions {
+    width: 100%;
+    padding: 0 24px 8px;
   }
 }

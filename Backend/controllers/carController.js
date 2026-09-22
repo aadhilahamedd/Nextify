@@ -4,7 +4,7 @@ const initialCars = [
   {
     id: 1,
     name: 'Mercedes-Benz Sprinter',
-    img: 'local_sprinter',
+    img: '/images/cars/mercedes-sprinter.webp',
     price: '$400/day',
     type: 'Luxury Van',
     seats: '12–15 passengers',
@@ -13,7 +13,7 @@ const initialCars = [
   {
     id: 2,
     name: 'Lexus ES 350',
-    img: 'local_lexus_es',
+    img: '/images/cars/lexus-es-350.webp',
     price: '$200/day',
     type: 'Luxury Sedan',
     seats: '3 passengers',
@@ -22,7 +22,7 @@ const initialCars = [
   {
     id: 3,
     name: 'Chevrolet Impala',
-    img: 'local_impala',
+    img: '/images/cars/chevrolet-impala.webp',
     price: '$150/day',
     type: 'Full-Size Sedan',
     seats: '3 passengers',
@@ -31,7 +31,7 @@ const initialCars = [
   {
     id: 4,
     name: 'Toyota Hiace',
-    img: 'local_hiace',
+    img: '/images/cars/toyota-hiace.webp',
     price: '$180/day',
     type: 'Passenger Van',
     seats: '10–14 passengers',
@@ -40,7 +40,7 @@ const initialCars = [
   {
     id: 5,
     name: 'Toyota Coaster',
-    img: 'https://images.unsplash.com/photo-1570125909232-eb263c188f7e?auto=format&fit=crop&q=80&w=800',
+    img: '/images/cars/toyota-coaster.webp',
     price: '$350/day',
     type: 'Mini Bus',
     seats: '22 passengers',
@@ -49,7 +49,7 @@ const initialCars = [
   {
     id: 6,
     name: 'Mercedes-Benz Coach Bus',
-    img: 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&q=80&w=800',
+    img: '/images/cars/mercedes-coach-bus.webp',
     price: '$800/day',
     type: 'Coach Bus',
     seats: '49 passengers',
@@ -58,7 +58,7 @@ const initialCars = [
   {
     id: 7,
     name: 'Mercedes-Benz V-Class',
-    img: 'https://images.unsplash.com/photo-1609521263047-f8f205293f24?auto=format&fit=crop&q=80&w=800',
+    img: '/images/cars/mercedes-v-class.webp',
     price: '$350/day',
     type: 'Luxury Minivan',
     seats: '6–7 passengers',
@@ -67,7 +67,7 @@ const initialCars = [
   {
     id: 8,
     name: 'Mercedes-Benz S-Class',
-    img: 'local_benz_s',
+    img: '/images/cars/mercedes-s-class.webp',
     price: '$280/day',
     type: 'Premium Executive',
     seats: '3–4 passengers',
@@ -76,7 +76,7 @@ const initialCars = [
   {
     id: 9,
     name: 'Ford Taurus',
-    img: 'https://images.unsplash.com/photo-1555215695-3004980ad54e?auto=format&fit=crop&q=80&w=800',
+    img: '/images/cars/ford-taurus.webp',
     price: '$180/day',
     type: 'Executive Sedan',
     seats: '5 passengers',
@@ -85,16 +85,34 @@ const initialCars = [
   {
     id: 10,
     name: 'GMC Yukon XL AT4',
-    img: 'https://images.unsplash.com/photo-1519688410065-2766324d45fc?auto=format&fit=crop&q=80&w=800',
+    img: '/images/cars/gmc-yukon-xl-at4.webp',
     price: '$300/day',
     type: 'Full-Size SUV',
     seats: '7–8 passengers',
     luggage: '1,175 Liters'
   },
   {
+    id: 15,
+    name: 'GMC Tahoe',
+    img: '/images/cars/gmc-tahoe.webp',
+    price: '$300/day',
+    type: 'Full-Size SUV',
+    seats: '7–8 passengers',
+    luggage: '1,200 Liters'
+  },
+  {
+    id: 16,
+    name: 'Chevrolet Suburban',
+    img: '/images/cars/chevrolet-suburban.webp',
+    price: '$300/day',
+    type: 'Full-Size SUV',
+    seats: '7–8 passengers',
+    luggage: '1,217 Liters'
+  },
+  {
     id: 11,
     name: 'BMW 7 Series',
-    img: 'local_bmw_7',
+    img: '/images/cars/bmw-7-series.webp',
     price: '$250/day',
     type: 'Full-Size Luxury Sedan',
     seats: '3-5 passengers',
@@ -103,7 +121,7 @@ const initialCars = [
   {
     id: 12,
     name: 'BMW 5 Series',
-    img: 'https://images.unsplash.com/photo-1617531653332-bd46c24f2068?auto=format&fit=crop&q=80&w=800',
+    img: '/images/cars/bmw-5-series.webp',
     price: '$220/day',
     type: 'Mid-Size Luxury Sedan',
     seats: '3-5 passengers',
@@ -112,7 +130,7 @@ const initialCars = [
   {
     id: 13,
     name: 'Mercedes-Benz E-Class',
-    img: 'https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?auto=format&fit=crop&q=80&w=800',
+    img: '/images/cars/mercedes-e-class.webp',
     price: '$230/day',
     type: 'Mid-Size Luxury Sedan',
     seats: '3-5 passengers',
@@ -121,13 +139,74 @@ const initialCars = [
   {
     id: 14,
     name: 'Mercedes-Benz eVito Tourer',
-    img: 'https://images.unsplash.com/photo-1605892558667-d86b9f2913e1?auto=format&fit=crop&q=80&w=800',
+    img: '/images/cars/mercedes-evito-tourer.webp',
     price: '$280/day',
     type: 'Electric Passenger Van',
     seats: '8–9 passengers',
     luggage: '1,000–1,700 Liters'
   }
 ];
+
+const FEATURED_FLEET_NAMES = ['GMC Yukon XL AT4', 'GMC Tahoe', 'Chevrolet Suburban'];
+
+const IMAGE_REMAP = {
+  local_sprinter: '/images/cars/mercedes-sprinter.webp',
+  local_lexus_es: '/images/cars/lexus-es-350.webp',
+  local_impala: '/images/cars/chevrolet-impala.webp',
+  local_hiace: '/images/cars/toyota-hiace.webp',
+  local_benz_s: '/images/cars/mercedes-s-class.webp',
+  local_bmw_7: '/images/cars/bmw-7-series.webp',
+  'https://images.unsplash.com/photo-1555215695-3004980ad54e?auto=format&fit=crop&q=80&w=800': '/images/cars/ford-taurus.webp',
+  'https://images.unsplash.com/photo-1519688410065-2766324d45fc?auto=format&fit=crop&q=80&w=800': '/images/cars/gmc-yukon-xl-at4.webp',
+  'https://images.unsplash.com/photo-1617531653332-bd46c24f2068?auto=format&fit=crop&q=80&w=800': '/images/cars/bmw-5-series.webp',
+  'https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?auto=format&fit=crop&q=80&w=800': '/images/cars/mercedes-e-class.webp',
+  'https://images.unsplash.com/photo-1519641471654-76ce0107ad1b?auto=format&fit=crop&q=80&w=1200': '/images/cars/gmc-tahoe.webp',
+  'https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?auto=format&fit=crop&q=80&w=1200': '/images/cars/chevrolet-suburban.webp',
+  'https://images.unsplash.com/photo-1605892558667-d86b9f2913e1?auto=format&fit=crop&q=80&w=800': '/images/cars/mercedes-evito-tourer.webp',
+};
+
+const IMAGE_BY_NAME = {
+  'Mercedes-Benz Sprinter': '/images/cars/mercedes-sprinter.webp',
+  'Lexus ES 350': '/images/cars/lexus-es-350.webp',
+  'Chevrolet Impala': '/images/cars/chevrolet-impala.webp',
+  'Toyota Hiace': '/images/cars/toyota-hiace.webp',
+  'Toyota Coaster': '/images/cars/toyota-coaster.webp',
+  'Mercedes-Benz Coach Bus': '/images/cars/mercedes-coach-bus.webp',
+  'Mercedes-Benz V-Class': '/images/cars/mercedes-v-class.webp',
+  'Mercedes-Benz S-Class': '/images/cars/mercedes-s-class.webp',
+  'BMW 7 Series': '/images/cars/bmw-7-series.webp',
+  'Ford Taurus': '/images/cars/ford-taurus.webp',
+  'GMC Yukon XL AT4': '/images/cars/gmc-yukon-xl-at4.webp',
+  'BMW 5 Series': '/images/cars/bmw-5-series.webp',
+  'Mercedes-Benz E-Class': '/images/cars/mercedes-e-class.webp',
+  'GMC Tahoe': '/images/cars/gmc-tahoe.webp',
+  'Chevrolet Suburban': '/images/cars/chevrolet-suburban.webp',
+  'Mercedes-Benz eVito Tourer': '/images/cars/mercedes-evito-tourer.webp',
+};
+
+async function remapLegacyCarImages() {
+  const cars = await Car.find();
+  for (const car of cars) {
+    const nextImg = IMAGE_REMAP[car.img] || IMAGE_BY_NAME[car.name];
+    if (nextImg && car.img !== nextImg) {
+      car.img = nextImg;
+      await car.save();
+    }
+  }
+}
+
+async function ensureFeaturedFleet() {
+  const existing = await Car.find({ name: { $in: FEATURED_FLEET_NAMES } });
+  const existingNames = new Set(existing.map((c) => c.name));
+  const missing = initialCars.filter(
+    (car) => FEATURED_FLEET_NAMES.includes(car.name) && !existingNames.has(car.name)
+  );
+  if (missing.length) {
+    const last = await Car.findOne().sort({ id: -1 });
+    let nextId = (last?.id || 0) + 1;
+    await Car.insertMany(missing.map((car) => ({ ...car, id: car.id || nextId++ })));
+  }
+}
 
 // Get all cars (auto-seeds if empty)
 exports.getCars = async (req, res) => {
@@ -136,8 +215,10 @@ exports.getCars = async (req, res) => {
     if (cars.length === 0) {
       console.log('No cars found in database. Seeding initial cars...');
       await Car.insertMany(initialCars);
-      cars = await Car.find().sort({ id: 1 });
     }
+    await ensureFeaturedFleet();
+    await remapLegacyCarImages();
+    cars = await Car.find().sort({ id: 1 });
     return res.status(200).json(cars);
   } catch (err) {
     console.error('Error fetching cars:', err);

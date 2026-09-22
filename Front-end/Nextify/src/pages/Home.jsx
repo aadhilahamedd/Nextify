@@ -1,22 +1,26 @@
 import React, { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import Container from 'react-bootstrap/Container'
-import bmw7 from '../assets/bmw_7_series.png'
-import benzS from '../assets/benz_s_class.png'
-import lexusES from '../assets/lexus_es_350.png'
-import guaranteeImg from '../assets/guarantee.png'
-import mercedesLogo from '../assets/Brands/Mercedes-symbol.jpg'
-import lexusLogo from '../assets/Brands/Lexus logo.jpg'
-import chevroletLogo from '../assets/Brands/Chevrolet logo.jpg'
-import toyotaLogo from '../assets/Brands/Toyota logo.jpg'
-import fordLogo from '../assets/Brands/Ford logo.webp'
-import gmcLogo from '../assets/Brands/GMC logo.jpg'
-import bmwLogo from '../assets/Brands/BMWlogo.webp'
-import { getCarImageUrl, initialCars } from '../utils/carsStorage'
+import { applyLocalCarImages, getCarImageUrl, getEliteCollectionCars, initialCars } from '../utils/carsStorage'
 import { getCarsAPI } from '../Services/allAPI'
 import ServiceRates from '../components/pricing/ServiceRates'
+import { COMPANY } from '../utils/company'
 
-const backgrounds = [bmw7, benzS, lexusES];
+const backgrounds = [
+  '/images/hero/bmw-7-series.webp',
+  '/images/hero/benz-s-class.webp',
+  '/images/hero/lexus-es-350.webp',
+];
+
+const brandLogos = [
+  { name: 'Mercedes-Benz', src: '/images/brands/mercedes.webp' },
+  { name: 'Lexus', src: '/images/brands/lexus.webp' },
+  { name: 'Chevrolet', src: '/images/brands/chevrolet.webp' },
+  { name: 'Toyota', src: '/images/brands/toyota.webp' },
+  { name: 'Ford', src: '/images/brands/ford.webp' },
+  { name: 'GMC', src: '/images/brands/gmc.webp' },
+  { name: 'BMW', src: '/images/brands/bmw.webp' },
+];
 
 function Home() {
   const [currentBg, setCurrentBg] = useState(0);
@@ -37,19 +41,16 @@ function Home() {
     hours: '5 HRS'
   });
 
-  const [dbCars, setDbCars] = useState([]);
-  const [vehicles, setVehicles] = useState([]);
+  const [dbCars, setDbCars] = useState(initialCars);
+  const [vehicles, setVehicles] = useState(initialCars.map((car) => car.name));
 
   useEffect(() => {
     const fetchCars = async () => {
       const response = await getCarsAPI();
-      if (response && response.data && Array.isArray(response.data)) {
-        setDbCars(response.data);
-        setVehicles(response.data.map(car => car.name));
-      } else {
-        console.warn('Car API fetch failed, falling back to local data:', response)
-        setDbCars(initialCars);
-        setVehicles(initialCars.map(car => car.name));
+      if (response && response.data && Array.isArray(response.data) && response.data.length) {
+        const cars = applyLocalCarImages(response.data);
+        setDbCars(cars);
+        setVehicles(cars.map((car) => car.name));
       }
     };
     fetchCars();
@@ -96,7 +97,7 @@ function Home() {
   return (
     <>
       <div
-        className="position-relative d-flex align-items-center"
+        className="position-relative d-flex align-items-center hero-section"
         style={{
           height: '100vh',
           backgroundColor: '#0a0a0a',
@@ -131,14 +132,14 @@ function Home() {
         {/* Subtle dark overlay removed for brightness as requested */}
         <div className="position-absolute w-100 h-100" style={{ backgroundColor: 'rgba(0, 0, 0, 0.1)', top: 0, left: 0, zIndex: 1 }}></div>
 
-        <Container className="position-relative pt-5 mt-5" style={{ zIndex: 2 }}>
+        <Container className="position-relative hero-copy" style={{ zIndex: 2 }}>
           <div className="row">
             <div className="col-lg-7 col-md-9 text-white">
-              <p className="mb-3 fw-semibold" style={{ color: '#a0a0a0', letterSpacing: '2px', fontSize: '0.85rem' }}>
+              <p className="mb-3 fw-semibold hero-kicker" style={{ color: '#a0a0a0', letterSpacing: '2px', fontSize: '0.85rem' }}>
                 ARRIVE IN STYLE
               </p>
               <h1 className="mb-4 hero-title" style={{ fontFamily: 'Georgia, serif', lineHeight: '1.1' }}>
-                Luxury Cars, First-Class<br className="d-none d-md-inline" />Experience
+                Luxury Cars,<br className="d-md-none" /> First-Class<br className="d-none d-md-inline" /> Experience
               </h1>
               <p className="mb-5 hero-desc" style={{ color: '#e0e0e0', lineHeight: '1.6' }}>
                 Redefine your journey with Nextify. Experience a curated fleet of world-class vehicles paired with the personalized, first-class service you deserve.
@@ -162,34 +163,18 @@ function Home() {
       </div>
 
       {/* Brands Section */}
-    <section className="py-5 overflow-hidden" style={{ backgroundColor: '#0a0a0a', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+    <section className="py-5 overflow-hidden brands-section" style={{ backgroundColor: '#0a0a0a', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
       <Container>
-        <p className="mb-4 text-white fw-normal fs-5" style={{ fontFamily: 'Georgia, serif' }}>Our Premium Brands</p>
-        <div className="position-relative overflow-hidden" style={{ padding: '20px 0' }}>
+        <p className="mb-4 text-white fw-normal fs-5 brands-title" style={{ fontFamily: 'Georgia, serif' }}>Our Premium Brands</p>
+        <div className="position-relative overflow-hidden brands-slider" style={{ padding: '20px 0' }}>
           <div
             className="d-flex align-items-center logo-slider-track"
             style={{ gap: '30px', width: 'max-content', animation: 'logo-slide 24s linear infinite' }}
           >
-            {[
-              { name: 'Mercedes-Benz', src: mercedesLogo },
-              { name: 'Lexus', src: lexusLogo },
-              { name: 'Chevrolet', src: chevroletLogo },
-              { name: 'Toyota', src: toyotaLogo },
-              { name: 'Ford', src: fordLogo },
-              { name: 'GMC', src: gmcLogo },
-              { name: 'BMW', src: bmwLogo }
-            ].concat([
-              { name: 'Mercedes-Benz', src: mercedesLogo },
-              { name: 'Lexus', src: lexusLogo },
-              { name: 'Chevrolet', src: chevroletLogo },
-              { name: 'Toyota', src: toyotaLogo },
-              { name: 'Ford', src: fordLogo },
-              { name: 'GMC', src: gmcLogo },
-              { name: 'BMW', src: bmwLogo }
-            ]).map((brand, index) => (
+            {brandLogos.concat(brandLogos).map((brand, index) => (
               <div
                 key={`${brand.name}-${index}`}
-                className="d-flex align-items-center justify-content-center rounded-4"
+                className="d-flex align-items-center justify-content-center rounded-4 brand-logo-card"
                 style={{
                   minWidth: '160px',
                   minHeight: '90px',
@@ -202,6 +187,7 @@ function Home() {
                 <img
                   src={brand.src}
                   alt={brand.name}
+                  className="brand-logo-img"
                   style={{ maxHeight: '55px', maxWidth: '100%', objectFit: 'contain', filter: 'brightness(1.1) contrast(1.2)' }}
                 />
               </div>
@@ -217,79 +203,6 @@ function Home() {
       `}</style>
     </section>
 
-              {/* About Section */}
-      <section id="about" className="py-5" style={{ backgroundColor: '#0f0f0f', color: 'white' }}>
-        <Container className="py-5">
-          <div className="row g-5">
-            <div className="col-lg-7">
-              <div className="mb-5">
-                <div className="d-flex align-items-center gap-3 mb-3">
-                  <div style={{ width: '40px', height: '1px', backgroundColor: '#eeb012' }}></div>
-                  <span className="text-uppercase fw-bold" style={{ color: '#888', letterSpacing: '2px', fontSize: '0.75rem' }}>ABOUT</span>
-                </div>
-                <h2 className="display-4 mb-4" style={{ fontFamily: 'Georgia, serif', fontWeight: '400' }}>The Essence of Nextify</h2>
-                <p style={{ color: '#888', fontSize: '1.1rem', maxWidth: '500px' }}>
-                  Redefining luxury travel in Saudi Arabia since 2011 with an exclusive fleet and unmatched reliability.
-                </p>
-              </div>
-
-              <div className="row g-4">
-                <div className="col-md-6 mb-4">
-                  <i className="bi bi-key fs-3 mb-3 d-block" style={{ color: '#eeb012' }}></i>
-                  <h4 className="h5 mb-3" style={{ fontFamily: 'Georgia, serif' }}>Easy Access</h4>
-                  <p className="small" style={{ color: '#777', lineHeight: '1.6' }}>
-                    Booking your dream luxury car is now simpler than ever. Our intuitive platform allows you to reserve premium vehicles with just a few clicks, ready for you when you arrive.
-                  </p>
-                </div>
-                <div className="col-md-6 mb-4">
-                  <i className="bi bi-shield-check fs-3 mb-3 d-block" style={{ color: '#eeb012' }}></i>
-                  <h4 className="h5 mb-3" style={{ fontFamily: 'Georgia, serif' }}>Total Protection</h4>
-                  <p className="small" style={{ color: '#777', lineHeight: '1.6' }}>
-                    Drive with absolute peace of mind. Our comprehensive insurance and 24/7 roadside assistance guarantee complete safety and support for you and your premium vehicle throughout the journey.
-                  </p>
-                </div>
-                <div className="col-md-6 mb-4">
-                  <i className="bi bi-clock fs-3 mb-3 d-block" style={{ color: '#eeb012' }}></i>
-                  <h4 className="h5 mb-3" style={{ fontFamily: 'Georgia, serif' }}>On-Time Always</h4>
-                  <p className="small" style={{ color: '#777', lineHeight: '1.6' }}>
-                    Experience consistent excellence with every rental. Our commitment to premium quality ensures that your experience with us is flawlessly luxurious, every single time.
-                  </p>
-                </div>
-                <div className="col-md-6 mb-4">
-                  <i className="bi bi-star fs-3 mb-3 d-block" style={{ color: '#eeb012' }}></i>
-                  <h4 className="h5 mb-3" style={{ fontFamily: 'Georgia, serif' }}>Premium Service</h4>
-                  <p className="small" style={{ color: '#777', lineHeight: '1.6' }}>
-                    Indulge in a personalized service experience tailored to your exquisite taste. From a pristine fleet to VIP support, we define luxury car rentals by exceeding your expectations.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="col-lg-5">
-              <div className="position-relative mb-4">
-                <img
-                  src={bmw7}
-                  alt="Luxury Car Model"
-                  className="img-fluid rounded-4 shadow-lg"
-                  style={{ backgroundColor: '#1a1a1a', padding: '20px' }}
-                />
-              </div>
-              <div className="mt-5 pt-3">
-                <p className="mb-5" style={{ color: '#888', lineHeight: '1.8' }}>
-                  Embark on a journey with Nextify, your premier destination for luxury car rentals in Saudi Arabia. We provide unparalleled access to a world-class fleet, ensuring prestige, safety, and exceptional service at any time.
-                </p>
-                <button
-                  className="btn rounded-pill px-5 py-3 fw-bold border-0"
-                  style={{ backgroundColor: '#eefe31', color: '#000', fontSize: '0.9rem' }}
-                >
-                  Discover Our Story
-                </button>
-              </div>
-            </div>
-          </div>
-        </Container>
-      </section> 
-
       {/* Collection Section */}
       <section id="collection" className="py-5" style={{ backgroundColor: '#0a0a0a', color: 'white' }}>
         <Container className="py-5">
@@ -304,60 +217,54 @@ function Home() {
           </div>
 
           <div className="row g-4">
-            {
-  dbCars.slice(0, 6).map((car, i) => (
-    <div key={i} className="col-lg-4 col-md-6">
-      <div
-        className="h-100 p-4 d-flex flex-column"
-        style={{
-          backgroundColor: '#141414',
-          border: '1px solid rgba(255,255,255,0.05)',
-          transition: 'transform 0.3s ease, border-color 0.5s ease',
-          cursor: 'pointer'
-        }}
-        onClick={() => handleEliteCarClick(car)}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.transform = 'translateY(-10px)';
-          e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.transform = 'translateY(0)';
-          e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)';
-        }}
-      >
-        <div className="mb-4" style={{ height: '220px', backgroundColor: '#1a1a1a', borderRadius: '8px', overflow: 'hidden' }}>
-          {car.img && (
-            <img
-              src={getCarImageUrl(car.img)}
-              alt={car.name}
-              style={{
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-                filter: 'contrast(1.2) saturate(1.3)',
-                transition: 'transform 0.5s ease'
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.1)')}
-              onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
-            />
-          )}
-        </div>
-        <p className="mb-1 text-uppercase" style={{ fontSize: '0.7rem', color: '#a0a0a0', letterSpacing: '1px' }}>{car.type}</p>
-        <h3 className="h4 mb-3" style={{ fontFamily: 'Georgia, serif' }}>{car.name}</h3>
-        <div className="d-flex justify-content-between align-items-center mt-auto pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-          <span className="fw-bold fs-5">{car.price}</span>
-          <button
-            className="btn btn-outline-light btn-sm px-3 rounded-0 text-uppercase"
-            style={{ fontSize: '0.7rem', letterSpacing: '1px' }}
-            onClick={(e) => { e.stopPropagation(); handleEliteCarClick(car); }}
-          >
-            Rent Now
-          </button>
-        </div>
-      </div>
-    </div>
-  ))
-}
+            {getEliteCollectionCars(dbCars).slice(0, 6).map((car, i) => (
+              <div key={car.id || i} className="col-lg-4 col-md-6">
+                <div
+                  className="collection-card"
+                  onClick={() => handleEliteCarClick(car)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') handleEliteCarClick(car);
+                  }}
+                >
+                  {car.img && (
+                    <img
+                      src={getCarImageUrl(car.img)}
+                      alt={car.name}
+                      className="collection-card-img"
+                      loading={i < 3 ? 'eager' : 'lazy'}
+                      decoding="async"
+                    />
+                  )}
+                  <div className="collection-card-overlay">
+                    <p className="mb-1 text-uppercase collection-card-type">{car.type}</p>
+                    <h3 className="h4 mb-3" style={{ fontFamily: 'Georgia, serif' }}>{car.name}</h3>
+                    <div className="d-flex justify-content-between align-items-center">
+                      <span className="fw-bold fs-5">{car.price}</span>
+                      <button
+                        type="button"
+                        className="lux-btn lux-btn-sm"
+                        onClick={(e) => { e.stopPropagation(); handleEliteCarClick(car); }}
+                      >
+                        Book Now
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="text-center mt-5">
+            <Link
+              to="/carlist"
+              className="lux-btn text-decoration-none"
+              style={{ padding: '12px 36px', minWidth: '160px' }}
+            >
+              More
+              <i className="bi bi-arrow-right ms-2" />
+            </Link>
           </div>
         </Container>
       </section>
@@ -366,12 +273,23 @@ function Home() {
       <Container className="py-5">
         <div className="row align-items-center g-5">
           <div className="col-lg-6">
-            <img 
-              src={guaranteeImg} 
-              alt="Luxury Guarantee & Safety" 
-              className="img-fluid rounded-4 shadow-lg floating-image" 
-              style={{ objectFit: 'cover', minHeight: '450px', width: '100%', border: '1px solid rgba(255,255,255,0.05)' }}
-            />
+            <div
+              className="rounded-4 shadow-lg floating-image overflow-hidden"
+              style={{ minHeight: '450px', width: '100%', border: '1px solid rgba(255,255,255,0.05)' }}
+            >
+              <img 
+                src="/images/service.webp" 
+                alt="Professional chauffeur opening luxury sedan door" 
+                className="w-100 h-100"
+                style={{
+                  objectFit: 'cover',
+                  objectPosition: 'center',
+                  minHeight: '450px',
+                  transform: 'scale(1.18)',
+                  transformOrigin: 'center center',
+                }}
+              />
+            </div>
           </div>
           <div className="col-lg-6 ps-lg-5">
             <div className="d-flex align-items-center gap-3 mb-3">
@@ -423,6 +341,88 @@ function Home() {
 
     <ServiceRates />
 
+    {/* About Section */}
+      <section id="about" className="py-5" style={{ backgroundColor: '#0f0f0f', color: 'white' }}>
+        <Container className="py-5">
+          <div className="row g-5">
+            <div className="col-lg-7">
+              <div className="mb-5">
+                <div className="d-flex align-items-center gap-3 mb-3">
+                  <div style={{ width: '40px', height: '1px', backgroundColor: '#eeb012' }}></div>
+                  <span className="text-uppercase fw-bold" style={{ color: '#888', letterSpacing: '2px', fontSize: '0.75rem' }}>ABOUT</span>
+                </div>
+                <h2 className="display-4 mb-4" style={{ fontFamily: 'Georgia, serif', fontWeight: '400' }}>The Essence of Nextify</h2>
+                <p style={{ color: '#888', fontSize: '1.1rem', maxWidth: '500px' }}>
+                  Redefining luxury travel in Saudi Arabia since {COMPANY.foundedYear}, founded by {COMPANY.founder}, with professional chauffeurs and unmatched reliability.
+                </p>
+              </div>
+
+              <div className="row g-4">
+                <div className="col-md-6 mb-4">
+                  <i className="bi bi-key fs-3 mb-3 d-block" style={{ color: '#eeb012' }}></i>
+                  <h4 className="h5 mb-3" style={{ fontFamily: 'Georgia, serif' }}>Easy Access</h4>
+                  <p className="small" style={{ color: '#777', lineHeight: '1.6' }}>
+                    Booking your dream luxury car is now simpler than ever. Our intuitive platform allows you to reserve premium vehicles with just a few clicks, ready for you when you arrive.
+                  </p>
+                </div>
+                <div className="col-md-6 mb-4">
+                  <i className="bi bi-shield-check fs-3 mb-3 d-block" style={{ color: '#eeb012' }}></i>
+                  <h4 className="h5 mb-3" style={{ fontFamily: 'Georgia, serif' }}>Total Protection</h4>
+                  <p className="small" style={{ color: '#777', lineHeight: '1.6' }}>
+                    Drive with absolute peace of mind. Our comprehensive insurance and 24/7 roadside assistance guarantee complete safety and support for you and your premium vehicle throughout the journey.
+                  </p>
+                </div>
+                <div className="col-md-6 mb-4">
+                  <i className="bi bi-clock fs-3 mb-3 d-block" style={{ color: '#eeb012' }}></i>
+                  <h4 className="h5 mb-3" style={{ fontFamily: 'Georgia, serif' }}>On-Time Always</h4>
+                  <p className="small" style={{ color: '#777', lineHeight: '1.6' }}>
+                    Experience consistent excellence with every rental. Our commitment to premium quality ensures that your experience with us is flawlessly luxurious, every single time.
+                  </p>
+                </div>
+                <div className="col-md-6 mb-4">
+                  <i className="bi bi-star fs-3 mb-3 d-block" style={{ color: '#eeb012' }}></i>
+                  <h4 className="h5 mb-3" style={{ fontFamily: 'Georgia, serif' }}>Premium Service</h4>
+                  <p className="small" style={{ color: '#777', lineHeight: '1.6' }}>
+                    Indulge in a personalized service experience tailored to your exquisite taste. From a pristine fleet to VIP support, we define luxury car rentals by exceeding your expectations.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="col-lg-5">
+              <div className="position-relative mb-4 rounded-4 shadow-lg overflow-hidden">
+                <img
+                  src="/images/hero/bmw-7-series.webp"
+                  alt="Luxury Car Model"
+                  className="img-fluid w-100"
+                  style={{
+                    objectFit: 'cover',
+                    objectPosition: 'center',
+                    transform: 'scale(1.12)',
+                    transformOrigin: 'center center',
+                    display: 'block',
+                    border: 'none',
+                    outline: 'none',
+                    background: 'transparent',
+                  }}
+                />
+              </div>
+              <div className="mt-5 pt-3">
+                <p className="mb-5" style={{ color: '#888', lineHeight: '1.8' }}>
+                  Embark on a journey with Nextify, your premier destination for luxury car rentals in Saudi Arabia. We provide unparalleled access to a world-class fleet, ensuring prestige, safety, and exceptional service at any time.
+                </p>
+                <button
+                  className="btn rounded-pill px-5 py-3 fw-bold border-0"
+                  style={{ backgroundColor: '#eefe31', color: '#000', fontSize: '0.9rem' }}
+                >
+                  Discover Our Story
+                </button>
+              </div>
+            </div>
+          </div>
+        </Container>
+      </section>
+
     {/* Events & Testimonial Section */}
     <section className="py-5" style={{ backgroundColor: '#000000', color: 'white' }}>
       <Container className="py-5">
@@ -442,11 +442,11 @@ function Home() {
               </div>
             </div>
             <p className="mb-4" style={{ color: '#aaa', fontSize: '1.05rem', lineHeight: '1.7', maxWidth: '380px' }}>
-              I never knew renting a chauffeur service could feel this premium. The entire process was seamless, and the Mercedes was in mint condition. Nextify exceeded every expectation.
+              We recently used Nextify's transportation services for a major corporate event, and we couldn't be happier. The private chauffeurs were punctual and courteous, and the vehicles were immaculate. Our executives and guests were thoroughly impressed with the level of service.
             </p>
             <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '20px', maxWidth: '380px' }}>
-              <span className="fw-bold text-white" style={{ fontSize: '0.9rem' }}>Julian Maddox, </span>
-              <span style={{ color: '#777', fontSize: '0.9rem' }}>Luxury Event Planner</span>
+              <span className="fw-bold text-white" style={{ fontSize: '0.9rem' }}>James T, </span>
+              <span style={{ color: '#777', fontSize: '0.9rem' }}>Corporate Event Planner</span>
             </div>
           </div>
 
@@ -469,22 +469,22 @@ function Home() {
         </div>
 
         {/* Statistics Row */}
-        <div className="row text-center pt-2">
-          <div className="col-md-3 col-6 mb-4 mb-md-0">
+        <div className="row text-center pt-2 stats-row">
+          <div className="col-3">
             <h3 className="mb-3 stat-number" style={{ fontFamily: 'Georgia, serif', fontWeight: '400' }}>34K+</h3>
-            <p className="mb-0" style={{ color: '#777', fontSize: '1rem' }}>Happy Clients</p>
+            <p className="mb-0 stat-label" style={{ color: '#777', fontSize: '1rem' }}>Happy Clients</p>
           </div>
-          <div className="col-md-3 col-6 mb-4 mb-md-0">
+          <div className="col-3">
             <h3 className="mb-3 stat-number" style={{ fontFamily: 'Georgia, serif', fontWeight: '400' }}>99%</h3>
-            <p className="mb-0" style={{ color: '#777', fontSize: '1rem' }}>Accident-Free Rentals</p>
+            <p className="mb-0 stat-label" style={{ color: '#777', fontSize: '1rem' }}>Accident-Free Rentals</p>
           </div>
-          <div className="col-md-3 col-6 mb-4 mb-md-0">
+          <div className="col-3">
             <h3 className="mb-3 stat-number" style={{ fontFamily: 'Georgia, serif', fontWeight: '400' }}>210+</h3>
-            <p className="mb-0" style={{ color: '#777', fontSize: '1rem' }}>Luxury Cars</p>
+            <p className="mb-0 stat-label" style={{ color: '#777', fontSize: '1rem' }}>Luxury Cars</p>
           </div>
-          <div className="col-md-3 col-6">
+          <div className="col-3">
             <h3 className="mb-3 stat-number" style={{ fontFamily: 'Georgia, serif', fontWeight: '400' }}>100%</h3>
-            <p className="mb-0" style={{ color: '#777', fontSize: '1rem' }}>Fully Insured Vehicles</p>
+            <p className="mb-0 stat-label" style={{ color: '#777', fontSize: '1rem' }}>Fully Insured Vehicles</p>
           </div>
         </div>
       </Container>

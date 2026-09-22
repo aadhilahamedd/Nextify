@@ -1,3 +1,5 @@
+import { COMPANY } from './company';
+
 const SERVICE_LABELS = {
   airport: 'Airport Transfer',
   pointToPoint: 'City Transfer',
@@ -10,7 +12,7 @@ const SERVICE_LABELS = {
 };
 
 /** Company WhatsApp support line — Saudi Arabia */
-export const COMPANY_PHONE = '+966512345678';
+export const COMPANY_PHONE = COMPANY.phonePrimary;
 
 /** Strip non-digits and normalize common Saudi / international formats */
 export function normalizeWhatsAppPhone(phone) {

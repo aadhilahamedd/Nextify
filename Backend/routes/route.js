@@ -1,5 +1,7 @@
 const express = require('express');
 const router = express.Router();
+console.log("🔥 ROUTE.JS LOADED");
+
 const bookingController = require('../controllers/bookingController');
 const authController = require('../controllers/authController');
 const messageController = require('../controllers/messageController');
@@ -14,6 +16,7 @@ const adminMiddleware = require('../middleware/adminMiddleware');
 const Settings = require('../models/Settings');
 const { DEFAULT_CONTACT } = require('../services/seedService');
 const { success } = require('../utils/apiResponse');
+const openaiService = require('../services/openaiService');
 
 // ====== Auth routes ======
 router.post('/api/register', authController.register);
@@ -78,7 +81,11 @@ router.delete('/api/drivers/:id', jwtMiddleware, adminMiddleware, driverControll
 router.post('/api/payments/create', optionalJwtMiddleware, paymentController.createPayment);
 router.post('/api/payments/mock/complete', paymentController.mockComplete);
 router.post('/api/payments/mock/fail', paymentController.mockFail);
+router.post('/api/payments/moyasar/reference', optionalJwtMiddleware, paymentController.attachMoyasarReference);
+router.get('/api/payments/verify/:id', optionalJwtMiddleware, paymentController.verifyPayment);
+router.get('/api/payment/verify/:paymentId', optionalJwtMiddleware, paymentController.verifyPayment);
 router.post('/api/payments/webhook', paymentController.webhook);
+router.post('/api/payment/webhook', paymentController.webhook);
 router.get('/api/payments/booking/:bookingId', jwtMiddleware, adminMiddleware, paymentController.getPaymentByBooking);
 router.get('/api/payments', jwtMiddleware, adminMiddleware, paymentController.getAllPayments);
 
@@ -89,4 +96,25 @@ router.get('/api/test', (req, res) => {
   return success(res, 200, 'API route working', { ok: true });
 });
 
+router.get("/api/test-openai", async (req, res) => {
+  try {
+    const response = await openaiService.responses.create({
+      model: "gpt-5",
+      input: "Say hello to Nextify in one short sentence.",
+    });
+
+    return res.status(200).json({
+      success: true,
+      reply: response.output_text,
+    });
+  } catch (error) {
+    console.error("OpenAI Test Error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "OpenAI request failed",
+      error: error.message,
+    });
+  }
+});
 module.exports = router;

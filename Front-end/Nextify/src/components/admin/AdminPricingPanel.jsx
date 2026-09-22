@@ -102,10 +102,10 @@ export default function AdminPricingPanel() {
   };
 
   return (
-    <div style={{ marginTop: 32 }}>
-      <div className="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+      <div className="admin-page-head">
         <div>
-          <h3 style={{ margin: 0, fontFamily: 'Georgia, serif' }}>Pricing Management</h3>
+          <h1>Pricing Management</h1>
           <p style={{ margin: '6px 0 0', color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>
             View and manage approved rate sheet rules
           </p>

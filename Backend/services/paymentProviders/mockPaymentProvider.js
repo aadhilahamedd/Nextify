@@ -55,4 +55,13 @@ async function handleWebhook(payload) {
   return completePayment(paymentId, outcome);
 }
 
-module.exports = { createPayment, completePayment, handleWebhook };
+function getCheckoutConfig(payment) {
+  return {
+    provider: 'mock',
+    paymentId: payment._id,
+    amount: payment.amount,
+    currency: payment.currency || 'SAR',
+  };
+}
+
+module.exports = { createPayment, completePayment, handleWebhook, getCheckoutConfig };

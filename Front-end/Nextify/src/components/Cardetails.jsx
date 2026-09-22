@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { getCarImageUrl } from '../utils/carsStorage';
+import { resolveCarImage } from '../utils/carsStorage';
 import Container from 'react-bootstrap/Container';
 import Row from 'react-bootstrap/Row';
 import Col from 'react-bootstrap/Col';
@@ -45,10 +45,9 @@ function Cardetails() {
           <Col lg={7}>
             <div className="position-relative" style={{ borderRadius: '12px', overflow: 'hidden', backgroundColor: '#141414', border: '1px solid rgba(255,255,255,0.05)', boxShadow: '0 20px 40px rgba(0,0,0,0.5)' }}>
               <img 
-                src={getCarImageUrl(car.img)} 
+                src={resolveCarImage(car)} 
                 alt={car.name} 
-                className="img-fluid w-100" 
-                style={{ objectFit: 'cover', height: '100%', minHeight: '400px', maxHeight: '550px', filter: 'contrast(1.1) saturate(1.1)' }} 
+                className="img-fluid w-100 car-details-photo" 
               />
               <div className="position-absolute top-0 start-0 m-4">
                 <span className="badge bg-dark border border-secondary text-light fw-normal py-2 px-3 rounded-pill" style={{ letterSpacing: '1px' }}>
@@ -93,11 +92,12 @@ function Cardetails() {
               </div>
 
               <button 
+                type="button"
                 onClick={() => navigate('/booking', { state: { car } })}
-                className="btn btn-outline-light py-3 px-5 rounded-0 text-uppercase fw-semibold w-100" 
-                style={{ letterSpacing: '2px', transition: 'all 0.3s ease', cursor: 'pointer' }}
+                className="lux-btn lux-btn-lg"
               >
-                Proceed to Reservation
+                Book This Vehicle
+                <i className="bi bi-arrow-right"></i>
               </button>
             </div>
           </Col>

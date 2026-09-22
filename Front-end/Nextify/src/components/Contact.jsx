@@ -6,6 +6,8 @@ import serverURL from '../Services/serverURL'
 import { submitContactMessageAPI } from '../Services/allAPI'
 import { saveLocalContactMessage } from '../utils/contactMessagesStorage'
 
+import { COMPANY } from '../utils/company'
+
 function Contact() {
   const [formData, setFormData] = useState({
     name: '',
@@ -18,13 +20,21 @@ function Contact() {
   const [statusType, setStatusType] = useState('success')
   const [submitting, setSubmitting] = useState(false)
   const contactDefaults = {
-    phone: '+966 11 234 5678',
-    email: 'hello@nextify.sa',
-    location: 'Riyadh, Saudi Arabia'
+    phone: COMPANY.phonePrimary,
+    email: COMPANY.email,
+    location: COMPANY.addressLines.join(', ')
   }
   const [contactInfo, setContactInfo] = useState(() => {
-    const saved = localStorage.getItem('nextifyContactInfo')
-    return saved ? JSON.parse(saved) : contactDefaults
+    try {
+      const saved = JSON.parse(localStorage.getItem('nextifyContactInfo') || 'null')
+      if (saved?.email === 'hello@nextify.sa' || saved?.email === 'Support@nextify.com') {
+        localStorage.removeItem('nextifyContactInfo')
+        return contactDefaults
+      }
+      return saved || contactDefaults
+    } catch {
+      return contactDefaults
+    }
   })
   const [hasCachedContact] = useState(() => Boolean(localStorage.getItem('nextifyContactInfo')))
   const [editingContact, setEditingContact] = useState(false)

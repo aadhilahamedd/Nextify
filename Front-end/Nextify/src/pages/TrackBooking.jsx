@@ -4,6 +4,14 @@ import { Link } from 'react-router-dom';
 import { trackBookingAPI } from '../Services/allAPI';
 import PriceSummary from '../components/booking/PriceSummary';
 import { SERVICE_LABELS } from '../components/booking/bookingConstants';
+import '../components/booking/Booking.css';
+
+function prettyStatus(value) {
+  return String(value || 'Pending')
+    .replace(/_/g, ' ')
+    .toLowerCase()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
 
 function TrackBooking() {
   const [bookingNumber, setBookingNumber] = useState('');
@@ -18,11 +26,11 @@ function TrackBooking() {
     setError('');
     setBooking(null);
     if (!bookingNumber.trim()) {
-      setError('Booking number is required');
+      setError('Please enter your booking number.');
       return;
     }
-    if (!email && !mobile) {
-      setError('Enter your email or mobile number');
+    if (!email.trim() && !mobile.trim()) {
+      setError('Enter the email or mobile number used when you booked.');
       return;
     }
     setLoading(true);
@@ -31,53 +39,140 @@ function TrackBooking() {
     if (res?.status === 200) {
       setBooking(res.data?.data?.booking || res.data?.booking);
     } else {
-      setError(res?.data?.message || res?.error || 'Booking not found');
+      setError(res?.data?.message || res?.error || 'We could not find a matching booking.');
     }
   };
 
-  const serviceType = booking?.serviceType;
+  const resetSearch = () => {
+    setBooking(null);
+    setError('');
+  };
+
+  const scheduled = booking?.schedule?.pickupDateTime || booking?.arrivalDateTime;
+  const pricingQuote = booking
+    ? {
+        price: booking.quotedPrice ?? booking.pricing?.totalAmount,
+        currency: booking.pricing?.currency || 'SAR',
+        customQuoteRequired: booking.customQuoteRequired,
+        pricingType: booking.pricingType || booking.pricing?.breakdown?.pricingType,
+        message: booking.pricing?.breakdown?.message,
+      }
+    : null;
 
   return (
-    <div style={{ backgroundColor: '#0a0a0a', minHeight: '100vh', paddingTop: 120, paddingBottom: 80, color: 'white' }}>
-      <Container style={{ maxWidth: 640 }}>
-        <div className="text-center text-white mb-4">
-          <h2 style={{ fontFamily: 'var(--font-heading)' }}>Track Your Booking</h2>
-          <p className="text-white-50">Enter your booking reference and contact details</p>
+    <div className="book-page">
+      <Container style={{ maxWidth: 720 }}>
+        <div className="text-center mb-4">
+          <p className="book-kicker">Reservation status</p>
+          <h1 className="book-title">Track your booking</h1>
+          <p className="book-lead">
+            Enter your booking number and the email or mobile you used at checkout. We will show the live status of your chauffeur reservation.
+          </p>
         </div>
 
-        <form onSubmit={handleTrack} className="rounded-4 p-4 shadow-lg mb-4" style={{ background: '#fff' }}>
+        <form onSubmit={handleTrack} className="book-panel mb-4">
           <div className="mb-3">
-            <label className="form-label fw-bold">Booking Number *</label>
-            <input className="form-control p-3" value={bookingNumber} onChange={(e) => setBookingNumber(e.target.value)} placeholder="NXT-20260908-XXXXX" />
+            <label className="book-label">Booking number *</label>
+            <input
+              className="form-control book-input"
+              value={bookingNumber}
+              onChange={(e) => setBookingNumber(e.target.value)}
+              placeholder="NXT-20260908-XXXXX"
+              autoComplete="off"
+            />
           </div>
-          <div className="mb-3">
-            <label className="form-label fw-bold">Email</label>
-            <input type="email" className="form-control p-3" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <div className="row g-3">
+            <div className="col-md-6">
+              <label className="book-label">Email</label>
+              <input
+                type="email"
+                className="form-control book-input"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="name@email.com"
+              />
+            </div>
+            <div className="col-md-6">
+              <label className="book-label">Mobile</label>
+              <input
+                className="form-control book-input"
+                value={mobile}
+                onChange={(e) => setMobile(e.target.value)}
+                placeholder="+966..."
+              />
+            </div>
           </div>
-          <div className="mb-3">
-            <label className="form-label fw-bold">Mobile</label>
-            <input className="form-control p-3" value={mobile} onChange={(e) => setMobile(e.target.value)} placeholder="+966..." />
-          </div>
-          {error && <div className="alert alert-danger py-2">{error}</div>}
-          <button type="submit" className="btn w-100 rounded-pill py-3 text-dark border-0 fw-bold" style={{ background: 'linear-gradient(135deg, #a88448 0%, #c8a261 100%)' }} disabled={loading}>
-            {loading ? 'Searching...' : 'Track Booking'}
+          <span className="book-hint">Only one of email or mobile is required.</span>
+          {error && <div className="book-error">{error}</div>}
+          <button type="submit" className="lux-btn w-100 mt-4" style={{ padding: '14px 24px' }} disabled={loading}>
+            {loading ? 'Searching...' : 'Track booking'}
           </button>
         </form>
 
         {booking && (
-          <div className="rounded-4 p-4 shadow-lg text-white" style={{ background: '#141414', border: '1px solid rgba(255,255,255,0.08)' }}>
-            <h5>{booking.bookingNumber}</h5>
-            <p className="mb-1">Service: {SERVICE_LABELS[serviceType] || serviceType}</p>
-            <p className="mb-1">Status: <strong>{booking.bookingStatus}</strong> · Payment: {booking.paymentStatus}</p>
-            <p className="mb-1">Pickup: {booking.pickup?.address || booking.pickupLocation}</p>
-            <p className="mb-3">Scheduled: {new Date(booking.schedule?.pickupDateTime || booking.arrivalDateTime).toLocaleString()}</p>
-            {booking.driver?.name && <p className="mb-3">Chauffeur: {booking.driver.name} ({booking.driver.phone})</p>}
-            <PriceSummary quote={booking.pricing} compact />
+          <div className="book-panel">
+            <p className="book-kicker mb-2">Your reservation</p>
+            <h2 className="h4 mb-1" style={{ fontFamily: 'Georgia, serif' }}>{booking.bookingNumber}</h2>
+            <div className="track-pills">
+              <span className="track-pill">{prettyStatus(booking.bookingStatus)}</span>
+              <span className="track-pill is-muted">Payment · {prettyStatus(booking.paymentStatus)}</span>
+            </div>
+
+            <div className="track-result-grid">
+              <p>
+                <span>Service</span>
+                {SERVICE_LABELS[booking.serviceType] || booking.serviceType}
+              </p>
+              <p>
+                <span>Vehicle</span>
+                {booking.vehicle?.name || booking.vehicleName || 'Assigned with chauffeur'}
+              </p>
+              <p>
+                <span>Pickup</span>
+                {booking.pickup?.address || booking.pickupLocation || booking.origin || '—'}
+              </p>
+              <p>
+                <span>Destination</span>
+                {booking.destination?.address || booking.dropoffLocation || booking.destinationText || '—'}
+              </p>
+              <p>
+                <span>Date & time</span>
+                {scheduled ? new Date(scheduled).toLocaleString() : 'To be confirmed'}
+              </p>
+              <p>
+                <span>Guest</span>
+                {booking.customer?.name || '—'}
+                {booking.customer?.mobile ? <><br />{booking.customer.mobile}</> : null}
+              </p>
+            </div>
+
+            {booking.driver?.name && (
+              <div className="track-chauffeur">
+                <span className="book-label mb-1">Assigned chauffeur</span>
+                <p className="mb-0">{booking.driver.name}{booking.driver.phone ? ` · ${booking.driver.phone}` : ''}</p>
+              </div>
+            )}
+
+            <PriceSummary
+              form={{
+                serviceType: booking.serviceType,
+                vehicleName: booking.vehicle?.name || booking.vehicleName,
+                travelDate: scheduled ? new Date(scheduled).toLocaleString() : '',
+              }}
+              quote={pricingQuote}
+              compact
+            />
+
+            <button type="button" className="book-ghost mt-4" onClick={resetSearch}>
+              Search another booking
+            </button>
           </div>
         )}
 
-        <div className="text-center mt-4">
-          <Link to="/booking" className="text-white">Make a new booking →</Link>
+        <div className="text-center mt-5">
+          <Link to="/booking" className="lux-btn text-decoration-none" style={{ padding: '12px 28px' }}>
+            Make a new booking
+          </Link>
         </div>
       </Container>
     </div>

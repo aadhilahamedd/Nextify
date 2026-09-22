@@ -221,6 +221,29 @@ export const createPaymentAPI = async (bookingId) => {
   }
 };
 
+export const attachMoyasarReferenceAPI = async (paymentId, moyasarPaymentId) => {
+  try {
+    const response = await commonAPI(
+      "POST",
+      `${serverURL}/api/payments/moyasar/reference`,
+      { paymentId, moyasarPaymentId },
+      getAuthHeaders()
+    );
+    return unwrap(response);
+  } catch (err) {
+    return handleError(err, "Failed to save payment reference");
+  }
+};
+
+export const verifyPaymentAPI = async (moyasarPaymentId) => {
+  try {
+    const response = await commonAPI("GET", `${serverURL}/api/payments/verify/${moyasarPaymentId}`, "", getAuthHeaders());
+    return unwrap(response);
+  } catch (err) {
+    return handleError(err, "Failed to verify payment");
+  }
+};
+
 export const mockCompletePaymentAPI = async (paymentId) => {
   try {
     const response = await commonAPI("POST", `${serverURL}/api/payments/mock/complete`, { paymentId }, { "Content-Type": "application/json" });

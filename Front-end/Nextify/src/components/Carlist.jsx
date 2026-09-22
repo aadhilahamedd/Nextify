@@ -1,13 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import Container from 'react-bootstrap/Container'
 import { useNavigate } from 'react-router-dom'
-import { getCarImageUrl, initialCars } from '../utils/carsStorage'
+import { applyLocalCarImages, getCarImageUrl, initialCars, sortCarsForShowcase } from '../utils/carsStorage'
 import { getCarsAPI, addCarAPI, updateCarAPI, deleteCarAPI, getPricingRulesAPI } from '../Services/allAPI'
 import VehiclePricingDisplay from './pricing/VehiclePricingDisplay'
 
 function Carlist() {
   const navigate = useNavigate();
-  const [cars, setCars] = useState([])
+  const [cars, setCars] = useState(initialCars)
   const [showModal, setShowModal] = useState(false)
   const [editingCar, setEditingCar] = useState(null)
   const [editData, setEditData] = useState({ name: '', price: '', type: '', seats: '', luggage: '', img: '' })
@@ -72,11 +72,8 @@ function Carlist() {
 
   const fetchCars = async () => {
     const response = await getCarsAPI()
-    if (response && response.data && Array.isArray(response.data)) {
-      setCars(response.data)
-    } else {
-      console.warn('Car API fetch failed, falling back to local data:', response)
-      setCars(initialCars)
+    if (response && response.data && Array.isArray(response.data) && response.data.length) {
+      setCars(applyLocalCarImages(response.data))
     }
   }
 
@@ -146,7 +143,7 @@ function Carlist() {
     const type = String(car.type || '').toLowerCase()
     const name = String(car.name || '').toLowerCase()
 
-    if (type.includes('suv') || name.includes('yukon')) return 'SUV'
+    if (type.includes('suv') || name.includes('yukon') || name.includes('tahoe') || name.includes('suburban')) return 'SUV'
     if (type.includes('coach') || type.includes('bus') || type.includes('mini bus') || name.includes('coaster')) return 'Coaches'
     if (type.includes('van') || type.includes('minivan') || type.includes('passenger van') || name.includes('hiace') || name.includes('sprinter') || name.includes('v-class')) return 'Van'
     if (type.includes('sedan')) return 'Sedan'
@@ -158,7 +155,7 @@ function Carlist() {
 
   const filterOptions = ['All', 'First class', 'Business class', 'SUV', 'Sedan', 'Van', 'Coaches']
 
-  const filteredCars = cars.filter((car) => {
+  const filteredCars = sortCarsForShowcase(cars).filter((car) => {
     if (activeFilter === 'All') return true
     return getCarCategory(car) === activeFilter
   })
@@ -217,7 +214,7 @@ function Carlist() {
             {filteredCars.map((car) => (
               <div key={car.id} className="col-lg-4 col-md-6 mb-4">
                 <div
-                  className="h-100 p-4 d-flex flex-column"
+                  className="h-100 d-flex flex-column fleet-card"
                   style={{
                     backgroundColor: '#141414',
                     border: '1px solid rgba(255,255,255,0.05)',
@@ -234,20 +231,11 @@ function Carlist() {
                     e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)';
                   }}
                 >
-                  <div className="position-relative mb-4" style={{ height: '220px', backgroundColor: '#1a1a1a', borderRadius: '8px', overflow: 'hidden' }}>
+                  <div className="fleet-card-image">
                   {car.img && (
                     <img
                       src={getCarImageUrl(car.img)}
                       alt={car.name}
-                      style={{
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'cover',
-                        filter: 'contrast(1.1) saturate(1.1)',
-                        transition: 'transform 0.5s ease'
-                      }}
-                      onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.1)'}
-                      onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
                     />
                   )}
                   {isAdmin && (
@@ -261,6 +249,7 @@ function Carlist() {
                     </div>
                   )}
                 </div>
+                <div className="p-4 d-flex flex-column flex-grow-1">
                 <p className="mb-1 text-uppercase" style={{ fontSize: '0.7rem', color: '#a0a0a0', letterSpacing: '1px' }}>{car.type}</p>
                 <h3 className="h4 mb-3" style={{ fontFamily: 'Georgia, serif' }}>{car.name}</h3>
 
@@ -289,12 +278,13 @@ function Carlist() {
                 <div className="d-flex justify-content-between align-items-center pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.1)' }}>
                   <span className="fw-bold fs-6" style={{ color: '#888' }}>Chauffeur included</span>
                   <button 
+                    type="button"
                     onClick={(e) => { e.stopPropagation(); handleCardClick(car); }} 
-                    className="btn btn-sm px-3 rounded-0 text-uppercase"
-                    style={{ fontSize: '0.7rem', letterSpacing: '1px', background: 'linear-gradient(135deg, #231b12, #a98231, #d4b56d)', color: '#000', boxShadow: '0 8px 16px rgba(212, 181, 109, 0.18)' }}
+                    className="lux-btn lux-btn-sm"
                   >
-                    Rent Now
+                    Book Now
                   </button>
+                </div>
                 </div>
               </div>
             </div>

@@ -1,3 +1,4 @@
+// Legacy FAQ/intent helpers. /api/chat now uses aiChatService, not processMessage.
 const Car = require('../models/Car');
 const PricingRule = require('../models/PricingRule');
 const { getRulesByService } = require('./pricingService');
