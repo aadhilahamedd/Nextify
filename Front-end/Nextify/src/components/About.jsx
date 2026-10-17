@@ -71,7 +71,7 @@ function About() {
             <div className="row g-4">
               {[
                 { label: 'Years of Trust', value: `${new Date().getFullYear() - COMPANY.foundedYear}+`, color: '#eeb012' },
-                { label: 'Luxury Vehicles', value: '210+', color: '#fff' },
+                { label: 'Luxury Vehicles', value: '15+', color: '#fff' },
                 { label: 'Happy Clients', value: '34K+', color: '#fff' },
                 { label: 'Available 24/7', value: 'Yes', color: '#fff' }
               ].map((item, index) => (

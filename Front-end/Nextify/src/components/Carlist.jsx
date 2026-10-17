@@ -150,10 +150,10 @@ function Carlist() {
 
     // Premium tiers (simple mapping by model keywords)
     if (name.includes('s-class') || name.includes('7 series')) return 'First class'
-    return 'Bussiness class'
+    return 'Sedan'
   }
 
-  const filterOptions = ['All', 'First class', 'Business class', 'SUV', 'Sedan', 'Van', 'Coaches']
+  const filterOptions = ['All', 'First class', 'SUV', 'Sedan', 'Van', 'Coaches']
 
   const filteredCars = sortCarsForShowcase(cars).filter((car) => {
     if (activeFilter === 'All') return true

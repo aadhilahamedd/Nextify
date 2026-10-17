@@ -442,7 +442,7 @@ function Home() {
             <p className="mb-0 stat-label" style={{ color: '#777', fontSize: '1rem' }}>Accident-Free Rentals</p>
           </div>
           <div className="col-3">
-            <h3 className="mb-3 stat-number" style={{ fontFamily: 'Georgia, serif', fontWeight: '400' }}>210+</h3>
+            <h3 className="mb-3 stat-number" style={{ fontFamily: 'Georgia, serif', fontWeight: '400' }}>15+</h3>
             <p className="mb-0 stat-label" style={{ color: '#777', fontSize: '1rem' }}>Luxury Cars</p>
           </div>
           <div className="col-3">
