@@ -9,6 +9,7 @@ const carController = require('../controllers/carController');
 const pricingController = require('../controllers/pricingController');
 const driverController = require('../controllers/driverController');
 const paymentController = require('../controllers/paymentController');
+const whatsappRoutes = require('./whatsappRoutes');
 const chatController = require('../controllers/chatController');
 const jwtMiddleware = require('../middleware/jwtMiddleware');
 const optionalJwtMiddleware = require('../middleware/optionalJwtMiddleware');
@@ -56,6 +57,7 @@ router.put('/api/pricing-rules/:id', jwtMiddleware, adminMiddleware, pricingCont
 
 // ====== Bookings (guest + optional auth) ======
 router.post('/api/bookings', optionalJwtMiddleware, bookingController.createBooking);
+router.get('/api/bookings/pay/:id', bookingController.getPublicPayBooking);
 router.get('/api/bookings/track/:bookingNumber', bookingController.trackBooking);
 router.get('/api/bookings', jwtMiddleware, adminMiddleware, bookingController.getBookings);
 router.get('/api/bookings/stats', jwtMiddleware, adminMiddleware, bookingController.getDashboardStats);
@@ -88,6 +90,7 @@ router.post('/api/payments/webhook', paymentController.webhook);
 router.post('/api/payment/webhook', paymentController.webhook);
 router.get('/api/payments/booking/:bookingId', jwtMiddleware, adminMiddleware, paymentController.getPaymentByBooking);
 router.get('/api/payments', jwtMiddleware, adminMiddleware, paymentController.getAllPayments);
+router.use(whatsappRoutes);
 
 // ====== Chat ======
 router.post('/api/chat', chatController.chat);

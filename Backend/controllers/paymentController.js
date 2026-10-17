@@ -3,6 +3,14 @@ const Booking = require('../models/Booking');
 const paymentService = require('../services/paymentService');
 const { success, error } = require('../utils/apiResponse');
 
+function notifyWhatsAppPayment(result) {
+  setImmediate(() => {
+    Promise.resolve()
+      .then(() => require('../services/whatsapp/whatsappBookingService').notifyPaymentResult(result))
+      .catch((err) => console.error('[whatsapp] payment notify failed', err.message));
+  });
+}
+
 function publicResult(payment, booking, extra = {}) {
   return {
     payment: paymentService.toSafePayment(payment),
@@ -29,36 +37,9 @@ exports.createPayment = async (req, res, next) => {
       return error(res, 409, 'Booking already paid');
     }
 
-    const alreadyPaid = await Payment.findOne({ booking: bookingId, status: 'PAID' });
-    if (alreadyPaid) {
-      return error(res, 409, 'Booking already paid');
-    }
-
-    const amount = Number(booking.pricing?.totalAmount ?? booking.quotedPrice ?? 0);
-    const currency = booking.pricing?.currency || 'SAR';
-    if (!Number.isFinite(amount) || amount < 1) {
-      return error(res, 400, 'Invalid booking amount');
-    }
-    if (String(currency).toUpperCase() !== 'SAR') {
-      return error(res, 400, 'Only SAR payments are supported');
-    }
-
-    const existing = await Payment.findOne({ booking: bookingId, status: 'PENDING' }).sort({ createdAt: -1 });
-    if (existing) {
-      return success(res, 200, 'Existing pending payment', publicResult(existing, booking, {
-        checkout: paymentService.getCheckoutConfig(existing, booking),
-      }));
-    }
-
-    const payment = await paymentService.createPayment({
-      booking,
-      amount,
-      currency,
-    });
-
-    const refreshed = await Booking.findById(bookingId);
-    return success(res, 201, 'Payment created', publicResult(payment, refreshed, {
-      checkout: paymentService.getCheckoutConfig(payment, refreshed),
+    const result = await paymentService.createOrReuseCheckout(booking);
+    return success(res, result.payment.createdAt?.getTime() === result.payment.updatedAt?.getTime() ? 201 : 200, 'Payment ready', publicResult(result.payment, result.booking, {
+      checkout: result.checkout,
     }));
   } catch (err) {
     next(err);
@@ -74,6 +55,7 @@ exports.mockComplete = async (req, res, next) => {
       return error(res, 400, 'This payment must be verified through Moyasar');
     }
     const result = await paymentService.completePayment(paymentId, 'success');
+    notifyWhatsAppPayment({ ...result, mappedStatus: 'PAID' });
     return success(res, 200, 'Payment completed successfully', {
       payment: paymentService.toSafePayment(result.payment),
       booking: result.booking.toPublicJSON(),
@@ -92,6 +74,7 @@ exports.mockFail = async (req, res, next) => {
       return error(res, 400, 'This payment must be verified through Moyasar');
     }
     const result = await paymentService.completePayment(paymentId, 'fail');
+    notifyWhatsAppPayment({ ...result, mappedStatus: 'FAILED' });
     return success(res, 200, 'Payment marked as failed', {
       payment: paymentService.toSafePayment(result.payment),
       booking: result.booking.toPublicJSON(),
@@ -109,6 +92,7 @@ exports.verifyPayment = async (req, res, next) => {
     const result = await paymentService.verifyPayment(paymentId);
     const mapped = result.mappedStatus || result.payment.status;
     const verified = mapped === 'PAID';
+    notifyWhatsAppPayment(result);
 
     return success(res, verified ? 200 : 422, verified ? 'Payment verified' : 'Payment not successful', {
       payment: paymentService.toSafePayment(result.payment),
@@ -139,6 +123,7 @@ exports.attachMoyasarReference = async (req, res, next) => {
 exports.webhook = async (req, res, next) => {
   try {
     const result = await paymentService.handleWebhook(req.body);
+    notifyWhatsAppPayment(result);
     return success(res, 200, 'Webhook processed', {
       payment: paymentService.toSafePayment(result.payment),
       bookingNumber: result.booking?.bookingNumber,

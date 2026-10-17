@@ -5,8 +5,10 @@ const commonAPI = async (httpMethod, url, reqBody,reqHeaders) => {
     const reqConfig = {
         method: httpMethod,
         url: url,
-        data: reqBody,
         headers: reqHeaders
+    }
+    if (reqBody !== '' && reqBody !== undefined && reqBody !== null) {
+        reqConfig.data = reqBody
     }
     return await axios(reqConfig)
         .then(res => res)

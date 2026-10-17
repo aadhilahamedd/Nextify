@@ -5,6 +5,7 @@ import { applyLocalCarImages, getCarImageUrl, getEliteCollectionCars, initialCar
 import { getCarsAPI } from '../Services/allAPI'
 import ServiceRates from '../components/pricing/ServiceRates'
 import { COMPANY } from '../utils/company'
+import { COMPANY_PHONE, getWhatsAppUrl } from '../utils/whatsapp'
 
 const backgrounds = [
   '/images/hero/bmw-7-series.webp',
@@ -25,66 +26,23 @@ const brandLogos = [
 function Home() {
   const [currentBg, setCurrentBg] = useState(0);
   const [prevBg, setPrevBg] = useState(-1);
-  const [activeTab, setActiveTab] = useState('airport');
-  const [formData, setFormData] = useState({
-    name: '',
-    mobile: '',
-    email: '',
-    eventType: '',
-    eventOther: '',
-    flightNumber: '',
-    arrivalDateTime: '',
-    vehicle: '',
-    pickupLocation: '',
-    otherPickupLocation: '',
-    dropoffLocation: '',
-    hours: '5 HRS'
-  });
-
   const [dbCars, setDbCars] = useState(initialCars);
-  const [vehicles, setVehicles] = useState(initialCars.map((car) => car.name));
 
   useEffect(() => {
     const fetchCars = async () => {
       const response = await getCarsAPI();
       if (response && response.data && Array.isArray(response.data) && response.data.length) {
-        const cars = applyLocalCarImages(response.data);
-        setDbCars(cars);
-        setVehicles(cars.map((car) => car.name));
+        setDbCars(applyLocalCarImages(response.data));
       }
     };
     fetchCars();
   }, []);
-
-  const findDbCar = (carName) => {
-    const nameLower = carName.toLowerCase();
-    return dbCars.find(c => {
-      const dbNameLower = c.name.toLowerCase();
-      if (nameLower.includes('7 series') && dbNameLower.includes('7 series')) return true;
-      if (nameLower.includes('s-class') && dbNameLower.includes('s-class')) return true;
-      if (nameLower.includes('es 350') && dbNameLower.includes('es 350')) return true;
-      return dbNameLower.includes(nameLower) || nameLower.includes(dbNameLower);
-    });
-  };
 
   const navigate = useNavigate()
 
   const handleEliteCarClick = (car) => {
     navigate('/cardetails', { state: { car } })
   }
-
-  const handleBookingSubmit = (e) => {
-    e.preventDefault();
-    navigate('/booking', {
-      state: {
-        prefill: {
-          serviceType: activeTab === 'airport' ? 'airport_transfer' : activeTab === 'pointToPoint' ? 'city_transfer' : 'chauffeur',
-          formData,
-          activeTab,
-        },
-      },
-    });
-  };
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -93,6 +51,11 @@ function Home() {
     }, 4500);
     return () => clearInterval(interval);
   }, [currentBg]);
+
+  useEffect(() => {
+    if (window.location.hash !== '#how-it-works') return;
+    document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, []);
 
   return (
     <>
@@ -155,10 +118,10 @@ function Home() {
             <span>See Our Collection</span>
             <i className="bi bi-arrow-right fs-4"></i>
           </Link>
-          <a href="#reservation" className="text-white text-decoration-none d-flex justify-content-between align-items-center w-100 hero-bottom-btn">
+          <Link to="/booking" className="text-white text-decoration-none d-flex justify-content-between align-items-center w-100 hero-bottom-btn">
             <span>Start Reservation</span>
             <i className="bi bi-arrow-right fs-4"></i>
-          </a>
+          </Link>
         </div>
       </div>
 
@@ -490,455 +453,109 @@ function Home() {
       </Container>
     </section>
 
-    {/* Reservation Section */}
-      <section id="reservation" className="py-4 position-relative overflow-hidden" style={{ 
-        backgroundColor: '#fdfdfd', 
-        backgroundImage: 'linear-gradient(30deg, #f0f0f0 12%, transparent 12.5%, transparent 87%, #f0f0f0 87.5%, #f0f0f0), linear-gradient(150deg, #f0f0f0 12%, transparent 12.5%, transparent 87%, #f0f0f0 87.5%, #f0f0f0), linear-gradient(30deg, #f0f0f0 12%, transparent 12.5%, transparent 87%, #f0f0f0 87.5%, #f0f0f0), linear-gradient(150deg, #f0f0f0 12%, transparent 12.5%, transparent 87%, #f0f0f0 87.5%, #f0f0f0), linear-gradient(60deg, #f5f5f5 25%, transparent 25.5%, transparent 75%, #f5f5f5 75%, #f5f5f5), linear-gradient(60deg, #f5f5f5 25%, transparent 25.5%, transparent 75%, #f5f5f5 75%, #f5f5f5)',
-        backgroundSize: '80px 140px',
-        color: '#333' 
-      }}>
-        {/* Decorative blur element */}
-        <div className="position-absolute" style={{ 
-          width: '600px', 
-          height: '600px', 
-          background: 'radial-gradient(circle, rgba(238, 254, 49, 0.05) 0%, transparent 70%)', 
-          top: '-200px', 
-          right: '-200px',
-          filter: 'blur(80px)',
-          zIndex: 0
-        }}></div>
-
-        <Container className="py-4 position-relative" style={{ zIndex: 1 }}>
-          <div className="row g-4 mb-4">
-            <div className="col-lg-7">
-              <div className="d-flex align-items-center gap-3 mb-3">
-                <div style={{ width: '40px', height: '1px', backgroundColor: '#eeb012' }}></div>
-                <span className="text-uppercase fw-bold" style={{ color: '#aaa', letterSpacing: '2px', fontSize: '0.75rem' }}>DRIVE STARTS HERE</span>
-              </div>
-              <h2 className="display-4 mb-4" style={{ fontFamily: 'Georgia, serif', color: '#1a1a1a' }}>Your Journey Begins with One Click</h2>
-              <p className="mb-0" style={{ color: '#777', lineHeight: '1.8', maxWidth: '600px' }}>
-                Tell us your journey details and our team will assign a professional chauffeur and premium vehicle. Every reservation includes vehicle plus driver.
+    {/* How It Works + Concierge */}
+    <section id="how-it-works" className="py-5 position-relative overflow-hidden" style={{ backgroundColor: '#0a0a0a', color: 'white' }}>
+      <div
+        className="position-absolute"
+        style={{
+          width: '520px',
+          height: '520px',
+          background: 'radial-gradient(circle, rgba(238,176,18,0.08) 0%, transparent 70%)',
+          top: '-160px',
+          right: '-120px',
+          filter: 'blur(40px)',
+          pointerEvents: 'none',
+        }}
+      />
+      <Container className="py-5 position-relative">
+        <div className="row align-items-end mb-5 g-4">
+          <div className="col-lg-7">
+            <div className="d-flex align-items-center gap-3 mb-3">
+              <div style={{ width: '40px', height: '1px', backgroundColor: '#eeb012' }}></div>
+              <span className="text-uppercase fw-bold" style={{ color: '#888', letterSpacing: '2px', fontSize: '0.75rem' }}>HOW IT WORKS</span>
+            </div>
+            <h2 className="display-4 mb-3" style={{ fontFamily: 'Georgia, serif', fontWeight: 400 }}>
+              From request to chauffeur in four steps
+            </h2>
+            <p className="mb-0" style={{ color: '#888', lineHeight: 1.8, maxWidth: '620px' }}>
+              Reservations now live on our secure booking page. Use this path to book, message us on WhatsApp, or track an existing chauffeur assignment.
+            </p>
+          </div>
+          <div className="col-lg-5">
+            <div className="rounded-4 p-4" style={{ background: '#111', border: '1px solid rgba(255,255,255,0.08)' }}>
+              <p className="text-uppercase small mb-2" style={{ color: '#eeb012', letterSpacing: 2 }}>Coverage</p>
+              <p className="mb-2" style={{ fontFamily: 'Georgia, serif', fontSize: '1.15rem' }}>
+                Riyadh · Jeddah · Dammam · GCC
+              </p>
+              <p className="mb-0 small" style={{ color: '#777' }}>
+                {COMPANY.hours} · {COMPANY.phonePrimary}
               </p>
             </div>
-            <div className="col-lg-5">
-              <div className="ps-lg-5">
-                <div className="d-flex align-items-center gap-2 mb-4">
-                  <div style={{ width: '3px', height: '30px', backgroundColor: '#eefe31' }}></div>
-                  <h3 className="h4 mb-0" style={{ fontFamily: 'Georgia, serif' }}>Operating Hours</h3>
+          </div>
+        </div>
+
+        <div className="row g-4 mb-5">
+          {[
+            { step: '01', icon: 'bi-sliders', title: 'Choose your service', text: 'Airport, city, chauffeur, intercity, or GCC transfer — pick the journey that matches your schedule.' },
+            { step: '02', icon: 'bi-geo-alt', title: 'Confirm the details', text: 'Add pickup, drop-off, vehicle, and passenger information. Pricing is calculated securely by our backend.' },
+            { step: '03', icon: 'bi-shield-lock', title: 'Secure checkout', text: 'Pay in SAR through our booking flow, or request a custom quote for events and multi-vehicle trips.' },
+            { step: '04', icon: 'bi-person-badge', title: 'Meet your chauffeur', text: 'We assign a professional driver and premium vehicle. Track the reservation any time after checkout.' },
+          ].map((item) => (
+            <div key={item.step} className="col-md-6 col-lg-3">
+              <div
+                className="h-100 p-4 rounded-4"
+                style={{ background: '#141414', border: '1px solid rgba(255,255,255,0.08)' }}
+              >
+                <div className="d-flex justify-content-between align-items-center mb-4">
+                  <i className={`bi ${item.icon} fs-3`} style={{ color: '#eeb012' }} />
+                  <span style={{ color: '#555', fontFamily: 'Georgia, serif', fontSize: '1.25rem' }}>{item.step}</span>
                 </div>
-                <div className="mb-4">
-                  <div className="d-flex justify-content-between py-3 border-bottom border-dark-subtle">
-                    <span className="text-uppercase fw-bold small">MONDAY – FRIDAY</span>
-                    <span className="fw-bold small">08:00 – 22:00</span>
-                  </div>
-                  <div className="d-flex justify-content-between py-3 border-bottom border-dark-subtle">
-                    <span className="text-uppercase fw-bold small">SATURDAY</span>
-                    <span className="fw-bold small">09:00 – 23:00</span>
-                  </div>
-                  <div className="d-flex justify-content-between py-3 border-bottom border-dark-subtle">
-                    <span className="text-uppercase fw-bold small">SUNDAY</span>
-                    <span className="fw-bold small">10:00 – 20:00</span>
-                  </div>
-                </div>
+                <h3 className="h5 mb-3" style={{ fontFamily: 'Georgia, serif' }}>{item.title}</h3>
+                <p className="mb-0 small" style={{ color: '#888', lineHeight: 1.7 }}>{item.text}</p>
               </div>
             </div>
+          ))}
+        </div>
+
+        <div
+          className="rounded-4 p-4 p-md-5 d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-4"
+          style={{ background: 'linear-gradient(135deg, #14110b 0%, #0f0f0f 100%)', border: '1px solid rgba(238,176,18,0.22)' }}
+        >
+          <div>
+            <p className="text-uppercase small mb-2" style={{ color: '#eeb012', letterSpacing: 2 }}>Ready when you are</p>
+            <h3 className="h3 mb-2" style={{ fontFamily: 'Georgia, serif' }}>Book online, or speak with our team</h3>
+            <p className="mb-0" style={{ color: '#888', maxWidth: '540px' }}>
+              Need a wedding, airport meet-and-greet, or last-minute transfer? Start a reservation or message us on WhatsApp.
+            </p>
           </div>
-
-          <div className="p-0 rounded-4 shadow-lg overflow-hidden" style={{ backgroundColor: '#ffffff', color: '#333', border: '1px solid rgba(0,0,0,0.08)' }}>
-            {/* Tab Bar */}
-            <div className="d-flex w-100 flex-row" style={{ borderBottom: '1px solid #ddd' }}>
-
-              <button
-                type="button"
-                className="flex-fill border-0 py-4 px-4 d-flex align-items-center justify-content-center gap-2 text-uppercase fw-semibold booking-tab-btn"
-                style={{
-                  background: activeTab === 'airport' ? 'linear-gradient(135deg, #c5a880, #a88358)' : '#000000',
-                  color: '#ffffff',
-                  fontSize: '1rem',
-                  letterSpacing: '1px',
-                  transition: 'all 0.3s ease',
-                  cursor: 'pointer'
-                }}
-                onClick={() => setActiveTab('airport')}
-              >
-                <i className="bi bi-airplane-fill fs-5"></i> Airport Transfer
-              </button>
-              <button
-                type="button"
-                className="flex-fill border-0 py-4 px-4 d-flex align-items-center justify-content-center gap-2 text-uppercase fw-semibold booking-tab-btn"
-                style={{
-                  background: activeTab === 'pointToPoint' ? 'linear-gradient(135deg, #c5a880, #a88358)' : '#000000',
-                  color: '#ffffff',
-                  fontSize: '1rem',
-                  letterSpacing: '1px',
-                  transition: 'all 0.3s ease',
-                  cursor: 'pointer'
-                }}
-                onClick={() => setActiveTab('pointToPoint')}
-              >
-                <i className="bi bi-geo-alt-fill fs-5"></i> Point to Point
-              </button>
-              <button
-                type="button"
-                className="flex-fill border-0 py-4 px-4 d-flex align-items-center justify-content-center gap-2 text-uppercase fw-semibold booking-tab-btn"
-                style={{
-                  background: activeTab === 'hourly' ? 'linear-gradient(135deg, #c5a880, #a88358)' : '#000000',
-                  color: '#ffffff',
-                  fontSize: '1rem',
-                  letterSpacing: '1px',
-                  transition: 'all 0.3s ease',
-                  cursor: 'pointer'
-                }}
-                onClick={() => setActiveTab('hourly')}
-              >
-                <i className="bi bi-clock-fill fs-5"></i> Hourly Service
-              </button>
-            </div>
-
-            {/* Form body */}
-            <form onSubmit={handleBookingSubmit} className="p-4 p-md-5 row g-4 text-start">
-              {/* Name field */}
-              <div className="col-md-4">
-                <label className="form-label fw-bold text-dark mb-2" style={{ fontSize: '0.95rem' }}>
-                  Name <span className="text-danger">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="form-control p-3 border rounded-3 bg-white text-dark"
-                  placeholder="Enter your name"
-                  style={{ borderColor: '#ccc', boxShadow: 'none' }}
-                />
-              </div>
-
-              {/* Mobile Number field */}
-              <div className="col-md-4">
-                <label className="form-label fw-bold text-dark mb-2" style={{ fontSize: '0.95rem' }}>
-                  Mobile Number <span className="text-danger">*</span>
-                </label>
-                <input
-                  type="tel"
-                  required
-                  value={formData.mobile}
-                  onChange={(e) => setFormData({ ...formData, mobile: e.target.value })}
-                  className="form-control p-3 border rounded-3 bg-white text-dark"
-                  placeholder="Enter your mobile number"
-                  style={{ borderColor: '#ccc', boxShadow: 'none' }}
-                />
-              </div>
-
-              {/* Email field */}
-              <div className="col-md-4">
-                <label className="form-label fw-bold text-dark mb-2" style={{ fontSize: '0.95rem' }}>
-                  Email <span className="text-danger">*</span>
-                </label>
-                <input
-                  type="email"
-                  required
-                  value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="form-control p-3 border rounded-3 bg-white text-dark"
-                  placeholder="Enter your email"
-                  style={{ borderColor: '#ccc', boxShadow: 'none' }}
-                />
-              </div>
-
-              <div className="col-md-4">
-                <label className="form-label fw-bold text-dark mb-2" style={{ fontSize: '0.95rem' }}>
-                  Event Type (optional)
-                </label>
-                <select
-                  value={formData.eventType}
-                  onChange={(e) => setFormData({ ...formData, eventType: e.target.value })}
-                  className="form-select p-3 border rounded-3 bg-white text-dark"
-                  style={{ borderColor: '#ccc', boxShadow: 'none' }}
-                >
-                  <option value="">None</option>
-                  <option value="Birthday">Birthday</option>
-                  <option value="Wedding">Wedding</option>
-                  <option value="Anniversary">Anniversary</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
-
-              {formData.eventType === 'Other' && (
-                <div className="col-md-4">
-                  <label className="form-label fw-bold text-dark mb-2" style={{ fontSize: '0.95rem' }}>
-                    Other Event
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.eventOther}
-                    onChange={(e) => setFormData({ ...formData, eventOther: e.target.value })}
-                    className="form-control p-3 border rounded-3 bg-white text-dark"
-                    placeholder="Specify event type"
-                    style={{ borderColor: '#ccc', boxShadow: 'none' }}
-                  />
-                </div>
-              )}
-
-              {/* Render dynamic inputs based on Active Tab */}
-              {activeTab === 'airport' && (
-                <>
-                  <div className="col-md-4">
-                    <label className="form-label fw-bold text-dark mb-2" style={{ fontSize: '0.95rem' }}>
-                      Flight Number <span className="text-danger">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={formData.flightNumber}
-                      onChange={(e) => setFormData({ ...formData, flightNumber: e.target.value })}
-                      className="form-control p-3 border rounded-3 bg-white text-dark"
-                      placeholder="e.g. EK901"
-                      style={{ borderColor: '#ccc', boxShadow: 'none' }}
-                    />
-                  </div>
-                  <div className="col-md-4">
-                    <label className="form-label fw-bold text-dark mb-2" style={{ fontSize: '0.95rem' }}>
-                      Arrival Date & Time <span className="text-danger">*</span>
-                    </label>
-                    <input
-                      type="datetime-local"
-                      required
-                      value={formData.arrivalDateTime}
-                      onChange={(e) => setFormData({ ...formData, arrivalDateTime: e.target.value })}
-                      className="form-control p-3 border rounded-3 bg-white text-dark"
-                      style={{ borderColor: '#ccc', boxShadow: 'none' }}
-                    />
-                  </div>
-                  <div className="col-md-4">
-                    <label className="form-label fw-bold text-dark mb-2" style={{ fontSize: '0.95rem' }}>
-                      Choose vehicle <span className="text-danger">*</span>
-                    </label>
-                    <select
-                      required
-                      value={formData.vehicle}
-                      onChange={(e) => setFormData({ ...formData, vehicle: e.target.value })}
-                      className="form-select p-3 border rounded-3 bg-white text-dark"
-                      style={{ borderColor: '#ccc', boxShadow: 'none' }}
-                    >
-                      <option value="">Select a vehicle</option>
-                      {vehicles.map((v, index) => (
-                        <option key={index} value={v}>{v}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="col-md-4">
-                    <label className="form-label fw-bold text-dark mb-2" style={{ fontSize: '0.95rem' }}>
-                      Pick-up Location <span className="text-danger">*</span>
-                    </label>
-                    <select
-                      required
-                      value={formData.pickupLocation}
-                      onChange={(e) => setFormData({ ...formData, pickupLocation: e.target.value })}
-                      className="form-select p-3 border rounded-3 bg-white text-dark"
-                      style={{ borderColor: '#ccc', boxShadow: 'none' }}
-                    >
-                      <option value="">Select Airport</option>
-                      <option value="King Khalid International Airport (RUH) - Riyadh">King Khalid International Airport (RUH) - Riyadh</option>
-                      <option value="King Abdulaziz International Airport (JED) - Jeddah">King Abdulaziz International Airport (JED) - Jeddah</option>
-                      <option value="King Fahd International Airport (DMM) - Dammam">King Fahd International Airport (DMM) - Dammam</option>
-                      <option value="Prince Mohammad Bin Abdulaziz International Airport (MED) - Medina">Prince Mohammad Bin Abdulaziz International Airport (MED) - Medina</option>
-                      <option value="Other">Other (Specify below)</option>
-                    </select>
-                  </div>
-                  <div className="col-md-4">
-                    <label className="form-label fw-bold text-dark mb-2" style={{ fontSize: '0.95rem' }}>
-                      Other Pickup Location
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.otherPickupLocation}
-                      onChange={(e) => setFormData({ ...formData, otherPickupLocation: e.target.value })}
-                      className="form-control p-3 border rounded-3 bg-white text-dark"
-                      placeholder="Specify if Other selected"
-                      style={{ borderColor: '#ccc', boxShadow: 'none' }}
-                    />
-                  </div>
-                  <div className="col-md-4">
-                    <label className="form-label fw-bold text-dark mb-2" style={{ fontSize: '0.95rem' }}>
-                      Drop-off Location <span className="text-danger">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={formData.dropoffLocation}
-                      onChange={(e) => setFormData({ ...formData, dropoffLocation: e.target.value })}
-                      className="form-control p-3 border rounded-3 bg-white text-dark"
-                      placeholder="Enter drop-off location"
-                      style={{ borderColor: '#ccc', boxShadow: 'none' }}
-                    />
-                  </div>
-                </>
-              )}
-
-              {activeTab === 'pointToPoint' && (
-                <>
-                  <div className="col-md-4">
-                    <label className="form-label fw-bold text-dark mb-2" style={{ fontSize: '0.95rem' }}>
-                      Arrival Date & Time <span className="text-danger">*</span>
-                    </label>
-                    <input
-                      type="datetime-local"
-                      required
-                      value={formData.arrivalDateTime}
-                      onChange={(e) => setFormData({ ...formData, arrivalDateTime: e.target.value })}
-                      className="form-control p-3 border rounded-3 bg-white text-dark"
-                      style={{ borderColor: '#ccc', boxShadow: 'none' }}
-                    />
-                  </div>
-                  <div className="col-md-4">
-                    <label className="form-label fw-bold text-dark mb-2" style={{ fontSize: '0.95rem' }}>
-                      Choose vehicle <span className="text-danger">*</span>
-                    </label>
-                    <select
-                      required
-                      value={formData.vehicle}
-                      onChange={(e) => setFormData({ ...formData, vehicle: e.target.value })}
-                      className="form-select p-3 border rounded-3 bg-white text-dark"
-                      style={{ borderColor: '#ccc', boxShadow: 'none' }}
-                    >
-                      <option value="">Select a vehicle</option>
-                      {vehicles.map((v, index) => (
-                        <option key={index} value={v}>{v}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="col-md-4">
-                    <label className="form-label fw-bold text-dark mb-2" style={{ fontSize: '0.95rem' }}>
-                      Pick-up Location <span className="text-danger">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={formData.pickupLocation}
-                      onChange={(e) => setFormData({ ...formData, pickupLocation: e.target.value })}
-                      className="form-control p-3 border rounded-3 bg-white text-dark"
-                      placeholder="Enter pick-up location"
-                      style={{ borderColor: '#ccc', boxShadow: 'none' }}
-                    />
-                  </div>
-                  <div className="col-md-12">
-                    <label className="form-label fw-bold text-dark mb-2" style={{ fontSize: '0.95rem' }}>
-                      Drop Off Location <span className="text-danger">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={formData.dropoffLocation}
-                      onChange={(e) => setFormData({ ...formData, dropoffLocation: e.target.value })}
-                      className="form-control p-3 border rounded-3 bg-white text-dark"
-                      placeholder="Enter drop-off location"
-                      style={{ borderColor: '#ccc', boxShadow: 'none' }}
-                    />
-                  </div>
-                </>
-              )}
-
-              {activeTab === 'hourly' && (
-                <>
-                  <div className="col-md-4">
-                    <label className="form-label fw-bold text-dark mb-2" style={{ fontSize: '0.95rem' }}>
-                      Arrival Date & Time <span className="text-danger">*</span>
-                    </label>
-                    <input
-                      type="datetime-local"
-                      required
-                      value={formData.arrivalDateTime}
-                      onChange={(e) => setFormData({ ...formData, arrivalDateTime: e.target.value })}
-                      className="form-control p-3 border rounded-3 bg-white text-dark"
-                      style={{ borderColor: '#ccc', boxShadow: 'none' }}
-                    />
-                  </div>
-                  <div className="col-md-4">
-                    <label className="form-label fw-bold text-dark mb-2" style={{ fontSize: '0.95rem' }}>
-                      Pick-up Location <span className="text-danger">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={formData.pickupLocation}
-                      onChange={(e) => setFormData({ ...formData, pickupLocation: e.target.value })}
-                      className="form-control p-3 border rounded-3 bg-white text-dark"
-                      placeholder="Enter pick-up location"
-                      style={{ borderColor: '#ccc', boxShadow: 'none' }}
-                    />
-                  </div>
-                  <div className="col-md-4">
-                    <label className="form-label fw-bold text-dark mb-2" style={{ fontSize: '0.95rem' }}>
-                      Choose vehicle <span className="text-danger">*</span>
-                    </label>
-                    <select
-                      required
-                      value={formData.vehicle}
-                      onChange={(e) => setFormData({ ...formData, vehicle: e.target.value })}
-                      className="form-select p-3 border rounded-3 bg-white text-dark"
-                      style={{ borderColor: '#ccc', boxShadow: 'none' }}
-                    >
-                      <option value="">Select a vehicle</option>
-                      {vehicles.map((v, index) => (
-                        <option key={index} value={v}>{v}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="col-md-12">
-                    <label className="form-label fw-bold text-dark mb-2" style={{ fontSize: '0.95rem' }}>
-                      Select Hours (Optional)
-                    </label>
-                    <select
-                      value={formData.hours}
-                      onChange={(e) => setFormData({ ...formData, hours: e.target.value })}
-                      className="form-select p-3 border rounded-3 bg-white text-dark"
-                      style={{ borderColor: '#ccc', boxShadow: 'none' }}
-                    >
-                      <option value="1 HR">1 HR</option>
-                      <option value="2 HRS">2 HRS</option>
-                      <option value="3 HRS">3 HRS</option>
-                      <option value="4 HRS">4 HRS</option>
-                      <option value="5 HRS">5 HRS</option>
-                      <option value="6 HRS">6 HRS</option>
-                      <option value="8 HRS">8 HRS</option>
-                      <option value="12 HRS">12 HRS</option>
-                      <option value="24 HRS">24 HRS</option>
-                    </select>
-                  </div>
-                </>
-              )}
-
-              {/* Submit Button */}
-              <div className="col-12 mt-4 text-start">
-                <button
-                  type="submit"
-                  className="btn px-5 py-3 text-uppercase fw-bold border-0 text-white"
-                  style={{
-                    background: 'linear-gradient(135deg, #a88448 0%, #c8a261 100%)',
-                    fontFamily: 'Georgia, serif',
-                    letterSpacing: '1px',
-                    fontSize: '0.95rem',
-                    boxShadow: '0 8px 16px rgba(168,132,72,0.2)',
-                    transition: 'all 0.3s ease',
-                    cursor: 'pointer',
-                    borderRadius: '30px'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                    e.currentTarget.style.boxShadow = '0 12px 20px rgba(168,132,72,0.3)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '0 8px 16px rgba(168,132,72,0.2)';
-                  }}
-                >
-                  BOOK NOW — SECURE CHECKOUT
-                </button>
-              </div>
-            </form>
+          <div className="d-flex flex-wrap gap-3">
+            <Link
+              to="/booking"
+              className="btn rounded-pill px-4 py-3 fw-semibold border-0 text-decoration-none"
+              style={{ background: 'linear-gradient(135deg, #a88448 0%, #c8a261 100%)', color: '#000' }}
+            >
+              Book Now
+            </Link>
+            <a
+              href={getWhatsAppUrl(COMPANY_PHONE, 'Hello Nextify, I need help with a chauffeur reservation.')}
+              target="_blank"
+              rel="noreferrer"
+              className="btn rounded-pill px-4 py-3 fw-semibold text-decoration-none"
+              style={{ background: 'transparent', color: '#fff', border: '1px solid rgba(255,255,255,0.25)' }}
+            >
+              WhatsApp
+            </a>
+            <Link
+              to="/track-booking"
+              className="btn rounded-pill px-4 py-3 fw-semibold text-decoration-none"
+              style={{ background: 'transparent', color: '#fff', border: '1px solid rgba(255,255,255,0.25)' }}
+            >
+              Track Booking
+            </Link>
           </div>
-        </Container>
-      </section>
+        </div>
+      </Container>
+    </section>
 
 
     </>

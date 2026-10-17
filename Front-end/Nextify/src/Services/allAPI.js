@@ -69,6 +69,15 @@ export const createBookingAPI = async (bookingData) => {
 
 export const addBookingAPI = createBookingAPI;
 
+export const getPublicPayBookingAPI = async (bookingId) => {
+  try {
+    const response = await commonAPI("GET", `${serverURL}/api/bookings/pay/${bookingId}`, "");
+    return unwrap(response);
+  } catch (err) {
+    return handleError(err, "Failed to load booking for payment");
+  }
+};
+
 export const getBookingsAPI = async () => {
   try {
     const response = await commonAPI("GET", `${serverURL}/api/bookings`, "", getAuthHeaders());
@@ -305,7 +314,8 @@ export const updateDriverAPI = async (id, driverData) => {
 
 export const deleteDriverAPI = async (id) => {
   try {
-    return await commonAPI("DELETE", `${serverURL}/api/drivers/${id}`, "", getAuthHeaders());
+    const response = await commonAPI("DELETE", `${serverURL}/api/drivers/${id}`, undefined, getAuthHeaders());
+    return unwrap(response);
   } catch (err) {
     return handleError(err, "Failed to delete driver");
   }

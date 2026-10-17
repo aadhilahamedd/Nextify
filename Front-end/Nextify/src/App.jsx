@@ -21,7 +21,6 @@ import BookingConfirmation from './pages/BookingConfirmation'
 import TrackBooking from './pages/TrackBooking'
 import MockPaymentCheckout from './pages/MockPaymentCheckout'
 import PaymentResult from './pages/PaymentResult'
-import ChatBot from './components/ChatBot'
 import { COMPANY_PHONE, getWhatsAppUrl } from './utils/whatsapp'
 
 function App() {
@@ -55,7 +54,6 @@ function App() {
         <Route path="*" element={<Pnf />} />
       </Routes>
       {!isAdminRoute && <Footer />}
-      {!isAdminRoute && <ChatBot />}
       {!isAdminRoute && (
         <a
           href={getWhatsAppUrl(COMPANY_PHONE, 'Hello Nextify, I need help with a booking')}

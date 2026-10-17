@@ -12,7 +12,7 @@ function Footer() {
         <div className="row g-5">
           <div className="col-lg-4 col-md-6">
             <div className="mb-4">
-              <img src={logo} alt="Nextify Logo" style={{ height: '45px', objectFit: 'contain' }} />
+              <img src={logo} alt="Nextify Logo" style={{ height: '52px', width: 'auto', objectFit: 'contain' }} />
             </div>
             <p className="text-white-50 mt-3" style={{ lineHeight: '1.8', maxWidth: '300px' }}>
               {COMPANY.description}
@@ -39,7 +39,7 @@ function Footer() {
             <h4 className="h6 text-uppercase fw-bold mb-4" style={{ letterSpacing: '2px', color: '#eeb012' }}>Help</h4>
             <ul className="list-unstyled">
               <li className="mb-3"><Link to="/contact" className="text-white-50 text-decoration-none">Customer support</Link></li>
-              <li className="mb-3"><Link to="/booking" className="text-white-50 text-decoration-none">How It Works</Link></li>
+              <li className="mb-3"><Link to={{ pathname: '/', hash: '#how-it-works' }} className="text-white-50 text-decoration-none">How It Works</Link></li>
               <li className="mb-3"><Link to="/track-booking" className="text-white-50 text-decoration-none">Track Booking</Link></li>
               <li className="mb-3"><Link to="/contact" className="text-white-50 text-decoration-none">Privacy Policy</Link></li>
             </ul>

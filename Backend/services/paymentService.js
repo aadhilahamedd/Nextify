@@ -1,3 +1,5 @@
+const Payment = require('../models/Payment');
+const Booking = require('../models/Booking');
 const mockPaymentProvider = require('./paymentProviders/mockPaymentProvider');
 const moyasarPaymentProvider = require('./paymentProviders/moyasarPaymentProvider');
 
@@ -59,6 +61,57 @@ function getCheckoutConfig(payment, booking) {
   return { provider: PROVIDER };
 }
 
+function frontendBaseUrl() {
+  return (process.env.FRONTEND_URL || process.env.CLIENT_URL || 'http://localhost:5173').replace(/\/$/, '');
+}
+
+async function createOrReuseCheckout(bookingDoc) {
+  const booking = bookingDoc?._id ? bookingDoc : await Booking.findById(bookingDoc);
+  if (!booking) {
+    const err = new Error('Booking not found');
+    err.statusCode = 404;
+    throw err;
+  }
+  if (booking.customQuoteRequired || booking.paymentStatus === 'NOT_REQUIRED') {
+    const err = new Error('This booking does not require online payment');
+    err.statusCode = 400;
+    throw err;
+  }
+  if (booking.paymentStatus === 'PAID') {
+    const err = new Error('Booking already paid');
+    err.statusCode = 409;
+    throw err;
+  }
+
+  const alreadyPaid = await Payment.findOne({ booking: booking._id, status: 'PAID' });
+  if (alreadyPaid) {
+    const err = new Error('Booking already paid');
+    err.statusCode = 409;
+    throw err;
+  }
+
+  const amount = Number(booking.pricing?.totalAmount ?? booking.quotedPrice ?? 0);
+  const currency = booking.pricing?.currency || 'SAR';
+  if (!Number.isFinite(amount) || amount < 1) {
+    const err = new Error('Invalid booking amount');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  let payment = await Payment.findOne({ booking: booking._id, status: 'PENDING' }).sort({ createdAt: -1 });
+  if (!payment) {
+    payment = await createPayment({ booking, amount, currency });
+  }
+
+  const refreshed = await Booking.findById(booking._id);
+  return {
+    payment,
+    booking: refreshed,
+    checkout: getCheckoutConfig(payment, refreshed),
+    paymentUrl: `${frontendBaseUrl()}/payment?bookingId=${booking._id}`,
+  };
+}
+
 async function attachMoyasarReference(localPaymentId, moyasarPaymentId) {
   if (typeof moyasarPaymentProvider.attachReference !== 'function') {
     const err = new Error('Moyasar is not available');
@@ -75,6 +128,7 @@ module.exports = {
   verifyPayment,
   getCheckoutConfig,
   attachMoyasarReference,
+  createOrReuseCheckout,
   toSafePayment,
   PROVIDER,
 };

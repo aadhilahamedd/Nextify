@@ -4,6 +4,7 @@ import Container from 'react-bootstrap/Container';
 import {
   attachMoyasarReferenceAPI,
   createPaymentAPI,
+  getPublicPayBookingAPI,
   mockCompletePaymentAPI,
   mockFailPaymentAPI,
 } from '../Services/allAPI';
@@ -46,7 +47,8 @@ function loadMoyasarAssets() {
 function MockPaymentCheckout() {
   const location = useLocation();
   const navigate = useNavigate();
-  const [booking] = useState(() => {
+  const queryBookingId = new URLSearchParams(location.search).get('bookingId');
+  const [booking, setBooking] = useState(() => {
     if (location.state?.booking) return location.state.booking;
     try {
       return JSON.parse(sessionStorage.getItem('nextify_pending_booking') || 'null');
@@ -61,21 +63,38 @@ function MockPaymentCheckout() {
   const formReady = useRef(false);
 
   useEffect(() => {
-    if (!booking?._id) {
+    const startCheckout = (current) => {
+      sessionStorage.setItem('nextify_pending_booking', JSON.stringify(current));
+      createPaymentAPI(current._id).then((res) => {
+        if (res?.status === 200 || res?.status === 201) {
+          setPayment(res.data?.payment);
+          setCheckout(res.data?.checkout || { provider: 'mock' });
+        } else {
+          setError(res?.data?.message || res?.error || 'Could not create payment session');
+        }
+      });
+    };
+
+    if (booking?._id) {
+      startCheckout(booking);
+      return;
+    }
+
+    if (!queryBookingId) {
       navigate('/booking');
       return;
     }
-    sessionStorage.setItem('nextify_pending_booking', JSON.stringify(booking));
 
-    createPaymentAPI(booking._id).then((res) => {
-      if (res?.status === 200 || res?.status === 201) {
-        setPayment(res.data?.payment);
-        setCheckout(res.data?.checkout || { provider: 'mock' });
+    getPublicPayBookingAPI(queryBookingId).then((res) => {
+      const fetched = res.data?.booking;
+      if ((res?.status === 200 || res?.status === 201) && fetched?._id) {
+        setBooking(fetched);
+        startCheckout(fetched);
       } else {
-        setError(res?.data?.message || res?.error || 'Could not create payment session');
+        setError(res?.data?.message || res?.error || 'Could not load this booking');
       }
     });
-  }, [booking, navigate]);
+  }, [booking, navigate, queryBookingId]);
 
   useEffect(() => {
     if (checkout?.provider !== 'moyasar' || !payment?._id || formReady.current) return;
@@ -142,7 +161,13 @@ function MockPaymentCheckout() {
     }
   };
 
-  if (!booking) return null;
+  if (!booking) {
+    return (
+      <div style={{ backgroundColor: '#0a0a0a', minHeight: '100vh', paddingTop: 140, color: 'white', textAlign: 'center' }}>
+        <p>{error || 'Loading checkout…'}</p>
+      </div>
+    );
+  }
 
   const serviceLabel = SERVICE_LABELS[booking.serviceType] || booking.serviceType;
   const vehicleLabel = booking.vehicle?.name || booking.vehicleName || '—';

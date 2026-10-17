@@ -134,7 +134,8 @@ body,
 }
 
 .login-navbar .navbar-logo {
-  width: 86px !important;
+  width: auto !important;
+  height: 44px !important;
   transform: none !important;
   margin-top: 0 !important;
 }

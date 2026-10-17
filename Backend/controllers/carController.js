@@ -201,11 +201,22 @@ async function ensureFeaturedFleet() {
   const missing = initialCars.filter(
     (car) => FEATURED_FLEET_NAMES.includes(car.name) && !existingNames.has(car.name)
   );
-  if (missing.length) {
-    const last = await Car.findOne().sort({ id: -1 });
-    let nextId = (last?.id || 0) + 1;
-    await Car.insertMany(missing.map((car) => ({ ...car, id: car.id || nextId++ })));
-  }
+  if (!missing.length) return;
+
+  const usedIds = new Set((await Car.find({}, { id: 1 }).lean()).map((car) => car.id));
+  let nextId = usedIds.size ? Math.max(...usedIds) + 1 : 1;
+
+  const docs = missing.map((car) => {
+    let id = car.id;
+    if (!id || usedIds.has(id)) {
+      while (usedIds.has(nextId)) nextId += 1;
+      id = nextId++;
+    }
+    usedIds.add(id);
+    return { ...car, id };
+  });
+
+  await Car.insertMany(docs);
 }
 
 // Get all cars (auto-seeds if empty)

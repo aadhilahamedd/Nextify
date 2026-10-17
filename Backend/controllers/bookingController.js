@@ -1,129 +1,28 @@
 const Booking = require('../models/Booking');
-const { generateBookingNumber } = require('../utils/bookingNumber');
-const { calculatePrice, normalizeServiceType } = require('../services/pricingService');
-const { isVehicleAvailable, isDriverAvailable } = require('../services/availabilityService');
+const { isDriverAvailable } = require('../services/availabilityService');
+const { createBookingFromPayload } = require('../services/bookingCreateService');
 const { success, error } = require('../utils/apiResponse');
 
 exports.createBooking = async (req, res, next) => {
   try {
-    const body = req.body;
-    const serviceType = normalizeServiceType(body.serviceType);
-
-    if (!body.customer?.name && !body.name) {
-      return error(res, 400, 'Customer name is required');
-    }
-
-    const travelDate = body.travelDate || body.schedule?.pickupDateTime?.split('T')[0];
-    const travelTime = body.travelTime || body.schedule?.pickupDateTime?.split('T')[1];
-    const pickupDateTime =
-      body.schedule?.pickupDateTime ||
-      (travelDate && travelTime ? `${travelDate}T${travelTime}` : null) ||
-      body.arrivalDateTime ||
-      body.pickupDateTime;
-
-    if (!pickupDateTime) {
-      return error(res, 400, 'Travel date and time is required');
-    }
-    if (new Date(pickupDateTime) < new Date()) {
-      return error(res, 400, 'Travel date and time cannot be in the past');
-    }
-
-    const quote = await calculatePrice({
-      serviceType,
-      vehicleCategory: body.vehicleCategory,
-      vehicleName: body.vehicleName || body.vehicle?.label || body.vehicle?.name,
-      airport: body.airport,
-      origin: body.origin || body.pickup?.address || body.pickupLocation,
-      destination: body.destination || body.destinationText || body.dropoffLocation,
-      durationType: body.durationType,
-      distanceKm: body.distanceKm,
-    });
-
-    if (body.vehicle?.carId && !quote.customQuoteRequired) {
-      const availability = await isVehicleAvailable(
-        body.vehicle.carId,
-        body.vehicleName,
-        pickupDateTime
-      );
-      if (!availability.available) {
-        return error(res, 409, 'Selected vehicle is not available for this time slot', [
-          `Conflict with booking ${availability.conflictBooking}`,
-        ]);
-      }
-    }
-
-    let bookingNumber = generateBookingNumber();
-    for (let i = 0; i < 5; i += 1) {
-      const exists = await Booking.findOne({ bookingNumber });
-      if (!exists) break;
-      bookingNumber = generateBookingNumber();
-    }
-
-    const vehicleLabel =
-      body.vehicleName ||
-      body.vehicle?.label ||
-      quote.displayLabel ||
-      body.vehicleCategory ||
-      '';
-
-    const booking = new Booking({
-      bookingNumber,
-      customer: {
-        name: body.customer?.name || body.name,
-        email: (body.customer?.email || body.email).toLowerCase(),
-        mobile: body.customer?.mobile || body.mobile,
-      },
-      user: req.user?.userId || null,
-      serviceType,
-      airport: body.airport || '',
-      routeType: quote.pricingType || 'fixed',
-      origin: body.origin || body.pickup?.address || body.pickupLocation || '',
-      destinationText: body.destination || body.destinationText || body.dropoffLocation || '',
-      vehicleCategory: body.vehicleCategory || quote.vehicleCategory || '',
-      durationType: body.durationType || '',
-      distanceKm: body.distanceKm ?? null,
-      quotedPrice: quote.price,
-      pricingType: quote.pricingType,
-      customQuoteRequired: quote.customQuoteRequired,
-      pricingRuleId: quote.pricingRuleId || null,
-      pickup: body.pickup || { address: body.pickupLocation || body.origin || '' },
-      destination: body.destination
-        ? { address: typeof body.destination === 'string' ? body.destination : body.destination.address }
-        : { address: body.dropoffLocation || body.destinationText || '' },
-      schedule: { pickupDateTime: new Date(pickupDateTime) },
-      flight: {
-        flightNumber: body.flightNumber || body.flight?.flightNumber || '',
-        airline: body.flight?.airline || '',
-      },
-      vehicle: {
-        carId: body.vehicle?.carId || null,
-        name: vehicleLabel,
-        type: body.vehicle?.type || body.vehicleCategory || '',
-        label: vehicleLabel,
-      },
-      trip: {
-        passengerCount: body.passengers || body.trip?.passengerCount || body.passengerCount || 1,
-        luggageCount: body.luggage || body.trip?.luggageCount || body.luggageCount || 0,
-      },
-      pricing: {
-        totalAmount: quote.price ?? 0,
-        currency: quote.currency || 'SAR',
-        breakdown: {
-          pricingType: quote.pricingType,
-          message: quote.message,
-          displayLabel: quote.displayLabel,
-        },
-      },
-      paymentStatus: quote.customQuoteRequired ? 'NOT_REQUIRED' : 'PENDING',
-      bookingStatus: quote.customQuoteRequired ? 'PENDING' : 'PAYMENT_PENDING',
-      specialRequests: body.specialRequests || body.specialRequest || '',
-    });
-
-    await booking.save();
+    const { booking, quote } = await createBookingFromPayload(req.body, { userId: req.user?.userId || null });
     return success(res, 201, quote.customQuoteRequired ? 'Quote request submitted' : 'Booking created successfully', {
       booking: booking.toPublicJSON(),
       quote,
     });
+  } catch (err) {
+    if (err.statusCode && err.statusCode < 500) {
+      return error(res, err.statusCode, err.message, err.details);
+    }
+    next(err);
+  }
+};
+
+exports.getPublicPayBooking = async (req, res, next) => {
+  try {
+    const booking = await Booking.findById(req.params.id);
+    if (!booking) return error(res, 404, 'Booking not found');
+    return success(res, 200, 'Booking fetched', { booking: booking.toPublicJSON() });
   } catch (err) {
     next(err);
   }

@@ -67,7 +67,12 @@ export default function AdminDriversPanel() {
   const removeDriver = async (id) => {
     if (!window.confirm('Delete this driver?')) return;
     const res = await deleteDriverAPI(id);
-    if (res?.status === 200) fetchDrivers();
+    if (res?.status === 200) {
+      setError('');
+      fetchDrivers();
+    } else {
+      setError(res?.error || res?.data?.message || 'Failed to delete driver');
+    }
   };
 
   return (
