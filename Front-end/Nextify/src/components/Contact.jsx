@@ -28,7 +28,7 @@ function Contact() {
   const [contactInfo, setContactInfo] = useState(() => {
     try {
       const saved = JSON.parse(localStorage.getItem('nextifyContactInfo') || 'null')
-      if (saved?.email === 'hello@nextify.sa' || saved?.email === 'Support@nextify.com') {
+      if (saved?.email === 'hello@nextify.sa' || saved?.email === 'Support@nextify.com' || saved?.email === 'info@nextify.sa') {
         localStorage.removeItem('nextifyContactInfo')
         return contactDefaults
       }

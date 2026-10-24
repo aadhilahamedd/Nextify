@@ -5,7 +5,7 @@ const { seedApprovedPricing } = require('../seed/pricingSeed');
 
 const DEFAULT_CONTACT = {
   phone: '+966 55 587 6331',
-  email: 'info@nextify.sa',
+  email: 'Sales@nextifylimo.com',
   location: 'Building Number 4576, Prince Ahmed Ibn Abdulaziz Street, District Laban, Postal Code 12935, Riyadh, Kingdom of Saudi Arabia',
   whatsapp: '+966555876331',
   phoneSecondary: '+966 53 762 8099',

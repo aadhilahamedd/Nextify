@@ -6,7 +6,7 @@ export const COMPANY = {
   tagline: 'Luxury chauffeur and ground transportation in Saudi Arabia.',
   description:
     'Nextify provides private chauffeurs, airport transfers, event transport, and VIP assistance across Saudi Arabia, backed by a professional team in Riyadh.',
-  email: 'info@nextify.sa',
+  email: 'Sales@nextifylimo.com',
   phonePrimary: '+966 55 599 2937',
   phonePrimaryDigits: '966555992937',
   phoneSecondary: '',
