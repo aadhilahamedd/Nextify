@@ -6,9 +6,11 @@ import Row from 'react-bootstrap/Row';
 import Col from 'react-bootstrap/Col';
 import { getPricingRulesAPI } from '../Services/allAPI';
 import VehiclePricingDisplay from './pricing/VehiclePricingDisplay';
-import { formatCarDayPrice } from '../utils/currency';
+import { formatCarDayPriceForLang } from '../i18n/format';
+import { useLanguage } from '../i18n/LanguageContext';
 
 function Cardetails() {
+  const { t, lang } = useLanguage();
   const location = useLocation();
   const navigate = useNavigate();
   const car = location.state?.car;
@@ -38,7 +40,7 @@ function Cardetails() {
           className="btn btn-link text-decoration-none text-light p-0 mb-4 d-flex align-items-center"
           style={{ fontSize: '0.9rem', letterSpacing: '1px' }}
         >
-          <i className="bi bi-arrow-left me-2"></i> BACK TO FLEET
+          <i className="bi bi-arrow-left me-2"></i> {t('details.back')}
         </button>
 
         <Row className="g-5 align-items-center mt-2">
@@ -62,9 +64,9 @@ function Cardetails() {
           <Col lg={5}>
             <div>
               <h1 className="display-4 fw-normal mb-2" style={{ fontFamily: 'Georgia, serif' }}>{car.name}</h1>
-              {formatCarDayPrice(car) && (
+              {formatCarDayPriceForLang(car, lang) && (
                 <p className="mb-3" style={{ color: '#eeb012', fontSize: '1.15rem', fontWeight: 600 }}>
-                  {formatCarDayPrice(car)} <span style={{ color: '#888', fontWeight: 400, fontSize: '0.85rem' }}>/ day</span>
+                  {formatCarDayPriceForLang(car, lang)} <span style={{ color: '#888', fontWeight: 400, fontSize: '0.85rem' }}>{t('fleet.perDay')}</span>
                 </p>
               )}
               <VehiclePricingDisplay rules={pricingRules} car={car} compact />
@@ -72,7 +74,7 @@ function Cardetails() {
               <div style={{ width: '60px', height: '2px', backgroundColor: '#eeb012', marginBottom: '30px' }}></div>
               
               <p className="mb-4" style={{ color: '#a0a0a0', lineHeight: '1.8' }}>
-                Experience unparalleled luxury and performance with the {car.name}. Designed to provide ultimate comfort and style, this vehicle is perfect for executive travel, special events, or simply enjoying the journey in utmost elegance.
+                {t('details.desc', { name: car.name })}
               </p>
 
               <div className="d-flex flex-column gap-3 mb-5">
@@ -81,7 +83,7 @@ function Cardetails() {
                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#141414'}>
                   <i className="bi bi-people-fill fs-4 me-3" style={{ color: '#eeb012' }}></i>
                   <div>
-                    <p className="mb-0 text-uppercase" style={{ fontSize: '0.7rem', color: '#a0a0a0', letterSpacing: '1px' }}>Capacity</p>
+                    <p className="mb-0 text-uppercase" style={{ fontSize: '0.7rem', color: '#a0a0a0', letterSpacing: '1px' }}>{t('details.capacity')}</p>
                     <p className="mb-0 fw-semibold">{car.seats}</p>
                   </div>
                 </div>
@@ -91,7 +93,7 @@ function Cardetails() {
                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#141414'}>
                   <i className="bi bi-briefcase-fill fs-4 me-3" style={{ color: '#eeb012' }}></i>
                   <div>
-                    <p className="mb-0 text-uppercase" style={{ fontSize: '0.7rem', color: '#a0a0a0', letterSpacing: '1px' }}>Luggage Space</p>
+                    <p className="mb-0 text-uppercase" style={{ fontSize: '0.7rem', color: '#a0a0a0', letterSpacing: '1px' }}>{t('details.luggage')}</p>
                     <p className="mb-0 fw-semibold">{car.luggage}</p>
                   </div>
                 </div>
@@ -102,7 +104,7 @@ function Cardetails() {
                 onClick={() => navigate('/booking', { state: { car } })}
                 className="lux-btn lux-btn-lg"
               >
-                Book This Vehicle
+                {t('details.book')}
                 <i className="bi bi-arrow-right"></i>
               </button>
             </div>

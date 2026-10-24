@@ -10,6 +10,8 @@ import {
 } from '../Services/allAPI';
 import PriceSummary from '../components/booking/PriceSummary';
 import { SERVICE_LABELS } from '../components/booking/bookingConstants';
+import { useLanguage } from '../i18n/LanguageContext';
+import { translateService } from '../i18n/places';
 
 const MOYASAR_JS = 'https://cdn.moyasar.com/mpf/1.14.0/moyasar.js';
 const MOYASAR_CSS = 'https://cdn.moyasar.com/mpf/1.14.0/moyasar.css';
@@ -45,6 +47,7 @@ function loadMoyasarAssets() {
 }
 
 function MockPaymentCheckout() {
+  const { t, formatSar } = useLanguage();
   const location = useLocation();
   const navigate = useNavigate();
   const queryBookingId = new URLSearchParams(location.search).get('bookingId');
@@ -164,12 +167,12 @@ function MockPaymentCheckout() {
   if (!booking) {
     return (
       <div style={{ backgroundColor: '#0a0a0a', minHeight: '100vh', paddingTop: 140, color: 'white', textAlign: 'center' }}>
-        <p>{error || 'Loading checkout…'}</p>
+        <p>{error || t('payment.loading')}</p>
       </div>
     );
   }
 
-  const serviceLabel = SERVICE_LABELS[booking.serviceType] || booking.serviceType;
+  const serviceLabel = translateService(booking.serviceType, t) || SERVICE_LABELS[booking.serviceType] || booking.serviceType;
   const vehicleLabel = booking.vehicle?.name || booking.vehicleName || '—';
   const amount = booking.pricing?.totalAmount ?? booking.quotedPrice ?? checkout?.amount;
   const isMoyasar = checkout?.provider === 'moyasar';
@@ -179,16 +182,16 @@ function MockPaymentCheckout() {
       <Container style={{ maxWidth: 560 }}>
         <div className="rounded-4 p-4 p-md-5 shadow-lg" style={{ background: '#fff', color: '#111' }}>
           <p className="text-uppercase small mb-1" style={{ color: '#a88448', letterSpacing: 3 }}>NEXTIFY</p>
-          <h3 className="mb-1" style={{ fontFamily: 'var(--font-heading)' }}>Secure Checkout</h3>
+          <h3 className="mb-1" style={{ fontFamily: 'var(--font-heading)' }}>{t('payment.title')}</h3>
           <p className="text-muted small mb-4">
-            {isMoyasar ? 'Moyasar TEST payment' : 'Demo payment — no real charges'}
+            {isMoyasar ? t('payment.moyasar') : t('payment.demo')}
           </p>
 
           <div className="mb-4" style={{ fontSize: '0.95rem', lineHeight: 1.8 }}>
-            <div className="d-flex justify-content-between"><span className="text-muted">Booking Number</span><strong>{booking.bookingNumber}</strong></div>
-            <div className="d-flex justify-content-between"><span className="text-muted">Service</span><strong>{serviceLabel}</strong></div>
-            <div className="d-flex justify-content-between"><span className="text-muted">Vehicle</span><strong>{vehicleLabel}</strong></div>
-            <div className="d-flex justify-content-between"><span className="text-muted">Amount</span><strong>SAR {Number(amount || 0).toLocaleString()}</strong></div>
+            <div className="d-flex justify-content-between"><span className="text-muted">{t('payment.bookingNo')}</span><strong>{booking.bookingNumber}</strong></div>
+            <div className="d-flex justify-content-between"><span className="text-muted">{t('payment.service')}</span><strong>{serviceLabel}</strong></div>
+            <div className="d-flex justify-content-between"><span className="text-muted">{t('payment.vehicle')}</span><strong>{vehicleLabel}</strong></div>
+            <div className="d-flex justify-content-between"><span className="text-muted">{t('payment.amount')}</span><strong>{formatSar(amount || 0)}</strong></div>
           </div>
 
           <PriceSummary quote={booking.pricing} />
@@ -198,19 +201,19 @@ function MockPaymentCheckout() {
           {isMoyasar ? (
             <div className="mt-4">
               <div className="mysr-form" />
-              <p className="text-muted small mt-3 mb-0">Use Moyasar TEST cards only. No live charges in this mode.</p>
+              <p className="text-muted small mt-3 mb-0">{t('payment.testCards')}</p>
             </div>
           ) : (
             <>
               <div className="alert alert-info small mt-3">
-                Mock payment sandbox. A real Saudi gateway can replace this layer later.
+                {t('payment.mock')}
               </div>
               <div className="d-grid gap-2 mt-4">
                 <button type="button" className="btn rounded-pill py-3 text-dark border-0 fw-bold" style={{ background: 'linear-gradient(135deg, #a88448 0%, #c8a261 100%)' }} disabled={loading || !payment} onClick={() => handleOutcome(true)}>
-                  Simulate Successful Payment
+                  {t('payment.success')}
                 </button>
                 <button type="button" className="btn btn-outline-secondary rounded-pill py-3" disabled={loading || !payment} onClick={() => handleOutcome(false)}>
-                  Simulate Failed Payment
+                  {t('payment.fail')}
                 </button>
               </div>
             </>

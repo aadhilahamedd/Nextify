@@ -3,24 +3,27 @@ import Container from 'react-bootstrap/Container'
 import Row from 'react-bootstrap/Row'
 import Col from 'react-bootstrap/Col'
 import { COMPANY } from '../utils/company'
+import { useLanguage } from '../i18n/LanguageContext'
 
 function About() {
+  const { t, formatNumber } = useLanguage()
+  const years = new Date().getFullYear() - COMPANY.foundedYear
   return (
     <div style={{ backgroundColor: '#0a0a0a', color: 'white', minHeight: '100vh', paddingTop: '140px', paddingBottom: '80px' }}>
       <Container>
         <div className="row align-items-center g-4 mb-5">
           <div className="col-lg-7 text-start">
             <p className="text-uppercase fw-semibold mb-2" style={{ color: '#eeb012', letterSpacing: '3px', fontSize: '0.8rem' }}>
-              About Us
+              {t('about.kicker')}
             </p>
             <h2 className="h1 fw-normal mb-4" style={{ fontFamily: 'Georgia, serif', color: '#fff' }}>
-              Luxury travel tailored to your every need
+              {t('about.title')}
             </h2>
             <p className="mb-4" style={{ color: '#bfbfbf', lineHeight: 1.8, maxWidth: '540px' }}>
-              Founded in {COMPANY.foundedYear} by {COMPANY.founder}, Nextify combines premium vehicles, trusted chauffeurs, and seamless service across Saudi Arabia. Whether you need airport transfers, city rides, chauffeur service, intercity travel, or GCC transfers, we make every journey feel exceptional.
+              {t('about.intro', { year: formatNumber(COMPANY.foundedYear), founder: COMPANY.founder })}
             </p>
             <p className="mb-0 small" style={{ color: '#888', maxWidth: '540px' }}>
-              TGA licensed · Company ID {COMPANY.tga.organizationId} · License {COMPANY.tga.licenseNumber}
+              {t('about.tgaLine', { id: COMPANY.tga.organizationId, license: COMPANY.tga.licenseNumber })}
             </p>
           </div>
           <div className="col-lg-5 d-flex justify-content-lg-end justify-content-center">
@@ -43,23 +46,23 @@ function About() {
         <Row className="g-4 mb-5">
           {[
             {
-              title: 'Premium Fleet',
-              description: 'A curated selection of luxury sedans, vans, and executive vehicles maintained to the highest standard.',
+              title: t('about.fleet'),
+              description: t('about.fleetText'),
               icon: 'bi-car-front-fill'
             },
             {
-              title: 'Professional Drivers',
-              description: 'Experienced and courteous chauffeurs trained for safety, privacy, and premium customer service.',
+              title: t('about.drivers'),
+              description: t('about.driversText'),
               icon: 'bi-people-fill'
             },
             {
-              title: 'Flexible Service',
-              description: 'Airport pickup, point-to-point rides, hourly bookings and event transportation available on demand.',
+              title: t('about.flexible'),
+              description: t('about.flexibleText'),
               icon: 'bi-clock-fill'
             },
             {
-              title: 'Reliable Support',
-              description: '24/7 customer assistance ensures your booking runs smoothly from confirmation until drop-off.',
+              title: t('about.support'),
+              description: t('about.supportText'),
               icon: 'bi-headset'
             }
           ].map((item, index) => (
@@ -78,22 +81,22 @@ function About() {
         <div className="row align-items-center g-5">
           <Col lg={6}>
             <div className="p-5 rounded-4" style={{ backgroundColor: '#111111', border: '1px solid rgba(255,255,255,0.08)' }}>
-              <h3 className="mb-4" style={{ fontFamily: 'Georgia, serif', color: '#fff' }}>Our Mission</h3>
+              <h3 className="mb-4" style={{ fontFamily: 'Georgia, serif', color: '#fff' }}>{t('about.mission')}</h3>
               <p style={{ color: '#bfbfbf', lineHeight: '1.8' }}>
-                To deliver the highest level of luxury travel with transparency, reliability, and personalized service. Every ride with Nextify is carefully curated to provide comfort, professionalism, and peace of mind.
+                {t('about.mission1')}
               </p>
               <p style={{ color: '#bfbfbf', lineHeight: '1.8' }}>
-                Founded by {COMPANY.founder} in {COMPANY.foundedYear}, we operate from {COMPANY.addressShort} and remain committed to meeting your exact requirements at every mile.
+                {t('about.mission2', { founder: COMPANY.founder, year: formatNumber(COMPANY.foundedYear), place: t('company.addressShort') })}
               </p>
             </div>
           </Col>
           <Col lg={6}>
             <div className="row g-4">
               {[
-                { label: 'Years of Trust', value: `${new Date().getFullYear() - COMPANY.foundedYear}+`, color: '#eeb012' },
-                { label: 'Luxury Vehicles', value: '15+', color: '#fff' },
-                { label: 'Happy Clients', value: '34K+', color: '#fff' },
-                { label: 'Available 24/7', value: 'Yes', color: '#fff' }
+                { label: t('about.years'), value: `${formatNumber(years)}+`, color: '#eeb012' },
+                { label: t('about.vehicles'), value: `${formatNumber(15)}+`, color: '#fff' },
+                { label: t('about.clients'), value: `${formatNumber(34)}K+`, color: '#fff' },
+                { label: t('about.available'), value: t('about.yes'), color: '#fff' }
               ].map((item, index) => (
                 <div key={index} className="col-6">
                   <div className="p-4 rounded-4 h-100" style={{ backgroundColor: '#111111', border: '1px solid rgba(255,255,255,0.08)' }}>

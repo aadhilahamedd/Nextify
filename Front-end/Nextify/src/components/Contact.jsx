@@ -8,8 +8,10 @@ import { saveLocalContactMessage } from '../utils/contactMessagesStorage'
 
 import { Link } from 'react-router-dom'
 import { COMPANY } from '../utils/company'
+import { useLanguage } from '../i18n/LanguageContext'
 
 function Contact() {
+  const { t } = useLanguage()
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -57,7 +59,7 @@ function Contact() {
       try {
         const response = await fetch(`${serverURL}/api/contact`)
         if (!response.ok) {
-          throw new Error('Failed to fetch contact details')
+          throw new Error(t('contact.loadFail'))
         }
         const data = await response.json()
         if (data.contact && !hasCachedContact) {
@@ -71,7 +73,7 @@ function Contact() {
       } catch (err) {
         console.error(err)
         if (!hasCachedContact) {
-          setError('Unable to load contact details right now.')
+          setError(t('contact.loadFail'))
         }
       } finally {
         setLoading(false)
@@ -117,23 +119,19 @@ function Contact() {
 
       if (response?.status === 201 || response?.status === 200) {
         setStatusType('success')
-        setStatus('Thank you! Your message has been sent.')
+        setStatus(t('contact.thanksSent'))
         setFormData({ name: '', email: '', phone: '', subject: '', message: '' })
         setTimeout(() => setStatus(''), 5000)
       } else {
         saveLocalContactMessage(formData)
         setStatusType('success')
-        setStatus(
-          response?.status === 404
-            ? 'Thank you! Your message was saved. The server is being updated — it will sync once the latest backend is deployed.'
-            : 'Thank you! Your message was saved and will be reviewed shortly.'
-        )
+        setStatus(t('contact.thanks'))
         setFormData({ name: '', email: '', phone: '', subject: '', message: '' })
         setTimeout(() => setStatus(''), 7000)
       }
     } catch (err) {
       setStatusType('danger')
-      setStatus('Failed to send message. Please check your connection and try again.')
+      setStatus(t('contact.sendFail'))
     } finally {
       setSubmitting(false)
     }
@@ -144,13 +142,13 @@ function Contact() {
       <Container>
         <div className="text-center mb-5">
           <p className="text-uppercase fw-semibold mb-2" style={{ color: '#eeb012', letterSpacing: '3px', fontSize: '0.8rem' }}>
-            Contact Us
+            {t('contact.pageKicker')}
           </p>
           <h2 className="display-4 fw-normal mb-3" style={{ fontFamily: 'Georgia, serif', color: '#fff' }}>
-            Get in touch with Nextify
+            {t('contact.pageTitle')}
           </h2>
           <p className="mx-auto" style={{ maxWidth: '680px', color: '#bfbfbf', lineHeight: '1.8' }}>
-            Have a question about our fleet, booking process, or corporate services? Send us a message and our team will respond quickly to help you plan your next luxury ride.
+            {t('contact.lead')}
           </p>
           {isAdmin && !editingContact && (
             <button
@@ -213,33 +211,33 @@ function Contact() {
         <Row className="g-4 mb-5">
           <Col md={4}>
             <div className="p-4 rounded-4 h-100" style={{ backgroundColor: '#111111', border: '1px solid rgba(255,255,255,0.08)' }}>
-              <h5 className="mb-3" style={{ color: '#eeb012', fontFamily: 'Georgia, serif' }}>Call Us</h5>
-              {loading ? <p className="text-white-50">Loading...</p> : <p className="mb-2 text-white-50">{contactInfo.phone}</p>}
-              <p className="small text-white-50">Available 24/7 for urgent bookings and support.</p>
+              <h5 className="mb-3" style={{ color: '#eeb012', fontFamily: 'Georgia, serif' }}>{t('contact.call')}</h5>
+              {loading ? <p className="text-white-50">{t('contact.loading')}</p> : <p className="mb-2 text-white-50 ltr-num" dir="ltr">{contactInfo.phone}</p>}
+              <p className="small text-white-50">{t('contact.available247')}</p>
             </div>
           </Col>
           <Col md={4}>
             <div className="p-4 rounded-4 h-100" style={{ backgroundColor: '#111111', border: '1px solid rgba(255,255,255,0.08)' }}>
-              <h5 className="mb-3" style={{ color: '#eeb012', fontFamily: 'Georgia, serif' }}>Email</h5>
-              {loading ? <p className="text-white-50">Loading...</p> : <p className="mb-2 text-white-50">{contactInfo.email}</p>}
-              <p className="small text-white-50">For reservations, partnerships, and general inquiries.</p>
+              <h5 className="mb-3" style={{ color: '#eeb012', fontFamily: 'Georgia, serif' }}>{t('contact.email')}</h5>
+              {loading ? <p className="text-white-50">{t('contact.loading')}</p> : <p className="mb-2 text-white-50">{contactInfo.email}</p>}
+              <p className="small text-white-50">{t('contact.emailHint')}</p>
             </div>
           </Col>
           <Col md={4}>
             <div className="p-4 rounded-4 h-100" style={{ backgroundColor: '#111111', border: '1px solid rgba(255,255,255,0.08)' }}>
-              <h5 className="mb-3" style={{ color: '#eeb012', fontFamily: 'Georgia, serif' }}>Location</h5>
-              {loading ? <p className="text-white-50">Loading...</p> : <p className="mb-2 text-white-50">{contactInfo.location}</p>}
-              <p className="small text-white-50">Current pickup and service area details.</p>
+              <h5 className="mb-3" style={{ color: '#eeb012', fontFamily: 'Georgia, serif' }}>{t('contact.location')}</h5>
+              {loading ? <p className="text-white-50">{t('contact.loading')}</p> : <p className="mb-2 text-white-50">{contactInfo.location}</p>}
+              <p className="small text-white-50">{t('contact.locationHint')}</p>
             </div>
           </Col>
         </Row>
 
         <div className="p-4 p-md-5 rounded-4 mb-5 d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3" style={{ backgroundColor: '#111111', border: '1px solid rgba(238,176,18,0.22)' }}>
           <div>
-            <p className="text-uppercase small mb-2" style={{ color: '#eeb012', letterSpacing: 2 }}>QR Code</p>
-            <h3 className="h4 mb-2" style={{ fontFamily: 'Georgia, serif' }}>Scan to open Nextify</h3>
+            <p className="text-uppercase small mb-2" style={{ color: '#eeb012', letterSpacing: 2 }}>{t('contact.qr')}</p>
+            <h3 className="h4 mb-2" style={{ fontFamily: 'Georgia, serif' }}>{t('contact.scanOpen')}</h3>
             <p className="mb-0" style={{ color: '#888' }}>
-              Print or share the website QR. Scanning it opens {COMPANY.website}.
+              {t('contact.scanLead', { url: COMPANY.website })}
             </p>
           </div>
           <Link
@@ -247,7 +245,7 @@ function Contact() {
             className="btn rounded-pill px-4 py-3 fw-semibold border-0 text-decoration-none"
             style={{ background: 'linear-gradient(135deg, #a88448 0%, #c8a261 100%)', color: '#000' }}
           >
-            Open QR &amp; Scanner
+            {t('contact.openQr')}
           </Link>
         </div>
 
@@ -256,14 +254,14 @@ function Contact() {
         <Row className="g-5">
           <Col lg={6}>
             <div className="p-5 rounded-4" style={{ backgroundColor: '#111111', border: '1px solid rgba(255,255,255,0.08)' }}>
-              <h3 className="mb-4" style={{ fontFamily: 'Georgia, serif', color: '#fff' }}>Ready to book?</h3>
+              <h3 className="mb-4" style={{ fontFamily: 'Georgia, serif', color: '#fff' }}>{t('contact.ready')}</h3>
               <p style={{ color: '#bfbfbf', lineHeight: '1.8' }}>
-                Send us a message and our support team will help you finalize your reservation, answer questions, or provide a custom transport solution for your event.
+                {t('contact.readyText')}
               </p>
               <ul className="list-unstyled mt-4" style={{ color: '#bfbfbf', lineHeight: '2' }}>
-                <li><i className="bi bi-check2-circle me-2" style={{ color: '#eeb012' }}></i>Airport transfers</li>
-                <li><i className="bi bi-check2-circle me-2" style={{ color: '#eeb012' }}></i>Hourly chauffeur service</li>
-                <li><i className="bi bi-check2-circle me-2" style={{ color: '#eeb012' }}></i>Event fleet rentals</li>
+                <li><i className="bi bi-check2-circle me-2" style={{ color: '#eeb012' }}></i>{t('contact.airport')}</li>
+                <li><i className="bi bi-check2-circle me-2" style={{ color: '#eeb012' }}></i>{t('contact.hourly')}</li>
+                <li><i className="bi bi-check2-circle me-2" style={{ color: '#eeb012' }}></i>{t('contact.events')}</li>
               </ul>
             </div>
           </Col>
@@ -277,28 +275,28 @@ function Contact() {
               )}
               <form onSubmit={handleSubmit} className="row g-4">
                 <div className="col-md-6">
-                  <label className="form-label fw-semibold text-white mb-2">Name</label>
-                  <input type="text" required value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="form-control p-3 bg-dark border-0 text-white" placeholder="Your name" />
+                  <label className="form-label fw-semibold text-white mb-2">{t('contact.name')}</label>
+                  <input type="text" required value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="form-control p-3 bg-dark border-0 text-white" placeholder={t('contact.name')} />
                 </div>
                 <div className="col-md-6">
-                  <label className="form-label fw-semibold text-white mb-2">Email</label>
-                  <input type="email" required value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="form-control p-3 bg-dark border-0 text-white" placeholder="Your email" />
+                  <label className="form-label fw-semibold text-white mb-2">{t('contact.email')}</label>
+                  <input type="email" required value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="form-control p-3 bg-dark border-0 text-white" placeholder={t('contact.yourEmail')} />
                 </div>
                 <div className="col-md-6">
-                  <label className="form-label fw-semibold text-white mb-2">Phone</label>
-                  <input type="tel" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} className="form-control p-3 bg-dark border-0 text-white" placeholder="Phone number" />
+                  <label className="form-label fw-semibold text-white mb-2">{t('contact.phone')}</label>
+                  <input type="tel" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} className="form-control p-3 bg-dark border-0 text-white" placeholder={t('contact.phonePh')} />
                 </div>
                 <div className="col-md-6">
-                  <label className="form-label fw-semibold text-white mb-2">Subject</label>
-                  <input type="text" required value={formData.subject} onChange={(e) => setFormData({ ...formData, subject: e.target.value })} className="form-control p-3 bg-dark border-0 text-white" placeholder="Message subject" />
+                  <label className="form-label fw-semibold text-white mb-2">{t('contact.subject')}</label>
+                  <input type="text" required value={formData.subject} onChange={(e) => setFormData({ ...formData, subject: e.target.value })} className="form-control p-3 bg-dark border-0 text-white" placeholder={t('contact.subjectPh')} />
                 </div>
                 <div className="col-12">
-                  <label className="form-label fw-semibold text-white mb-2">Message</label>
-                  <textarea required value={formData.message} onChange={(e) => setFormData({ ...formData, message: e.target.value })} className="form-control p-3 bg-dark border-0 text-white" rows="5" placeholder="Tell us how we can help"></textarea>
+                  <label className="form-label fw-semibold text-white mb-2">{t('contact.message')}</label>
+                  <textarea required value={formData.message} onChange={(e) => setFormData({ ...formData, message: e.target.value })} className="form-control p-3 bg-dark border-0 text-white" rows="5" placeholder={t('contact.messagePh')}></textarea>
                 </div>
                 <div className="col-12 text-end">
                   <button type="submit" disabled={submitting} className="btn px-5 py-3 rounded-pill text-uppercase fw-bold" style={{ backgroundColor: submitting ? '#9a7a0c' : '#eeb012', color: '#000' }}>
-                    {submitting ? 'Sending...' : 'Send Message'}
+                    {submitting ? t('contact.sending') : t('contact.send')}
                   </button>
                 </div>
               </form>

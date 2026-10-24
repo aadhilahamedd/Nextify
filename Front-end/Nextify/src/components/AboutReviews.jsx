@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { getReviewsAPI, submitReviewAPI } from '../Services/allAPI';
+import { useLanguage } from '../i18n/LanguageContext';
 
 const FEATURED = [
   { name: 'Corporate guest', quote: 'Punctual, discreet, and a flawless airport transfer in Riyadh.', rating: 5 },
@@ -9,7 +10,12 @@ const FEATURED = [
 const emptyForm = { name: '', role: '', quote: '', rating: 5 };
 
 export default function AboutReviews() {
-  const [reviews, setReviews] = useState(FEATURED);
+  const { t, formatNumber } = useLanguage();
+  const featured = [
+    { name: t('reviews.featured1Name'), quote: t('reviews.featured1'), rating: 5 },
+    { name: t('reviews.featured2Name'), quote: t('reviews.featured2'), rating: 5 },
+  ];
+  const [reviews, setReviews] = useState(featured);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
@@ -27,7 +33,7 @@ export default function AboutReviews() {
             quote: item.quote,
             rating: item.rating || 5,
           })),
-          ...FEATURED,
+          ...featured,
         ].slice(0, 4));
       }
     })();
@@ -44,7 +50,7 @@ export default function AboutReviews() {
     setError('');
     setDone('');
     if (!form.name.trim() || !form.quote.trim()) {
-      setError('Please add your name and review.');
+      setError(t('reviews.needFields'));
       return;
     }
     setSaving(true);
@@ -67,27 +73,27 @@ export default function AboutReviews() {
       ].slice(0, 4));
       setForm(emptyForm);
       setOpen(false);
-      setDone('Thank you. Your review is now live.');
+      setDone(t('reviews.thanks'));
       return;
     }
-    setError(res?.error || 'Could not save your review.');
+    setError(res?.error || t('reviews.fail'));
   };
 
   return (
     <div className="about-reviews mt-4">
       <div className="about-reviews-head">
         <div>
-          <p className="about-reviews-kicker mb-1">Guest reviews</p>
-          <span className="about-reviews-score">{average} ★</span>
+          <p className="about-reviews-kicker mb-1">{t('reviews.kicker')}</p>
+          <span className="about-reviews-score">{formatNumber(average)} ★</span>
         </div>
         {!open && (
           <button type="button" className="about-review-add" onClick={() => setOpen(true)}>
-            Add review
+            {t('reviews.add')}
           </button>
         )}
       </div>
 
-      {reviews.slice(0, 2).map((item) => (
+      {(reviews.length ? reviews : featured).slice(0, 2).map((item) => (
         <div key={`${item.name}-${item.quote}`} className="about-review">
           <p>“{item.quote}”</p>
           <span>{item.name}</span>
@@ -114,29 +120,29 @@ export default function AboutReviews() {
           <input
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
-            placeholder="Your name"
+            placeholder={t('reviews.name')}
             maxLength={80}
           />
           <input
             value={form.role}
             onChange={(e) => setForm({ ...form, role: e.target.value })}
-            placeholder="City or role (optional)"
+            placeholder={t('reviews.role')}
             maxLength={80}
           />
           <textarea
             value={form.quote}
             onChange={(e) => setForm({ ...form, quote: e.target.value })}
-            placeholder="Share a short review"
+            placeholder={t('reviews.quote')}
             rows={2}
             maxLength={280}
           />
           {error && <p className="about-review-error">{error}</p>}
           <div className="about-review-actions">
             <button type="button" className="about-review-cancel" onClick={() => setOpen(false)}>
-              Cancel
+              {t('reviews.cancel')}
             </button>
             <button type="submit" className="about-review-submit" disabled={saving}>
-              {saving ? 'Saving...' : 'Submit review'}
+              {saving ? t('reviews.saving') : t('reviews.submit')}
             </button>
           </div>
         </form>

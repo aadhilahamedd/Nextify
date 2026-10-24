@@ -3,7 +3,6 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import Container from 'react-bootstrap/Container';
 import {
   SERVICE_TYPES,
-  SERVICE_LABELS,
   SERVICE_DESCRIPTIONS,
   AIRPORTS,
   VEHICLES_BY_SERVICE,
@@ -14,7 +13,11 @@ import {
   initialFormState,
 } from './bookingConstants';
 import PriceSummary from './PriceSummary';
+import DestinationAutocomplete from './DestinationAutocomplete';
+import { LocaleDateInput, LocaleTimeInput } from './ArabicDateTime';
 import { calculatePriceAPI, createBookingAPI } from '../../Services/allAPI';
+import { useLanguage } from '../../i18n/LanguageContext';
+import { translatePlace, translateService, translateVehicle } from '../../i18n/places';
 import './Booking.css';
 
 const SERVICE_ICONS = {
@@ -28,6 +31,7 @@ const SERVICE_ICONS = {
 function BookingWizard() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { t, lang, formatNumber } = useLanguage();
   const [step, setStep] = useState(0);
   const [form, setForm] = useState({ ...initialFormState });
   const [quote, setQuote] = useState(null);
@@ -40,10 +44,10 @@ function BookingWizard() {
   const services = useMemo(
     () => Object.entries(SERVICE_TYPES).map(([, value]) => ({
       value,
-      label: SERVICE_LABELS[value],
-      desc: SERVICE_DESCRIPTIONS[value],
+      label: translateService(value, t),
+      desc: t(`services.${value}_desc`) !== `services.${value}_desc` ? t(`services.${value}_desc`) : SERVICE_DESCRIPTIONS[value],
     })),
-    []
+    [t]
   );
 
   const vehicles = VEHICLES_BY_SERVICE[form.serviceType] || [];
@@ -103,7 +107,7 @@ function BookingWizard() {
     if (res?.status === 200 && res.data?.quote) {
       setQuote(res.data.quote);
     } else {
-      setError(res?.data?.message || res?.error || 'Could not calculate price');
+      setError(res?.data?.message || res?.error || t('booking.errPrice'));
     }
   };
 
@@ -130,31 +134,31 @@ function BookingWizard() {
 
   const validateTrip = () => {
     if (!form.travelDate || !form.travelTime) {
-      setError('Please choose your travel date and time.');
+      setError(t('booking.errDate'));
       return false;
     }
     if (!form.vehicleCategory) {
-      setError('Please select a vehicle.');
+      setError(t('booking.errVehicle'));
       return false;
     }
     if (form.serviceType === 'airport_transfer' && !form.destination?.trim()) {
-      setError('Please enter your destination.');
+      setError(t('booking.errDest'));
       return false;
     }
     if (form.serviceType === 'city_transfer' && (!form.pickupLocation?.trim() || !form.dropoffLocation?.trim())) {
-      setError('Pickup and drop-off locations are required.');
+      setError(t('booking.errCity'));
       return false;
     }
     if (form.serviceType === 'chauffeur' && (!form.serviceLocation?.trim() || !form.durationType)) {
-      setError('Service location and duration are required.');
+      setError(t('booking.errChauffeur'));
       return false;
     }
     if (form.serviceType === 'intercity_transfer' && !form.intercityRoute) {
-      setError('Please select an intercity route.');
+      setError(t('booking.errRoute'));
       return false;
     }
     if (form.serviceType === 'gcc_transfer' && !form.gccDestination) {
-      setError('Please select a GCC destination.');
+      setError(t('booking.errGcc'));
       return false;
     }
     setError('');
@@ -164,7 +168,7 @@ function BookingWizard() {
   const validate = () => {
     if (!validateTrip()) return false;
     if (!form.customer.name || !form.customer.email || !form.customer.mobile) {
-      setError('Name, email, and mobile are required.');
+      setError(t('booking.errGuest'));
       return false;
     }
     setError('');
@@ -204,7 +208,7 @@ function BookingWizard() {
         navigate('/payment', { state: { booking } });
       }
     } else {
-      setError(res?.data?.message || res?.error || 'Failed to create booking');
+      setError(res?.data?.message || res?.error || t('booking.errCreate'));
     }
   };
 
@@ -220,20 +224,20 @@ function BookingWizard() {
         return (
           <>
             <div className="col-12">
-              <span className="book-label">Airport</span>
+              <span className="book-label">{t('booking.airport')}</span>
               <div className="book-choice-grid">
                 {AIRPORTS.map((a) => (
-                  <Choice key={a} active={form.airport === a} onClick={() => update({ airport: a })}>{a}</Choice>
+                  <Choice key={a} active={form.airport === a} onClick={() => update({ airport: a })}>{translatePlace(a, t, lang)}</Choice>
                 ))}
               </div>
             </div>
             <div className="col-12 col-md-6">
-              <label className="book-label">Destination *</label>
-              <input className="form-control book-input" value={form.destination} onChange={(e) => update({ destination: e.target.value })} placeholder="Hotel, home, or city area" autoComplete="street-address" />
+              <label className="book-label">{t('booking.destination')}</label>
+              <DestinationAutocomplete value={form.destination} onChange={(destination) => update({ destination })} placeholder={t('booking.destPh')} />
             </div>
             <div className="col-12 col-md-6">
-              <label className="book-label">Flight number</label>
-              <input className="form-control book-input" value={form.flightNumber} onChange={(e) => update({ flightNumber: e.target.value })} placeholder="Optional, e.g. SV123" autoComplete="off" />
+              <label className="book-label">{t('booking.flight')}</label>
+              <input className="form-control book-input" value={form.flightNumber} onChange={(e) => update({ flightNumber: e.target.value })} placeholder={t('booking.flightPh')} autoComplete="off" />
             </div>
           </>
         );
@@ -241,17 +245,17 @@ function BookingWizard() {
         return (
           <>
             <div className="col-12 col-md-6">
-              <label className="book-label">Pickup *</label>
-              <input className="form-control book-input" value={form.pickupLocation} onChange={(e) => update({ pickupLocation: e.target.value, origin: 'Riyadh' })} placeholder="Pickup address in Riyadh" autoComplete="street-address" />
+              <label className="book-label">{t('booking.pickup')}</label>
+              <input className="form-control book-input" value={form.pickupLocation} onChange={(e) => update({ pickupLocation: e.target.value, origin: 'Riyadh' })} placeholder={t('booking.pickupPh')} autoComplete="street-address" />
             </div>
             <div className="col-12 col-md-6">
-              <label className="book-label">Drop-off *</label>
-              <input className="form-control book-input" value={form.dropoffLocation} onChange={(e) => update({ dropoffLocation: e.target.value, destination: e.target.value })} placeholder="Drop-off address" autoComplete="street-address" />
+              <label className="book-label">{t('booking.dropoff')}</label>
+              <input className="form-control book-input" value={form.dropoffLocation} onChange={(e) => update({ dropoffLocation: e.target.value, destination: e.target.value })} placeholder={t('booking.dropoffPh')} autoComplete="street-address" />
             </div>
             <div className="col-12 col-md-6">
-              <label className="book-label">Estimated distance (KM)</label>
-              <input type="number" inputMode="numeric" min={0} max={100} className="form-control book-input" value={form.distanceKm} onChange={(e) => update({ distanceKm: e.target.value })} placeholder="0–20 KM approved rate" />
-              <span className="book-hint">Trips above 20 KM need a custom quote.</span>
+              <label className="book-label">{t('booking.distance')}</label>
+              <input type="number" inputMode="numeric" min={0} max={100} className="form-control book-input" value={form.distanceKm} onChange={(e) => update({ distanceKm: e.target.value })} placeholder={t('booking.distancePh')} />
+              <span className="book-hint">{t('booking.distanceHint')}</span>
             </div>
           </>
         );
@@ -259,14 +263,14 @@ function BookingWizard() {
         return (
           <>
             <div className="col-12 col-md-7">
-              <label className="book-label">Service location *</label>
-              <input className="form-control book-input" value={form.serviceLocation} onChange={(e) => update({ serviceLocation: e.target.value, pickupLocation: e.target.value })} placeholder="Where should we meet you?" autoComplete="street-address" />
+              <label className="book-label">{t('booking.location')}</label>
+              <input className="form-control book-input" value={form.serviceLocation} onChange={(e) => update({ serviceLocation: e.target.value, pickupLocation: e.target.value })} placeholder={t('booking.locationPh')} autoComplete="street-address" />
             </div>
             <div className="col-12 col-md-5">
-              <span className="book-label">Duration *</span>
+              <span className="book-label">{t('booking.duration')}</span>
               <div className="book-choice-grid">
                 {DURATION_OPTIONS.map((d) => (
-                  <Choice key={d.value} active={form.durationType === d.value} onClick={() => update({ durationType: d.value })}>{d.label}</Choice>
+                  <Choice key={d.value} active={form.durationType === d.value} onClick={() => update({ durationType: d.value })}>{d.value === 'half_day' ? t('booking.halfDay') : t('booking.fullDay')}</Choice>
                 ))}
               </div>
             </div>
@@ -275,7 +279,7 @@ function BookingWizard() {
       case 'intercity_transfer':
         return (
           <div className="col-12">
-            <span className="book-label">Route *</span>
+            <span className="book-label">{t('booking.route')}</span>
             <div className="book-choice-grid">
               {INTERCITY_ROUTES.map((r) => (
                 <Choice
@@ -283,7 +287,7 @@ function BookingWizard() {
                   active={form.intercityRoute === r.label}
                   onClick={() => update({ intercityRoute: r.label, origin: r.origin, destination: r.destination })}
                 >
-                  {r.label}
+                  {translatePlace(r.label, t, lang)}
                 </Choice>
               ))}
             </div>
@@ -292,7 +296,7 @@ function BookingWizard() {
       case 'gcc_transfer':
         return (
           <div className="col-12">
-            <span className="book-label">Destination *</span>
+            <span className="book-label">{t('booking.gccDest')}</span>
             <div className="book-choice-grid">
               {GCC_DESTINATIONS.map((g) => (
                 <Choice
@@ -300,7 +304,7 @@ function BookingWizard() {
                   active={form.gccDestination === g.destination}
                   onClick={() => update({ gccDestination: g.destination, destination: g.destination })}
                 >
-                  {g.label}
+                  {translatePlace(g.label, t, lang)}
                 </Choice>
               ))}
             </div>
@@ -313,11 +317,11 @@ function BookingWizard() {
 
   const summary = (
     <div className="book-summary-wrap">
-      {quoteLoading && <p className="book-empty-quote mb-3">Confirming your fare...</p>}
+      {quoteLoading && <p className="book-empty-quote mb-3">{t('booking.confirming')}</p>}
       {!quote && !quoteLoading && (
         <div className="book-summary">
-          <p className="book-kicker mb-2">Your fare</p>
-          <p className="book-empty-quote">Choose a vehicle to see the official Nextify rate. Prices are never estimated on this page.</p>
+          <p className="book-kicker mb-2">{t('booking.fare')}</p>
+          <p className="book-empty-quote">{t('booking.chooseRate')}</p>
         </div>
       )}
       {quote && (
@@ -332,9 +336,9 @@ function BookingWizard() {
         />
       )}
       <div className="book-trust">
-        <span><i className="bi bi-person-badge" /> Professional chauffeur included</span>
-        <span><i className="bi bi-currency-exchange" /> Prices in SAR</span>
-        <span><i className="bi bi-shield-check" /> Backend-confirmed quote</span>
+        <span><i className="bi bi-person-badge" /> {t('booking.included')}</span>
+        <span><i className="bi bi-currency-exchange" /> {t('booking.pricesSar')}</span>
+        <span><i className="bi bi-shield-check" /> {t('booking.backendQuote')}</span>
       </div>
       {error && <div className="book-error">{error}</div>}
       {step === 2 && (
@@ -345,7 +349,7 @@ function BookingWizard() {
           disabled={loading || quoteLoading || !quote}
           onClick={handleSubmit}
         >
-          {loading ? 'Processing...' : quote?.customQuoteRequired ? 'Request Quote' : 'Continue Booking'}
+          {loading ? t('booking.processing') : quote?.customQuoteRequired ? t('booking.requestQuote') : t('booking.continueBooking')}
         </button>
       )}
     </div>
@@ -355,27 +359,27 @@ function BookingWizard() {
     <div className="book-page">
       <Container>
         <div className="text-center mb-2">
-          <p className="book-kicker">Luxury chauffeur booking</p>
-          <h1 className="book-title">Reserve your journey</h1>
-          <p className="book-lead">A calm, three-step booking. Every trip includes a professional chauffeur — never self-drive.</p>
+          <p className="book-kicker">{t('booking.kicker')}</p>
+          <h1 className="book-title">{t('booking.title')}</h1>
+          <p className="book-lead">{t('booking.lead')}</p>
         </div>
 
         <div className="book-wizard" ref={wizardRef}>
-        <p className="book-progress-mobile">Step {step + 1} of 3 · {step === 0 ? 'Service' : step === 1 ? 'Trip details' : 'Guest'}</p>
+        <p className="book-progress-mobile">{t('booking.stepOf', { current: formatNumber(step + 1), label: step === 0 ? t('booking.service') : step === 1 ? t('booking.trip') : t('booking.guest') })}</p>
         <div className="book-stepper" aria-label="Booking steps">
           <div className={`book-step${step === 0 ? ' is-active' : ''}${step > 0 ? ' is-done' : ''}`}>
-            <span className="book-step-num">1</span>
-            <span className="book-step-label">Service</span>
+            <span className="book-step-num">{formatNumber(1)}</span>
+            <span className="book-step-label">{t('booking.service')}</span>
           </div>
           <div className="book-step-line" />
           <div className={`book-step${step === 1 ? ' is-active' : ''}${step > 1 ? ' is-done' : ''}`}>
-            <span className="book-step-num">2</span>
-            <span className="book-step-label">Trip details</span>
+            <span className="book-step-num">{formatNumber(2)}</span>
+            <span className="book-step-label">{t('booking.trip')}</span>
           </div>
           <div className="book-step-line" />
           <div className={`book-step${step === 2 ? ' is-active' : ''}`}>
-            <span className="book-step-num">3</span>
-            <span className="book-step-label">Guest</span>
+            <span className="book-step-num">{formatNumber(3)}</span>
+            <span className="book-step-label">{t('booking.guest')}</span>
           </div>
         </div>
 
@@ -407,39 +411,39 @@ function BookingWizard() {
               <div className="book-panel">
                 <div className="book-panel-head">
                   <div>
-                    <p className="book-kicker mb-1">{step === 1 ? 'Step 2' : 'Step 3'}</p>
+                    <p className="book-kicker mb-1">{step === 1 ? t('booking.step2') : t('booking.step3')}</p>
                     <h2 className="h4 mb-0" style={{ fontFamily: 'Georgia, serif' }}>
-                      {step === 1 ? SERVICE_LABELS[form.serviceType] : 'Guest details'}
+                      {step === 1 ? translateService(form.serviceType, t) : t('booking.guestDetails')}
                     </h2>
                   </div>
                   <button type="button" className="book-ghost" onClick={() => { setError(''); setStep(step === 2 ? 1 : 0); }}>
-                    {step === 2 ? 'Back' : 'Change service'}
+                    {step === 2 ? t('booking.back') : t('booking.changeService')}
                   </button>
                 </div>
 
                 {step === 1 && (
                   <>
                     <div className="row g-3">{renderServiceForm()}</div>
-                    <h3 className="book-section-title mt-4">When do you travel?</h3>
+                    <h3 className="book-section-title mt-4">{t('booking.when')}</h3>
                     <div className="row g-3">
                       <div className="col-12 col-md-6">
-                        <label className="book-label">Travel date *</label>
-                        <input type="date" min={today} className="form-control book-input" value={form.travelDate} onChange={(e) => update({ travelDate: e.target.value })} />
+                        <label className="book-label">{t('booking.travelDate')}</label>
+                        <LocaleDateInput min={today} className="form-control book-input" value={form.travelDate} onChange={(travelDate) => update({ travelDate })} />
                       </div>
                       <div className="col-12 col-md-6">
-                        <label className="book-label">Travel time *</label>
-                        <input type="time" className="form-control book-input" value={form.travelTime} onChange={(e) => update({ travelTime: e.target.value })} />
+                        <label className="book-label">{t('booking.travelTime')}</label>
+                        <LocaleTimeInput className="form-control book-input" value={form.travelTime} onChange={(travelTime) => update({ travelTime })} />
                       </div>
                       <div className="col-12 col-md-6">
-                        <label className="book-label">Passengers</label>
+                        <label className="book-label">{t('booking.passengers')}</label>
                         <input type="number" inputMode="numeric" min={1} className="form-control book-input" value={form.passengers} onChange={(e) => update({ passengers: Number(e.target.value) })} />
                       </div>
                       <div className="col-12 col-md-6">
-                        <label className="book-label">Luggage</label>
+                        <label className="book-label">{t('booking.luggage')}</label>
                         <input type="number" inputMode="numeric" min={0} className="form-control book-input" value={form.luggage} onChange={(e) => update({ luggage: Number(e.target.value) })} />
                       </div>
                     </div>
-                    <h3 className="book-section-title mt-4">Choose your vehicle</h3>
+                    <h3 className="book-section-title mt-4">{t('booking.chooseVehicle')}</h3>
                     <div className="book-choice-grid">
                       {vehicles.map((v) => (
                         <Choice
@@ -447,14 +451,14 @@ function BookingWizard() {
                           active={form.vehicleCategory === v.category}
                           onClick={() => update({ vehicleCategory: v.category, vehicleName: v.label })}
                         >
-                          {v.label}
-                          <small>Chauffeur included</small>
+                          {translateVehicle(v.category, v.label, t)}
+                          <small>{t('booking.chauffeurIncluded')}</small>
                         </Choice>
                       ))}
                     </div>
                     <div className="book-actions">
                       <button type="button" className="lux-btn" style={{ padding: '12px 28px' }} onClick={() => { if (validateTrip()) setStep(2); }}>
-                        Continue
+                        {t('booking.continue')}
                       </button>
                     </div>
                   </>
@@ -463,20 +467,20 @@ function BookingWizard() {
                 {step === 2 && (
                   <div className="row g-3">
                     <div className="col-12 col-md-6">
-                      <label className="book-label">Full name *</label>
-                      <input className="form-control book-input" value={form.customer.name} onChange={(e) => update({ customer: { ...form.customer, name: e.target.value } })} placeholder="As on your ID" autoComplete="name" />
+                      <label className="book-label">{t('booking.fullName')}</label>
+                      <input className="form-control book-input" value={form.customer.name} onChange={(e) => update({ customer: { ...form.customer, name: e.target.value } })} placeholder={t('booking.namePh')} autoComplete="name" />
                     </div>
                     <div className="col-12 col-md-6">
-                      <label className="book-label">Email *</label>
-                      <input type="email" inputMode="email" autoComplete="email" className="form-control book-input" value={form.customer.email} onChange={(e) => update({ customer: { ...form.customer, email: e.target.value } })} placeholder="name@email.com" />
+                      <label className="book-label">{t('booking.email')}</label>
+                      <input type="email" inputMode="email" autoComplete="email" className="form-control book-input" value={form.customer.email} onChange={(e) => update({ customer: { ...form.customer, email: e.target.value } })} placeholder={t('booking.emailPh')} />
                     </div>
                     <div className="col-12">
-                      <label className="book-label">Mobile *</label>
-                      <input type="tel" inputMode="tel" autoComplete="tel" className="form-control book-input" value={form.customer.mobile} onChange={(e) => update({ customer: { ...form.customer, mobile: e.target.value } })} placeholder="+966..." />
+                      <label className="book-label">{t('booking.mobile')}</label>
+                      <input type="tel" inputMode="tel" autoComplete="tel" className="form-control book-input" value={form.customer.mobile} onChange={(e) => update({ customer: { ...form.customer, mobile: e.target.value } })} placeholder={t('booking.mobilePh')} />
                     </div>
                     <div className="col-12">
-                      <label className="book-label">Special request</label>
-                      <textarea className="form-control book-input" rows={3} value={form.specialRequests} onChange={(e) => update({ specialRequests: e.target.value })} placeholder="Child seat, extra stop, or notes for the chauffeur" />
+                      <label className="book-label">{t('booking.special')}</label>
+                      <textarea className="form-control book-input" rows={3} value={form.specialRequests} onChange={(e) => update({ specialRequests: e.target.value })} placeholder={t('booking.specialPh')} />
                     </div>
                   </div>
                 )}

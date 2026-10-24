@@ -2,13 +2,15 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import Container from 'react-bootstrap/Container';
 import { verifyPaymentAPI } from '../Services/allAPI';
+import { useLanguage } from '../i18n/LanguageContext';
 
 function PaymentResult() {
+  const { t } = useLanguage();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const moyasarId = searchParams.get('id');
   const [error, setError] = useState('');
-  const [message, setMessage] = useState('Verifying payment with Nextify…');
+  const [message, setMessage] = useState(t('payment.verifying'));
 
   useEffect(() => {
     if (!moyasarId) {
@@ -42,7 +44,7 @@ function PaymentResult() {
       }
 
       if (res.status === 200 || res.status === 422) {
-        setMessage('Payment is still processing. Refresh this page in a moment.');
+        setMessage(t('payment.processing'));
         return;
       }
 
@@ -60,12 +62,12 @@ function PaymentResult() {
       <Container style={{ maxWidth: 560 }}>
         <div className="rounded-4 p-4 p-md-5 text-center" style={{ background: '#141414', border: '1px solid rgba(255,255,255,0.08)' }}>
           <p className="text-uppercase small mb-2" style={{ color: '#eeb012', letterSpacing: 3 }}>NEXTIFY</p>
-          <h3 style={{ fontFamily: 'Georgia, serif' }}>{error ? 'Payment not confirmed' : 'Checking payment'}</h3>
+          <h3 style={{ fontFamily: 'Georgia, serif' }}>{error ? t('payment.notConfirmed') : t('payment.checking')}</h3>
           <p className="text-white-50 mt-3">{error || message}</p>
           {error && (
             <div className="d-flex flex-wrap gap-2 justify-content-center mt-4">
-              <Link to="/payment" className="btn rounded-pill px-4" style={{ background: '#eeb012', color: '#0a0a0a' }}>Try payment again</Link>
-              <Link to="/track-booking" className="btn btn-outline-light rounded-pill px-4">Track booking</Link>
+              <Link to="/payment" className="btn rounded-pill px-4" style={{ background: '#eeb012', color: '#0a0a0a' }}>{t('payment.tryAgain')}</Link>
+              <Link to="/track-booking" className="btn btn-outline-light rounded-pill px-4">{t('payment.track')}</Link>
             </div>
           )}
         </div>

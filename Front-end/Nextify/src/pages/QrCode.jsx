@@ -3,6 +3,7 @@ import Container from 'react-bootstrap/Container';
 import QRCode from 'qrcode';
 import jsQR from 'jsqr';
 import { COMPANY } from '../utils/company';
+import { useLanguage } from '../i18n/LanguageContext';
 
 const SITE_URL = COMPANY.website;
 
@@ -13,6 +14,7 @@ function openScannedValue(text) {
 }
 
 export default function QrCodePage() {
+  const { t } = useLanguage();
   const [qrSrc, setQrSrc] = useState('');
   const [scanning, setScanning] = useState(false);
   const [status, setStatus] = useState('');
@@ -30,7 +32,7 @@ export default function QrCodePage() {
       errorCorrectionLevel: 'M',
     })
       .then(setQrSrc)
-      .catch(() => setStatus('Could not generate the QR code.'));
+      .catch(() => setStatus(t('qr.fail')));
   }, []);
 
   const stopScan = useCallback(() => {
@@ -64,7 +66,7 @@ export default function QrCodePage() {
 
     if (result?.data && !handledRef.current) {
       handledRef.current = true;
-      setStatus('QR found. Opening Nextify…');
+      setStatus(t('qr.found'));
       stopScan();
       openScannedValue(result.data);
       return;
@@ -91,7 +93,7 @@ export default function QrCodePage() {
         rafRef.current = requestAnimationFrame(tick);
       });
     } catch {
-      setStatus('Camera access was blocked. Allow the camera, or scan this QR with your phone camera.');
+      setStatus(t('qr.camera'));
     }
   };
 
@@ -100,20 +102,20 @@ export default function QrCodePage() {
       <Container>
         <div className="text-center mb-5">
           <p className="text-uppercase fw-semibold mb-2" style={{ color: '#a0a0a0', letterSpacing: '3px', fontSize: '0.8rem' }}>
-            SCAN TO VISIT
+            {t('qr.scanKicker')}
           </p>
           <h1 className="display-5 fw-normal mb-3" style={{ fontFamily: 'Georgia, serif' }}>
-            Nextify QR Code
+            {t('qr.title')}
           </h1>
           <p className="mb-0" style={{ color: '#888', maxWidth: 560, margin: '0 auto' }}>
-            Scan this code with your phone camera to open the Nextify website. You can also use the scanner below.
+            {t('qr.lead')}
           </p>
         </div>
 
         <div className="row g-4 justify-content-center">
           <div className="col-lg-5">
             <div className="h-100 p-4 p-md-5 rounded-4 text-center" style={{ background: '#141414', border: '1px solid rgba(255,255,255,0.08)' }}>
-              <p className="text-uppercase small mb-3" style={{ color: '#eeb012', letterSpacing: 2 }}>Website QR</p>
+              <p className="text-uppercase small mb-3" style={{ color: '#eeb012', letterSpacing: 2 }}>{t('qr.kicker')}</p>
               {qrSrc ? (
                 <img
                   src={qrSrc}
@@ -122,7 +124,7 @@ export default function QrCodePage() {
                   style={{ maxWidth: 320 }}
                 />
               ) : (
-                <p className="text-white-50">Preparing QR…</p>
+                <p className="text-white-50">{t('qr.preparing')}</p>
               )}
               <p className="mt-3 mb-4">
                 <a href={SITE_URL} className="text-decoration-none" style={{ color: '#cda274' }}>{SITE_URL}</a>
@@ -134,7 +136,7 @@ export default function QrCodePage() {
                   className="btn rounded-pill px-4 py-2 fw-semibold border-0"
                   style={{ background: 'linear-gradient(135deg, #a88448 0%, #c8a261 100%)', color: '#000' }}
                 >
-                  Download QR
+                  {t('qr.download')}
                 </a>
               )}
             </div>
@@ -142,10 +144,10 @@ export default function QrCodePage() {
 
           <div className="col-lg-5">
             <div className="h-100 p-4 p-md-5 rounded-4" style={{ background: '#141414', border: '1px solid rgba(255,255,255,0.08)' }}>
-              <p className="text-uppercase small mb-3" style={{ color: '#eeb012', letterSpacing: 2 }}>Scanner</p>
-              <h2 className="h4 mb-3" style={{ fontFamily: 'Georgia, serif' }}>Scan with this device</h2>
+              <p className="text-uppercase small mb-3" style={{ color: '#eeb012', letterSpacing: 2 }}>{t('qr.scanner')}</p>
+              <h2 className="h4 mb-3" style={{ fontFamily: 'Georgia, serif' }}>{t('qr.scanTitle')}</h2>
               <p style={{ color: '#888' }}>
-                Point the camera at a Nextify QR. When it reads the code, you will be taken to the Nextify website.
+                {t('qr.scanLead')}
               </p>
 
               {scanning ? (
@@ -163,7 +165,7 @@ export default function QrCodePage() {
                     className="btn btn-outline-light rounded-pill px-4 py-2 mt-3"
                     onClick={stopScan}
                   >
-                    Stop scanner
+                    {t('qr.stop')}
                   </button>
                 </div>
               ) : (
@@ -173,7 +175,7 @@ export default function QrCodePage() {
                   style={{ background: 'linear-gradient(135deg, #a88448 0%, #c8a261 100%)', color: '#000' }}
                   onClick={startScan}
                 >
-                  Open camera scanner
+                  {t('qr.open')}
                 </button>
               )}
 

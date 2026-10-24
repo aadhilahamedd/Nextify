@@ -1,5 +1,6 @@
 import React from 'react';
 import Container from 'react-bootstrap/Container';
+import { useLanguage } from '../i18n/LanguageContext';
 
 const clients = [
   { name: 'Ajeej Capital', logo: '/images/Clients/AJEEJ capital.png', fit: 'wide' },
@@ -11,13 +12,14 @@ const clients = [
 ];
 
 export default function ClientSection() {
+  const { t } = useLanguage();
   return (
     <section className="clients-section" aria-labelledby="clients-heading">
       <Container>
         <div className="clients-heading">
-          <p className="clients-kicker">Our Clients</p>
+          <p className="clients-kicker">{t('clients.kicker')}</p>
           <h2 id="clients-heading" className="clients-title">
-            Trusted by businesses and organizations
+            {t('clients.title')}
           </h2>
         </div>
 

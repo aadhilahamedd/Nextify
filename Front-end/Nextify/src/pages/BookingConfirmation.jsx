@@ -9,10 +9,14 @@ import PriceSummary from '../components/booking/PriceSummary';
 import { SERVICE_LABELS } from '../components/booking/bookingConstants';
 
 import { buildConfirmedBookingWhatsAppMessage, COMPANY_PHONE, getWhatsAppUrl } from '../utils/whatsapp';
+import { useLanguage } from '../i18n/LanguageContext';
+import { translateService } from '../i18n/places';
+import { formatDateTimeForLang } from '../i18n/format';
 
 
 
 function BookingConfirmation() {
+  const { t, lang } = useLanguage();
 
   const { bookingNumber } = useParams();
 
@@ -64,9 +68,9 @@ function BookingConfirmation() {
 
       <Container className="py-5 text-center text-white" style={{ minHeight: '60vh', paddingTop: 140 }}>
 
-        <h3>Booking not found</h3>
+        <h3>{t('confirm.notFound')}</h3>
 
-        <Link to="/track-booking" className="btn btn-light rounded-pill mt-3">Track a booking</Link>
+        <Link to="/track-booking" className="btn btn-light rounded-pill mt-3">{t('confirm.track')}</Link>
 
       </Container>
 
@@ -108,13 +112,13 @@ function BookingConfirmation() {
 
           <h2 style={{ fontFamily: 'Georgia, serif' }}>
 
-            {customQuote ? 'Quote Request Submitted' : paymentSuccess === false ? 'Payment Failed' : 'Booking Confirmed'}
+            {customQuote ? t('confirm.quote') : paymentSuccess === false ? t('confirm.failed') : t('confirm.confirmed')}
 
           </h2>
 
           <p className="text-white-50">
 
-            Booking ID: <strong>{booking.bookingNumber}</strong>
+            {t('confirm.id')} <strong>{booking.bookingNumber}</strong>
 
           </p>
 
@@ -126,21 +130,21 @@ function BookingConfirmation() {
 
           <div className="row g-3 mb-4 text-white">
 
-            <div className="col-md-6"><strong>Service</strong><br />{SERVICE_LABELS[serviceType] || serviceType}</div>
+            <div className="col-md-6"><strong>{t('confirm.service')}</strong><br />{translateService(serviceType, t) || SERVICE_LABELS[serviceType] || serviceType}</div>
 
-            <div className="col-md-6"><strong>Status</strong><br />{booking.bookingStatus}</div>
+            <div className="col-md-6"><strong>{t('confirm.status')}</strong><br />{booking.bookingStatus}</div>
 
-            <div className="col-md-6"><strong>Payment</strong><br />{booking.paymentStatus}</div>
+            <div className="col-md-6"><strong>{t('confirm.payment')}</strong><br />{booking.paymentStatus}</div>
 
-            <div className="col-md-6"><strong>Vehicle</strong><br />{booking.vehicle?.name} + chauffeur</div>
+            <div className="col-md-6"><strong>{t('confirm.vehicle')}</strong><br />{booking.vehicle?.name} {t('confirm.chauffeur')}</div>
 
-            <div className="col-md-6"><strong>Pickup</strong><br />{booking.pickup?.address || booking.pickupLocation || booking.origin}</div>
+            <div className="col-md-6"><strong>{t('confirm.pickup')}</strong><br />{booking.pickup?.address || booking.pickupLocation || booking.origin}</div>
 
-            <div className="col-md-6"><strong>Destination</strong><br />{booking.destination?.address || booking.dropoffLocation || booking.destinationText || '—'}</div>
+            <div className="col-md-6"><strong>{t('confirm.dest')}</strong><br />{booking.destination?.address || booking.dropoffLocation || booking.destinationText || '—'}</div>
 
-            <div className="col-md-6"><strong>Date &amp; Time</strong><br />{new Date(booking.schedule?.pickupDateTime || booking.arrivalDateTime).toLocaleString()}</div>
+            <div className="col-md-6"><strong>{t('confirm.datetime')}</strong><br />{formatDateTimeForLang(booking.schedule?.pickupDateTime || booking.arrivalDateTime, lang)}</div>
 
-            <div className="col-md-6"><strong>Contact</strong><br />{booking.customer?.name}<br />{booking.customer?.mobile}</div>
+            <div className="col-md-6"><strong>{t('confirm.contact')}</strong><br />{booking.customer?.name}<br />{booking.customer?.mobile}</div>
 
           </div>
 
@@ -148,7 +152,7 @@ function BookingConfirmation() {
 
             <div className="alert alert-secondary">
 
-              <strong>Assigned Chauffeur:</strong> {booking.driver.name} · {booking.driver.phone}
+              <strong>{t('confirm.assigned')}</strong> {booking.driver.name} · {booking.driver.phone}
 
             </div>
 
@@ -178,13 +182,13 @@ function BookingConfirmation() {
 
             <i className="bi bi-whatsapp me-2" />
 
-            Contact us on WhatsApp
+            {t('confirm.wa')}
 
           </a>
 
-          <Link to="/track-booking" className="btn btn-outline-light rounded-pill px-4">Track Booking</Link>
+          <Link to="/track-booking" className="btn btn-outline-light rounded-pill px-4">{t('confirm.trackBtn')}</Link>
 
-          <Link to="/" className="btn btn-light rounded-pill px-4">Back to Home</Link>
+          <Link to="/" className="btn btn-light rounded-pill px-4">{t('confirm.home')}</Link>
 
         </div>
 

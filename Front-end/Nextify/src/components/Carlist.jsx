@@ -4,7 +4,9 @@ import { useNavigate } from 'react-router-dom'
 import { applyLocalCarImages, getCarImageUrl, initialCars, sortCarsForShowcase } from '../utils/carsStorage'
 import { getCarsAPI, addCarAPI, updateCarAPI, deleteCarAPI, getPricingRulesAPI } from '../Services/allAPI'
 import VehiclePricingDisplay from './pricing/VehiclePricingDisplay'
-import { formatCarDayPrice, sarToUsd, parsePriceNumber } from '../utils/currency'
+import { formatCarDayPriceForLang } from '../i18n/format'
+import { sarToUsd, parsePriceNumber } from '../utils/currency'
+import { useLanguage } from '../i18n/LanguageContext'
 
 const getCarListId = (car) => {
   const numeric = Number(car?.id)
@@ -16,6 +18,7 @@ const getApiMessage = (res, fallback) =>
   res?.error || res?.data?.message || res?.message || fallback
 
 function Carlist() {
+  const { t, lang } = useLanguage();
   const navigate = useNavigate();
   const [cars, setCars] = useState(initialCars)
   const [showModal, setShowModal] = useState(false)
@@ -205,7 +208,14 @@ function Carlist() {
     return 'Sedan'
   }
 
-  const filterOptions = ['All', 'First class', 'SUV', 'Sedan', 'Van', 'Coaches']
+  const filterOptions = [
+    { id: 'All', label: t('fleet.all') },
+    { id: 'First class', label: t('fleet.firstClass') },
+    { id: 'SUV', label: t('fleet.suv') },
+    { id: 'Sedan', label: t('fleet.sedan') },
+    { id: 'Van', label: t('fleet.van') },
+    { id: 'Coaches', label: t('fleet.coaches') },
+  ]
 
   const filteredCars = sortCarsForShowcase(cars).filter((car) => {
     if (activeFilter === 'All') return true
@@ -217,10 +227,10 @@ function Carlist() {
       <Container>
         <div className="text-center mb-5">
           <p className="text-uppercase fw-semibold mb-2" style={{ color: '#a0a0a0', letterSpacing: '3px', fontSize: '0.8rem' }}>
-            SELECT YOUR DRIVE
+            {t('fleet.kicker')}
           </p>
           <h2 className="display-4 fw-normal mb-4" style={{ fontFamily: 'Georgia, serif' }}>
-            Our Extensive Fleet
+            {t('fleet.title')}
           </h2>
           <div style={{ width: '60px', height: '2px', backgroundColor: '#fff', margin: '0 auto' }}></div>
             {isAdmin ? (
@@ -247,20 +257,20 @@ function Carlist() {
           <div className="d-flex flex-wrap justify-content-center gap-2 gap-md-3 mb-4">
             {filterOptions.map((option) => (
               <button
-                key={option}
+                key={option.id}
                 type="button"
-                onClick={() => setActiveFilter(option)}
+                onClick={() => setActiveFilter(option.id)}
                 className="btn btn-sm text-uppercase fw-semibold"
                 style={{
                   borderRadius: '999px',
                   padding: '10px 16px',
                   letterSpacing: '1px',
-                  border: activeFilter === option ? '1px solid rgba(238, 176, 18, 0.9)' : '1px solid rgba(255,255,255,0.16)',
-                  background: activeFilter === option ? 'rgba(238, 176, 18, 0.18)' : 'rgba(255,255,255,0.04)',
-                  color: activeFilter === option ? '#f6d26e' : 'rgba(255,255,255,0.85)',
+                  border: activeFilter === option.id ? '1px solid rgba(238, 176, 18, 0.9)' : '1px solid rgba(255,255,255,0.16)',
+                  background: activeFilter === option.id ? 'rgba(238, 176, 18, 0.18)' : 'rgba(255,255,255,0.04)',
+                  color: activeFilter === option.id ? '#f6d26e' : 'rgba(255,255,255,0.85)',
                 }}
               >
-                {option}
+                {option.label}
               </button>
             ))}
           </div>
@@ -328,22 +338,22 @@ function Carlist() {
                   </span>
                 </div>
 
-                {formatCarDayPrice(car) && (
+                {formatCarDayPriceForLang(car, lang) && (
                   <p className="mb-2 fw-semibold" style={{ color: '#eeb012', fontSize: '0.95rem' }}>
-                    {formatCarDayPrice(car)}
-                    <span className="ms-1" style={{ color: '#888', fontWeight: 400, fontSize: '0.75rem' }}>/ day</span>
+                    {formatCarDayPriceForLang(car, lang)}
+                    <span className="ms-1" style={{ color: '#888', fontWeight: 400, fontSize: '0.75rem' }}>{t('fleet.perDay')}</span>
                   </p>
                 )}
                 <VehiclePricingDisplay rules={pricingRules} car={car} />
 
                 <div className="d-flex justify-content-between align-items-center pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-                  <span className="fw-bold fs-6" style={{ color: '#888' }}>Chauffeur included</span>
+                  <span className="fw-bold fs-6" style={{ color: '#888' }}>{t('fleet.chauffeur')}</span>
                   <button 
                     type="button"
                     onClick={(e) => { e.stopPropagation(); handleCardClick(car); }} 
                     className="lux-btn lux-btn-sm"
                   >
-                    Book Now
+                    {t('fleet.book')}
                   </button>
                 </div>
                 </div>

@@ -5,6 +5,9 @@ import { trackBookingAPI } from '../Services/allAPI';
 import PriceSummary from '../components/booking/PriceSummary';
 import { SERVICE_LABELS } from '../components/booking/bookingConstants';
 import '../components/booking/Booking.css';
+import { useLanguage } from '../i18n/LanguageContext';
+import { translateService } from '../i18n/places';
+import { formatDateTimeForLang } from '../i18n/format';
 
 function prettyStatus(value) {
   return String(value || 'Pending')
@@ -14,6 +17,7 @@ function prettyStatus(value) {
 }
 
 function TrackBooking() {
+  const { t, lang } = useLanguage();
   const [bookingNumber, setBookingNumber] = useState('');
   const [email, setEmail] = useState('');
   const [mobile, setMobile] = useState('');
@@ -26,11 +30,11 @@ function TrackBooking() {
     setError('');
     setBooking(null);
     if (!bookingNumber.trim()) {
-      setError('Please enter your booking number.');
+      setError(t('track.errNumber'));
       return;
     }
     if (!email.trim() && !mobile.trim()) {
-      setError('Enter the email or mobile number used when you booked.');
+      setError(t('track.errContact'));
       return;
     }
     setLoading(true);
@@ -39,7 +43,7 @@ function TrackBooking() {
     if (res?.status === 200) {
       setBooking(res.data?.data?.booking || res.data?.booking);
     } else {
-      setError(res?.data?.message || res?.error || 'We could not find a matching booking.');
+      setError(res?.data?.message || res?.error || t('track.errFind'));
     }
   };
 
@@ -63,27 +67,27 @@ function TrackBooking() {
     <div className="book-page">
       <Container style={{ maxWidth: 720 }}>
         <div className="text-center mb-4">
-          <p className="book-kicker">Reservation status</p>
-          <h1 className="book-title">Track your booking</h1>
+          <p className="book-kicker">{t('track.kicker')}</p>
+          <h1 className="book-title">{t('track.title')}</h1>
           <p className="book-lead">
-            Enter your booking number and the email or mobile you used at checkout. We will show the live status of your chauffeur reservation.
+            {t('track.lead')}
           </p>
         </div>
 
         <form onSubmit={handleTrack} className="book-panel mb-4">
           <div className="mb-3">
-            <label className="book-label">Booking number *</label>
+            <label className="book-label">{t('track.number')}</label>
             <input
               className="form-control book-input"
               value={bookingNumber}
               onChange={(e) => setBookingNumber(e.target.value)}
-              placeholder="NXT-20260908-XXXXX"
+              placeholder={t('track.placeholder')}
               autoComplete="off"
             />
           </div>
           <div className="row g-3">
             <div className="col-md-6">
-              <label className="book-label">Email</label>
+              <label className="book-label">{t('track.email')}</label>
               <input
                 type="email"
                 className="form-control book-input"
@@ -93,7 +97,7 @@ function TrackBooking() {
               />
             </div>
             <div className="col-md-6">
-              <label className="book-label">Mobile</label>
+              <label className="book-label">{t('track.mobile')}</label>
               <input
                 className="form-control book-input"
                 value={mobile}
@@ -102,45 +106,45 @@ function TrackBooking() {
               />
             </div>
           </div>
-          <span className="book-hint">Only one of email or mobile is required.</span>
+          <span className="book-hint">{t('track.hint')}</span>
           {error && <div className="book-error">{error}</div>}
           <button type="submit" className="lux-btn w-100 mt-4" style={{ padding: '14px 24px' }} disabled={loading}>
-            {loading ? 'Searching...' : 'Track booking'}
+            {loading ? t('track.searching') : t('track.submit')}
           </button>
         </form>
 
         {booking && (
           <div className="book-panel">
-            <p className="book-kicker mb-2">Your reservation</p>
+            <p className="book-kicker mb-2">{t('track.reservation')}</p>
             <h2 className="h4 mb-1" style={{ fontFamily: 'Georgia, serif' }}>{booking.bookingNumber}</h2>
             <div className="track-pills">
               <span className="track-pill">{prettyStatus(booking.bookingStatus)}</span>
-              <span className="track-pill is-muted">Payment · {prettyStatus(booking.paymentStatus)}</span>
+              <span className="track-pill is-muted">{t('track.payment')} · {prettyStatus(booking.paymentStatus)}</span>
             </div>
 
             <div className="track-result-grid">
               <p>
-                <span>Service</span>
-                {SERVICE_LABELS[booking.serviceType] || booking.serviceType}
+                <span>{t('track.service')}</span>
+                {translateService(booking.serviceType, t) || SERVICE_LABELS[booking.serviceType] || booking.serviceType}
               </p>
               <p>
-                <span>Vehicle</span>
-                {booking.vehicle?.name || booking.vehicleName || 'Assigned with chauffeur'}
+                <span>{t('track.vehicle')}</span>
+                {booking.vehicle?.name || booking.vehicleName || t('track.assigned')}
               </p>
               <p>
-                <span>Pickup</span>
+                <span>{t('track.pickup')}</span>
                 {booking.pickup?.address || booking.pickupLocation || booking.origin || '—'}
               </p>
               <p>
-                <span>Destination</span>
+                <span>{t('track.dest')}</span>
                 {booking.destination?.address || booking.dropoffLocation || booking.destinationText || '—'}
               </p>
               <p>
-                <span>Date & time</span>
-                {scheduled ? new Date(scheduled).toLocaleString() : 'To be confirmed'}
+                <span>{t('track.datetime')}</span>
+                {scheduled ? formatDateTimeForLang(scheduled, lang) : t('track.tbc')}
               </p>
               <p>
-                <span>Guest</span>
+                <span>{t('track.guest')}</span>
                 {booking.customer?.name || '—'}
                 {booking.customer?.mobile ? <><br />{booking.customer.mobile}</> : null}
               </p>
@@ -148,7 +152,7 @@ function TrackBooking() {
 
             {booking.driver?.name && (
               <div className="track-chauffeur">
-                <span className="book-label mb-1">Assigned chauffeur</span>
+                <span className="book-label mb-1">{t('track.chauffeur')}</span>
                 <p className="mb-0">{booking.driver.name}{booking.driver.phone ? ` · ${booking.driver.phone}` : ''}</p>
               </div>
             )}
@@ -164,14 +168,14 @@ function TrackBooking() {
             />
 
             <button type="button" className="book-ghost mt-4" onClick={resetSearch}>
-              Search another booking
+              {t('track.another')}
             </button>
           </div>
         )}
 
         <div className="text-center mt-5">
           <Link to="/booking" className="lux-btn text-decoration-none" style={{ padding: '12px 28px' }}>
-            Make a new booking
+            {t('track.newBooking')}
           </Link>
         </div>
       </Container>

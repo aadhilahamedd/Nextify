@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { registerAPI, userLoginAPI } from '../Services/allAPI';
 import './Login.css';
+import { useLanguage } from '../i18n/LanguageContext';
 
 function Login() {
   const navigate = useNavigate();
+  const { t } = useLanguage();
 
   // State
   const [activeTab, setActiveTab] = useState('user');
@@ -33,7 +35,7 @@ function Login() {
   const handleLogin = async (e) => {
     e.preventDefault();
     if (!loginData.email || !loginData.password) {
-      showAlert('error', 'Please fill in all fields');
+      showAlert('error', t('login.fill'));
       return;
     }
 
@@ -51,10 +53,10 @@ function Login() {
           if (user.role === 'admin') navigate('/admin'); else navigate('/');
         }, 1000);
       } else {
-        showAlert('error', response.error || response.data?.message || 'Login failed. Please check your credentials.');
+        showAlert('error', response.error || response.data?.message || t('login.fail'));
       }
     } catch (err) {
-      showAlert('error', 'Something went wrong. Please try again.');
+      showAlert('error', t('login.error'));
     }
     setLoading(false);
   };
@@ -63,15 +65,15 @@ function Login() {
   const handleRegister = async (e) => {
     e.preventDefault();
     if (!registerData.username || !registerData.email || !registerData.password || !registerData.confirmPassword) {
-      showAlert('error', 'Please fill in all fields');
+      showAlert('error', t('login.fill'));
       return;
     }
     if (registerData.password !== registerData.confirmPassword) {
-      showAlert('error', 'Passwords do not match');
+      showAlert('error', t('login.mismatch'));
       return;
     }
     if (registerData.password.length < 6) {
-      showAlert('error', 'Password must be at least 6 characters');
+      showAlert('error', t('login.short'));
       return;
     }
 
@@ -87,16 +89,16 @@ function Login() {
         const { token, user } = response.data;
         localStorage.setItem('token', token);
         localStorage.setItem('user', JSON.stringify(user));
-        showAlert('success', 'Account created successfully!');
+        showAlert('success', t('login.created'));
 
         setTimeout(() => {
           navigate('/');
         }, 1000);
       } else {
-        showAlert('error', response.error || response.data?.message || 'Registration failed. Please try again.');
+        showAlert('error', response.error || response.data?.message || t('login.regFail'));
       }
     } catch (err) {
-      showAlert('error', 'Something went wrong. Please try again.');
+      showAlert('error', t('login.error'));
     }
     setLoading(false);
   };
@@ -114,14 +116,14 @@ function Login() {
         {/* Brand */}
         <div className="login-brand">
           <h1>Nextify</h1>
-          <p>{isRegister ? 'Create your account' : 'Welcome back'}</p>
+          <p>{isRegister ? t('login.register') : t('login.title')}</p>
         </div>
 
         {/* Registration Form */}
         {isRegister ? (
           <div className="login-form-container" key="register">
             <button className="back-to-login" onClick={() => { setIsRegister(false); setAlert({ type: '', message: '' }); }}>
-              ← Back to login
+              ← {t('login.back')}
             </button>
 
             {/* Alert */}
@@ -136,12 +138,12 @@ function Login() {
 
             <form onSubmit={handleRegister}>
               <div className="login-input-group">
-                <label>Username</label>
+                <label>{t('login.username')}</label>
                 <div className="login-input-wrapper">
                   <input
                     type="text"
                     className="login-input"
-                    placeholder="Enter your username"
+                    placeholder={t('login.usernamePh')}
                     value={registerData.username}
                     onChange={(e) => setRegisterData({ ...registerData, username: e.target.value })}
                   />
@@ -150,12 +152,12 @@ function Login() {
               </div>
 
               <div className="login-input-group">
-                <label>Email</label>
+                <label>{t('login.email')}</label>
                 <div className="login-input-wrapper">
                   <input
                     type="email"
                     className="login-input"
-                    placeholder="Enter your email"
+                    placeholder={t('login.emailPh')}
                     value={registerData.email}
                     onChange={(e) => setRegisterData({ ...registerData, email: e.target.value })}
                   />
@@ -164,12 +166,12 @@ function Login() {
               </div>
 
               <div className="login-input-group">
-                <label>Password</label>
+                <label>{t('login.password')}</label>
                 <div className="login-input-wrapper">
                   <input
                     type={showPassword ? 'text' : 'password'}
                     className="login-input"
-                    placeholder="Create a password"
+                    placeholder={t('login.createPasswordPh')}
                     value={registerData.password}
                     onChange={(e) => setRegisterData({ ...registerData, password: e.target.value })}
                   />
@@ -181,12 +183,12 @@ function Login() {
               </div>
 
               <div className="login-input-group">
-                <label>Confirm Password</label>
+                <label>{t('login.confirm')}</label>
                 <div className="login-input-wrapper">
                   <input
                     type={showConfirmPassword ? 'text' : 'password'}
                     className="login-input"
-                    placeholder="Confirm your password"
+                    placeholder={t('login.confirmPh')}
                     value={registerData.confirmPassword}
                     onChange={(e) => setRegisterData({ ...registerData, confirmPassword: e.target.value })}
                   />
@@ -199,14 +201,14 @@ function Login() {
 
               <button type="submit" className="login-submit-btn" disabled={loading}>
                 {loading && <span className="btn-spinner"></span>}
-                {loading ? 'Creating Account...' : 'Create Account'}
+                {loading ? t('login.creating') : t('login.create')}
               </button>
             </form>
 
             <div className="login-switch">
-              Already have an account?{' '}
+              {t('login.haveAccount')}{' '}
               <button onClick={() => { setIsRegister(false); setAlert({ type: '', message: '' }); }}>
-                Sign in
+                {t('login.signIn')}
               </button>
             </div>
           </div>
@@ -219,7 +221,7 @@ function Login() {
                 className={`login-tab-btn ${activeTab === 'user' ? 'active' : ''}`}
                 onClick={() => switchTab('user')}
               >
-                👤 User Login
+                👤 {t('login.userLogin')}
               </button>
             </div>
 
@@ -235,12 +237,12 @@ function Login() {
 
             <form onSubmit={handleLogin}>
               <div className="login-input-group">
-                <label>Email</label>
+                <label>{t('login.email')}</label>
                 <div className="login-input-wrapper">
                   <input
                     type="email"
                     className="login-input"
-                    placeholder="Enter your email"
+                    placeholder={t('login.emailPh')}
                     value={loginData.email}
                     onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
                     id="login-email"
@@ -250,12 +252,12 @@ function Login() {
               </div>
 
               <div className="login-input-group">
-                <label>Password</label>
+                <label>{t('login.password')}</label>
                 <div className="login-input-wrapper">
                   <input
                     type={showPassword ? 'text' : 'password'}
                     className="login-input"
-                    placeholder="Enter your password"
+                    placeholder={t('login.passwordPh')}
                     value={loginData.password}
                     onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
                     id="login-password"
@@ -274,16 +276,16 @@ function Login() {
                 id="login-submit"
               >
                 {loading && <span className="btn-spinner"></span>}
-                {loading ? 'Signing in...' : 'Sign In'}
+                {loading ? t('login.signing') : t('login.submit')}
               </button>
             </form>
 
             {/* Register link — only for user tab */}
             {activeTab === 'user' && (
               <div className="login-switch">
-                Don't have an account?{' '}
+                {t('login.noAccount')}{' '}
                 <button onClick={() => { setIsRegister(true); setAlert({ type: '', message: '' }); }}>
-                  Create one
+                  {t('login.createOne')}
                 </button>
               </div>
             )}

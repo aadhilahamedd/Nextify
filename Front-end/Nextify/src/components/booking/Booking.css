@@ -463,3 +463,161 @@
     grid-template-columns: 1fr;
   }
 }
+
+.dest-ac {
+  position: relative;
+}
+
+.dest-ac-list {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 30;
+  max-height: min(280px, 50vh);
+  overflow-y: auto;
+  margin: 0;
+  padding: 6px 0;
+  list-style: none;
+  background: #141414;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+}
+
+.dest-ac-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 10px 16px;
+  cursor: pointer;
+}
+
+.dest-ac-item.is-active,
+.dest-ac-item:hover {
+  background: rgba(200, 162, 97, 0.14);
+}
+
+.dest-ac-name {
+  color: #fff;
+  font-size: 0.95rem;
+}
+
+.dest-ac-region {
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.dest-ac-empty {
+  padding: 12px 16px;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.9rem;
+}
+
+html[dir="rtl"] .dest-ac-list {
+  text-align: right;
+}
+
+.book-picker {
+  position: relative;
+}
+
+.book-picker-trigger {
+  width: 100%;
+  text-align: inherit;
+  cursor: pointer;
+}
+
+html[dir="rtl"] .book-picker-trigger {
+  text-align: right;
+}
+
+.book-cal,
+.book-clock {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 30;
+  background: #141414;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+}
+
+.book-cal {
+  padding: 14px;
+}
+
+.book-cal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  color: #fff;
+}
+
+.book-cal-head button {
+  width: 32px;
+  height: 32px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: transparent;
+  color: #fff;
+  border-radius: 8px;
+}
+
+.book-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.book-cal-dow {
+  text-align: center;
+  color: rgba(255, 255, 255, 0.42);
+  font-size: 0.72rem;
+  padding-bottom: 6px;
+}
+
+.book-cal-day {
+  min-height: 34px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #fff;
+}
+
+.book-cal-day.is-active,
+.book-clock-col button.is-active {
+  background: linear-gradient(135deg, #a88448 0%, #c8a261 100%);
+  color: #111;
+}
+
+.book-cal-day:disabled {
+  color: rgba(255, 255, 255, 0.22);
+}
+
+.book-clock {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  max-height: 220px;
+  overflow: hidden;
+}
+
+.book-clock-col {
+  overflow-y: auto;
+  max-height: 220px;
+  padding: 8px;
+}
+
+.book-clock-col button {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: #fff;
+  padding: 8px 0;
+  border-radius: 8px;
+}

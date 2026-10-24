@@ -14,6 +14,7 @@ body,
   z-index: 1100;
   background: #000000;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  overflow: visible;
 }
 
 .main-navbar,
@@ -63,6 +64,11 @@ body,
     left: 0;
     right: 0;
     width: 100%;
+    max-height: min(70vh, calc(100dvh - 72px));
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
     background: #0a0a0a !important;
     box-shadow: 0 24px 40px rgba(0, 0, 0, 0.55) !important;
     backdrop-filter: none !important;
@@ -82,7 +88,7 @@ body,
     color: #ffffff !important;
     padding: 16px 24px;
     width: 100%;
-    text-align: left;
+    text-align: start;
   }
 
   .main-navbar .navbar-nav .nav-link {
@@ -196,5 +202,106 @@ body,
   .header-admin-actions {
     width: 100%;
     padding: 0 24px 8px;
+  }
+}
+
+.lang-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.lang-switch button {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.42);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 2px 0;
+  line-height: 1;
+}
+
+.lang-switch button.is-active {
+  color: #eeb012;
+}
+
+.lang-switch span {
+  color: rgba(255, 255, 255, 0.22);
+  font-size: 0.7rem;
+}
+
+.brands-slider,
+.logo-slider-track {
+  direction: ltr;
+}
+
+html[dir="rtl"] body {
+  font-family: "Segoe UI", Tahoma, "Noto Naskh Arabic", Arial, sans-serif;
+  text-align: right;
+}
+
+html[dir="rtl"] .text-start { text-align: right !important; }
+html[dir="rtl"] .text-end { text-align: left !important; }
+html[dir="rtl"] .me-auto { margin-right: 0 !important; margin-left: auto !important; }
+html[dir="rtl"] .ms-auto { margin-left: 0 !important; margin-right: auto !important; }
+html[dir="rtl"] .me-1 { margin-right: 0 !important; margin-left: 0.25rem !important; }
+html[dir="rtl"] .me-2 { margin-right: 0 !important; margin-left: 0.5rem !important; }
+html[dir="rtl"] .me-3 { margin-right: 0 !important; margin-left: 1rem !important; }
+html[dir="rtl"] .ms-1 { margin-left: 0 !important; margin-right: 0.25rem !important; }
+html[dir="rtl"] .ms-2 { margin-left: 0 !important; margin-right: 0.5rem !important; }
+html[dir="rtl"] .ms-3 { margin-left: 0 !important; margin-right: 1rem !important; }
+html[dir="rtl"] .start-0 { left: auto !important; right: 0 !important; }
+html[dir="rtl"] .whatsapp-float { right: auto; left: 24px; }
+
+html[dir="rtl"] .ltr-num,
+html[dir="rtl"] a[href^="tel:"] {
+  direction: ltr;
+  unicode-bidi: isolate;
+  display: inline-block;
+  text-align: left;
+}
+
+html[dir="rtl"] input[type="date"],
+html[dir="rtl"] input[type="time"],
+html[dir="rtl"] input[type="number"],
+html[dir="rtl"] input[type="tel"] {
+  direction: ltr;
+  unicode-bidi: isolate;
+  text-align: left;
+}
+html[dir="rtl"] .bi-arrow-right,
+html[dir="rtl"] .bi-arrow-left {
+  transform: scaleX(-1);
+}
+
+@media (min-width: 992px) {
+  html[dir="rtl"] .ps-lg-5 { padding-left: 0 !important; padding-right: 3rem !important; }
+  html[dir="rtl"] .pe-lg-5 { padding-right: 0 !important; padding-left: 3rem !important; }
+}
+
+@media (max-width: 1199px) {
+  html[dir="rtl"] .hero-simple-btn:first-child {
+    border-right: none;
+    border-left: 1px solid rgba(255, 255, 255, 0.18);
+  }
+  html[dir="rtl"] .hero-simple-btn:nth-child(2) {
+    padding-right: 1.25rem;
+    padding-left: 4.75rem;
+  }
+  html[dir="rtl"] .hero-simple-wa {
+    right: auto;
+    left: 14px;
+  }
+}
+
+@media (max-width: 576px) {
+  html[dir="rtl"] .whatsapp-float {
+    left: 16px;
+    right: auto;
   }
 }

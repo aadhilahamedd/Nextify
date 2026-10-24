@@ -5,10 +5,12 @@ import Nav from 'react-bootstrap/Nav';
 import Navbar from 'react-bootstrap/Navbar';
 const logo = '/images/logo.webp';
 import { Link } from 'react-router-dom';
+import { useLanguage } from '../i18n/LanguageContext';
 
 function Header() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { lang, setLang, t } = useLanguage();
   const [expanded, setExpanded] = useState(false);
   const isLogin = location.pathname === '/login';
 
@@ -49,18 +51,18 @@ function Header() {
       >
         <Container className="main-navbar-container">
           <Navbar.Brand as={Link} to="/" onClick={closeMenu} className="border-0 text-decoration-none shadow-none me-auto" style={{ outline: "none" }}>
-            <img src={logo} alt="Nextify Logo" className="navbar-logo" style={{ border: 'none', outline: 'none' }}/>
+            <img src={logo} alt={t('nav.logoAlt')} className="navbar-logo" style={{ border: 'none', outline: 'none' }}/>
           </Navbar.Brand>
           <Navbar.Toggle aria-controls="basic-navbar-nav" style={{ borderColor: 'rgba(255,255,255,0.18)', background: 'transparent' }} />
           <Navbar.Collapse id="basic-navbar-nav" className="main-navbar-collapse justify-content-lg-end">
             <Nav className="main-navbar-nav flex-column flex-lg-row gap-2 gap-lg-3 align-items-start align-items-lg-center py-3 py-lg-0">
-              <Nav.Link as={Link} to="/" onClick={closeMenu} className="nav-hover-link text-decoration-none border-0">Home</Nav.Link>
-              <Nav.Link as={Link} to="/about" onClick={closeMenu} className="nav-hover-link text-decoration-none border-0">About Us</Nav.Link>
-              <Nav.Link as={Link} to="/carlist" onClick={closeMenu} className="nav-hover-link text-decoration-none border-0">Car List</Nav.Link>
-              <Nav.Link as={Link} to="/booking" onClick={closeMenu} className="nav-hover-link text-decoration-none border-0">Book Now</Nav.Link>
-              <Nav.Link as={Link} to="/track-booking" onClick={closeMenu} className="nav-hover-link text-decoration-none border-0">Track Booking</Nav.Link>
-              <Nav.Link as={Link} to="/contact" onClick={closeMenu} className="nav-hover-link text-decoration-none border-0">Contact Us</Nav.Link>
-              <Nav.Link as={Link} to="/qr" onClick={closeMenu} className="nav-hover-link text-decoration-none border-0">QR Code</Nav.Link>
+              <Nav.Link as={Link} to="/" onClick={closeMenu} className="nav-hover-link text-decoration-none border-0">{t('nav.home')}</Nav.Link>
+              <Nav.Link as={Link} to="/about" onClick={closeMenu} className="nav-hover-link text-decoration-none border-0">{t('nav.about')}</Nav.Link>
+              <Nav.Link as={Link} to="/carlist" onClick={closeMenu} className="nav-hover-link text-decoration-none border-0">{t('nav.cars')}</Nav.Link>
+              <Nav.Link as={Link} to="/booking" onClick={closeMenu} className="nav-hover-link text-decoration-none border-0">{t('nav.book')}</Nav.Link>
+              <Nav.Link as={Link} to="/track-booking" onClick={closeMenu} className="nav-hover-link text-decoration-none border-0">{t('nav.track')}</Nav.Link>
+              <Nav.Link as={Link} to="/contact" onClick={closeMenu} className="nav-hover-link text-decoration-none border-0">{t('nav.contact')}</Nav.Link>
+              <Nav.Link as={Link} to="/qr" onClick={closeMenu} className="nav-hover-link text-decoration-none border-0">{t('nav.qr')}</Nav.Link>
               {isAdmin ? (
                 <div className="header-admin-actions d-flex flex-column flex-lg-row align-items-stretch align-items-lg-center gap-2">
                   <Link
@@ -68,7 +70,7 @@ function Header() {
                     onClick={closeMenu}
                     className="header-admin-pill text-decoration-none"
                   >
-                    Admin
+                    {t('nav.admin')}
                   </Link>
                   <button
                     type="button"
@@ -76,7 +78,7 @@ function Header() {
                     className="btn text-white rounded-pill px-3 py-2"
                     style={{ border: '1px solid rgba(255,255,255,0.18)', backgroundColor: 'transparent' }}
                   >
-                    Logout
+                    {t('nav.logout')}
                   </button>
                 </div>
               ) : (
@@ -87,10 +89,19 @@ function Header() {
                     className="btn nav-hover-link text-white rounded-pill px-3 py-2 text-decoration-none"
                     style={{ border: '1px solid rgba(255,255,255,0.18)', backgroundColor: 'transparent', display: 'flex', alignItems: 'center', gap: '8px' }}
                   >
-                    Login <i className="bi bi-box-arrow-in-right"></i>
+                    {t('nav.login')} <i className="bi bi-box-arrow-in-right"></i>
                   </Link>
                 )
               )}
+              <div className="lang-switch" role="group" aria-label="Language">
+                <button type="button" className={lang === 'en' ? 'is-active' : ''} onClick={() => { setLang('en'); closeMenu(); }}>
+                  ENG
+                </button>
+                <span>|</span>
+                <button type="button" className={lang === 'ar' ? 'is-active' : ''} onClick={() => { setLang('ar'); closeMenu(); }}>
+                  AR
+                </button>
+              </div>
             </Nav>
           </Navbar.Collapse>
         </Container>

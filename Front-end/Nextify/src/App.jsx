@@ -23,10 +23,12 @@ import MockPaymentCheckout from './pages/MockPaymentCheckout'
 import PaymentResult from './pages/PaymentResult'
 import QrCodePage from './pages/QrCode'
 import { COMPANY_PHONE, getWhatsAppUrl } from './utils/whatsapp'
+import { useLanguage } from './i18n/LanguageContext'
 
 function App() {
   const { pathname } = useLocation()
   const isAdminRoute = pathname.startsWith('/admin')
+  const { t } = useLanguage()
 
   return (
     <>
@@ -58,11 +60,11 @@ function App() {
       {!isAdminRoute && <Footer />}
       {!isAdminRoute && (
         <a
-          href={getWhatsAppUrl(COMPANY_PHONE, 'Hello Nextify, I need help with a booking')}
+          href={getWhatsAppUrl(COMPANY_PHONE, t('wa.help'))}
           target="_blank"
           rel="noreferrer"
           className="whatsapp-float"
-          aria-label="Chat with us on WhatsApp for support"
+          aria-label={t('wa.float')}
         >
           <i className="bi bi-whatsapp"></i>
         </a>
