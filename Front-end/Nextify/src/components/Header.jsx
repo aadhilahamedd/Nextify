@@ -43,11 +43,11 @@ function Header() {
   return (
     <div className="site-header-bar">
       <Navbar
-        expand="lg"
+        expand={isAdmin ? 'xl' : 'lg'}
         variant="dark"
         expanded={expanded}
         onToggle={setExpanded}
-        className={`main-navbar ${isLogin ? 'login-navbar' : ''}`}
+        className={`main-navbar ${isLogin ? 'login-navbar' : ''} ${isAdmin ? 'admin-session-navbar' : ''}`}
       >
         <Container className="main-navbar-container">
           <Navbar.Brand as={Link} to="/" onClick={closeMenu} className="border-0 text-decoration-none shadow-none me-auto" style={{ outline: "none" }}>
@@ -55,7 +55,7 @@ function Header() {
           </Navbar.Brand>
           <Navbar.Toggle aria-controls="basic-navbar-nav" style={{ borderColor: 'rgba(255,255,255,0.18)', background: 'transparent' }} />
           <Navbar.Collapse id="basic-navbar-nav" className="main-navbar-collapse justify-content-lg-end">
-            <Nav className="main-navbar-nav flex-column flex-lg-row gap-2 gap-lg-3 align-items-start align-items-lg-center py-3 py-lg-0">
+            <Nav className={`main-navbar-nav flex-column align-items-start py-3 ${isAdmin ? 'flex-xl-row align-items-xl-center py-xl-0' : 'flex-lg-row gap-2 gap-lg-3 align-items-lg-center py-lg-0'}`}>
               <Nav.Link as={Link} to="/" onClick={closeMenu} className="nav-hover-link text-decoration-none border-0">{t('nav.home')}</Nav.Link>
               <Nav.Link as={Link} to="/about" onClick={closeMenu} className="nav-hover-link text-decoration-none border-0">{t('nav.about')}</Nav.Link>
               <Nav.Link as={Link} to="/carlist" onClick={closeMenu} className="nav-hover-link text-decoration-none border-0">{t('nav.cars')}</Nav.Link>

@@ -8,9 +8,9 @@ const NAV_ITEMS = [
   { to: '/admin', label: 'Overview', end: true },
   { to: '/admin/messages', label: 'Messages' },
   { to: '/admin/bookings', label: 'Bookings' },
-  { to: '/admin/pricing', label: 'Pricing Management' },
+  { to: '/admin/pricing', label: 'Pricing' },
   { to: '/admin/drivers', label: 'Drivers' },
-  { to: '/admin/payments', label: 'Recent Payments' },
+  { to: '/admin/payments', label: 'Payments' },
 ];
 
 export default function AdminLayout() {
@@ -53,7 +53,7 @@ export default function AdminLayout() {
   if (!user) return null;
 
   return (
-    <div className="admin-shell">
+    <div className="admin-shell" dir="ltr">
       <header className={`admin-topbar${menuOpen ? ' open' : ''}`}>
         <div className="admin-topbar-inner">
           <NavLink to="/admin" className="admin-brand" end>
