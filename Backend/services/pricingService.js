@@ -189,11 +189,21 @@ async function getPublicPricingSummary() {
   const rules = await PricingRule.find({ active: true }).sort({ serviceType: 1, price: 1 });
   const summary = {};
   for (const rule of rules) {
-    if (!summary[rule.serviceType]) {
-      summary[rule.serviceType] = { fromPrice: rule.price, currency: rule.currency, count: 0 };
+    const current = summary[rule.serviceType];
+    if (!current) {
+      summary[rule.serviceType] = {
+        fromPrice: rule.price,
+        fromPriceUsd: rule.priceUsd ?? null,
+        currency: rule.currency,
+        count: 1,
+      };
+      continue;
     }
-    summary[rule.serviceType].fromPrice = Math.min(summary[rule.serviceType].fromPrice, rule.price);
-    summary[rule.serviceType].count += 1;
+    if (rule.price < current.fromPrice) {
+      current.fromPrice = rule.price;
+      current.fromPriceUsd = rule.priceUsd ?? null;
+    }
+    current.count += 1;
   }
   return summary;
 }

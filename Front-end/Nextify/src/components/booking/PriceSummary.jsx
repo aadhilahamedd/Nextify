@@ -1,5 +1,5 @@
 import React from 'react';
-import { SERVICE_LABELS } from './bookingConstants';
+import { SERVICE_LABELS, getVehicleImage } from './bookingConstants';
 
 export default function PriceSummary({ form, quote, compact = false }) {
   const price = quote?.price ?? quote?.totalAmount ?? quote?.quotedPrice ?? null;
@@ -56,9 +56,16 @@ export default function PriceSummary({ form, quote, compact = false }) {
     );
   }
 
+  const vehicleImage = form?.vehicleImage || getVehicleImage(form?.vehicleCategory);
+
   return (
     <div className="book-summary">
       <p className="book-kicker mb-3">Booking summary</p>
+      {vehicleImage && (
+        <div className="book-summary-vehicle">
+          <img src={vehicleImage} alt={form?.vehicleName || 'Selected vehicle'} />
+        </div>
+      )}
       {rows.map(([label, value]) => (
         <div key={label} className="book-summary-row">
           <span>{label}</span>

@@ -6,6 +6,7 @@ import {
   updatePricingRuleAPI,
 } from '../../Services/allAPI';
 import { SERVICE_LABELS } from '../booking/bookingConstants';
+import { formatSarAndUsd, sarToUsd } from '../../utils/currency';
 
 const emptyRule = {
   serviceType: 'airport_transfer',
@@ -17,6 +18,7 @@ const emptyRule = {
   durationType: '',
   maxDistanceKm: '',
   price: '',
+  priceUsd: '',
   currency: 'SAR',
   active: true,
   displayLabel: '',
@@ -63,17 +65,24 @@ export default function AdminPricingPanel() {
   const openEdit = (rule) => {
     setEditing(rule._id);
     setForm({
+      ...emptyRule,
       ...rule,
       vehicleNames: (rule.vehicleNames || []).join(', '),
       maxDistanceKm: rule.maxDistanceKm ?? '',
+      price: rule.price ?? '',
+      priceUsd: rule.priceUsd ?? '',
     });
     setError('');
   };
 
   const saveRule = async () => {
+    const sarPrice = Number(form.price);
     const payload = {
       ...form,
-      price: Number(form.price),
+      price: sarPrice,
+      priceUsd: form.priceUsd !== '' && form.priceUsd != null
+        ? Number(form.priceUsd)
+        : sarToUsd(sarPrice),
       maxDistanceKm: form.maxDistanceKm ? Number(form.maxDistanceKm) : null,
       vehicleNames: form.vehicleNames
         ? form.vehicleNames.split(',').map((s) => s.trim()).filter(Boolean)
@@ -142,7 +151,30 @@ export default function AdminPricingPanel() {
             <div className="col-md-4"><input placeholder="Destination" value={form.destination} onChange={(e) => setForm({ ...form, destination: e.target.value })} style={inputStyle} /></div>
             <div className="col-md-4"><input placeholder="Vehicle category" value={form.vehicleCategory} onChange={(e) => setForm({ ...form, vehicleCategory: e.target.value })} style={inputStyle} /></div>
             <div className="col-md-4"><input placeholder="Vehicle names (comma-separated)" value={form.vehicleNames} onChange={(e) => setForm({ ...form, vehicleNames: e.target.value })} style={inputStyle} /></div>
-            <div className="col-md-4"><input placeholder="Price (SAR)" type="number" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} style={inputStyle} /></div>
+            <div className="col-md-4">
+              <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.55)', marginBottom: 6 }}>SAR Price</label>
+              <input
+                placeholder="e.g. 1500"
+                type="number"
+                value={form.price}
+                onChange={(e) => {
+                  const price = e.target.value;
+                  const usd = sarToUsd(Number(price));
+                  setForm({ ...form, price, priceUsd: form.priceUsd || (usd != null ? String(usd) : '') });
+                }}
+                style={inputStyle}
+              />
+            </div>
+            <div className="col-md-4">
+              <label style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.55)', marginBottom: 6 }}>Dollar Price</label>
+              <input
+                placeholder="e.g. 400"
+                type="number"
+                value={form.priceUsd}
+                onChange={(e) => setForm({ ...form, priceUsd: e.target.value })}
+                style={inputStyle}
+              />
+            </div>
             <div className="col-md-4">
               <select value={form.durationType} onChange={(e) => setForm({ ...form, durationType: e.target.value })} style={inputStyle}>
                 <option value="">No duration</option>
@@ -190,8 +222,8 @@ export default function AdminPricingPanel() {
                     </div>
                   </div>
                   <div className="d-flex align-items-center gap-3">
-                    <span style={{ fontSize: '1.25rem', fontWeight: 700, color: '#eeb012' }}>
-                      SAR {rule.price?.toLocaleString()}
+                    <span style={{ fontSize: '1.05rem', fontWeight: 700, color: '#eeb012' }}>
+                      {formatSarAndUsd(rule.price, rule.priceUsd)}
                     </span>
                     <button type="button" onClick={() => openEdit(rule)} style={btnOutline}>Edit</button>
                     <button type="button" onClick={() => toggleActive(rule)} style={btnOutline}>

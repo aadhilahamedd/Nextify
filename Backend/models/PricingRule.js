@@ -35,6 +35,7 @@ const pricingRuleSchema = new mongoose.Schema(
     },
     maxDistanceKm: { type: Number, default: null },
     price: { type: Number, required: true, min: 0 },
+    priceUsd: { type: Number, default: null, min: 0 },
     currency: { type: String, default: 'SAR' },
     active: { type: Boolean, default: true, index: true },
     notes: { type: String, default: '' },

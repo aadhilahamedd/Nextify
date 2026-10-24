@@ -6,13 +6,37 @@ body,
   overflow-x: hidden;
 }
 
-.main-navbar.home-navbar {
-  background: transparent !important;
+.site-header-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1100;
+  background: #000000;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.main-navbar,
+.main-navbar.home-navbar,
+.main-navbar.login-navbar {
+  background: #000000 !important;
   box-shadow: none !important;
+  padding-top: 0.65rem !important;
+  padding-bottom: 0.65rem !important;
+}
+
+.main-navbar .nav-hover-link {
+  color: #ffffff !important;
+  transition: color 0.2s ease;
+}
+
+.main-navbar .nav-hover-link:hover,
+.main-navbar .nav-hover-link:focus {
+  color: #eeb012 !important;
 }
 
 .main-navbar.home-navbar .navbar-toggler {
-  background: rgba(0, 0, 0, 0.45) !important;
+  background: transparent !important;
   border-color: rgba(255,255,255,0.18) !important;
 }
 
@@ -73,9 +97,10 @@ body,
 
   .main-navbar .navbar-nav .nav-link:hover,
   .main-navbar .navbar-nav .btn:hover,
-  .main-navbar .navbar-nav .btn-link:hover {
-    color: #ffffff !important;
-    background-color: rgba(255, 255, 255, 0.08) !important;
+  .main-navbar .navbar-nav .btn-link:hover,
+  .main-navbar .nav-hover-link:hover {
+    color: #eeb012 !important;
+    background-color: transparent !important;
   }
 
   body.nav-open {
@@ -93,7 +118,7 @@ body,
   .main-navbar .navbar-collapse,
   .main-navbar .navbar-collapse.show {
     backdrop-filter: none !important;
-    background: transparent !important;
+    background: #000000 !important;
     box-shadow: none !important;
   }
 
@@ -119,15 +144,8 @@ body,
   }
 }
 
-.site-header-bar {
-  position: sticky;
-  top: 0;
-  z-index: 1100;
-  background: #0a0a0a;
-}
-
 .login-navbar {
-  background: #0a0a0a !important;
+  background: #000000 !important;
   padding: 8px 0 !important;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: none !important;

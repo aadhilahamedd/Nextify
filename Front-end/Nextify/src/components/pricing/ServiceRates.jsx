@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Container from 'react-bootstrap/Container';
 import { getPricingSummaryAPI } from '../../Services/allAPI';
-import { SERVICE_LABELS } from '../booking/bookingConstants';
+import { formatMoney, sarToUsd } from '../../utils/currency';
 
 const CARDS = [
   {
@@ -50,7 +50,7 @@ export default function ServiceRates() {
   }, []);
 
   return (
-    <section className="py-5" style={{ backgroundColor: '#0f0f0f', color: 'white' }}>
+    <section className="py-5 service-rates" style={{ backgroundColor: '#0f0f0f', color: 'white' }}>
       <Container>
         <div className="text-center mb-5">
           <p className="text-uppercase mb-2" style={{ color: '#eeb012', letterSpacing: 3, fontSize: '0.8rem' }}>
@@ -60,51 +60,36 @@ export default function ServiceRates() {
             Our Services &amp; Rates
           </h2>
           <p style={{ color: '#888', maxWidth: 560, margin: '0 auto' }}>
-            All prices in SAR. Final pricing is calculated securely by our backend when you book.
+            Prices shown in SAR and USD. Final pricing is calculated when you book.
           </p>
         </div>
 
         <div className="row g-4">
           {CARDS.map((card) => {
             const fromPrice = summary[card.serviceType]?.fromPrice;
+            const fromUsd = summary[card.serviceType]?.fromPriceUsd ?? sarToUsd(fromPrice);
             return (
               <div key={card.serviceType} className="col-md-6 col-lg-4">
-                <div
-                  className="h-100 p-4 rounded-4 d-flex flex-column"
-                  style={{
-                    background: '#141414',
-                    border: '1px solid rgba(255,255,255,0.08)',
-                    transition: 'transform 0.3s ease, border-color 0.3s ease',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-6px)';
-                    e.currentTarget.style.borderColor = 'rgba(238,176,18,0.35)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
-                  }}
-                >
-                  <i className={`bi ${card.icon} fs-3 mb-3`} style={{ color: '#eeb012' }} />
-                  <p className="text-uppercase small mb-1" style={{ color: '#888', letterSpacing: 1 }}>
-                    {SERVICE_LABELS[card.serviceType]}
-                  </p>
-                  <h4 className="mb-2" style={{ fontFamily: 'Georgia, serif' }}>{card.title}</h4>
-                  <p className="mb-3" style={{ color: '#888', fontSize: '0.9rem' }}>{card.subtitle}</p>
-                  <div className="mb-4">
+                <div className="service-rate-card">
+                  <div className="service-rate-icon">
+                    <i className={`bi ${card.icon}`} />
+                  </div>
+                  <h3 className="service-rate-title">{card.title}</h3>
+                  <p className="service-rate-sub">{card.subtitle}</p>
+                  <div className="service-rate-price">
                     {fromPrice != null ? (
-                      <span style={{ fontSize: '1.75rem', fontWeight: 700, color: '#eeb012', fontFamily: 'Georgia, serif' }}>
-                        From SAR {fromPrice.toLocaleString()}
-                      </span>
+                      <>
+                        <strong>From {formatMoney(fromPrice, 'SAR')}</strong>
+                        <span>{formatMoney(fromUsd, 'USD')}</span>
+                      </>
                     ) : (
-                      <span style={{ color: '#888' }}>Rates loading...</span>
+                      <span className="service-rate-loading">Rates loading...</span>
                     )}
                   </div>
                   <Link
                     to="/booking"
                     state={{ serviceType: card.serviceType }}
-                    className="btn rounded-pill mt-auto py-2 fw-semibold border-0"
-                    style={{ background: 'linear-gradient(135deg, #a88448 0%, #c8a261 100%)', color: '#000' }}
+                    className="service-rate-btn"
                   >
                     Book Now
                   </Link>

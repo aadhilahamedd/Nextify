@@ -84,30 +84,13 @@ const initialCars = [
   },
   {
     id: 10,
-    name: 'GMC Yukon XL AT4',
+    name: 'GMC',
     img: '/images/cars/gmc-yukon-xl-at4.webp',
-    price: '$300/day',
+    price: 'SAR 1125',
+    priceUsd: '300',
     type: 'Full-Size SUV',
     seats: '7–8 passengers',
     luggage: '1,175 Liters'
-  },
-  {
-    id: 15,
-    name: 'GMC Tahoe',
-    img: '/images/cars/gmc-tahoe.webp',
-    price: '$300/day',
-    type: 'Full-Size SUV',
-    seats: '7–8 passengers',
-    luggage: '1,200 Liters'
-  },
-  {
-    id: 16,
-    name: 'Chevrolet Suburban',
-    img: '/images/cars/chevrolet-suburban.webp',
-    price: '$300/day',
-    type: 'Full-Size SUV',
-    seats: '7–8 passengers',
-    luggage: '1,217 Liters'
   },
   {
     id: 11,
@@ -147,8 +130,6 @@ const initialCars = [
   }
 ];
 
-const FEATURED_FLEET_NAMES = ['GMC Yukon XL AT4', 'GMC Tahoe', 'Chevrolet Suburban'];
-
 const IMAGE_REMAP = {
   local_sprinter: '/images/cars/mercedes-sprinter.webp',
   local_lexus_es: '/images/cars/lexus-es-350.webp',
@@ -176,11 +157,12 @@ const IMAGE_BY_NAME = {
   'Mercedes-Benz S-Class': '/images/cars/mercedes-s-class.webp',
   'BMW 7 Series': '/images/cars/bmw-7-series.webp',
   'Ford Taurus': '/images/cars/ford-taurus.webp',
+  'GMC': '/images/cars/gmc-yukon-xl-at4.webp',
   'GMC Yukon XL AT4': '/images/cars/gmc-yukon-xl-at4.webp',
   'BMW 5 Series': '/images/cars/bmw-5-series.webp',
   'Mercedes-Benz E-Class': '/images/cars/mercedes-e-class.webp',
-  'GMC Tahoe': '/images/cars/gmc-tahoe.webp',
-  'Chevrolet Suburban': '/images/cars/chevrolet-suburban.webp',
+  'GMC Tahoe': '/images/cars/gmc-yukon-xl-at4.webp',
+  'Chevrolet Suburban': '/images/cars/gmc-yukon-xl-at4.webp',
   'Mercedes-Benz eVito Tourer': '/images/cars/mercedes-evito-tourer.webp',
 };
 
@@ -195,28 +177,16 @@ async function remapLegacyCarImages() {
   }
 }
 
-async function ensureFeaturedFleet() {
-  const existing = await Car.find({ name: { $in: FEATURED_FLEET_NAMES } });
-  const existingNames = new Set(existing.map((c) => c.name));
-  const missing = initialCars.filter(
-    (car) => FEATURED_FLEET_NAMES.includes(car.name) && !existingNames.has(car.name)
-  );
-  if (!missing.length) return;
-
-  const usedIds = new Set((await Car.find({}, { id: 1 }).lean()).map((car) => car.id));
-  let nextId = usedIds.size ? Math.max(...usedIds) + 1 : 1;
-
-  const docs = missing.map((car) => {
-    let id = car.id;
-    if (!id || usedIds.has(id)) {
-      while (usedIds.has(nextId)) nextId += 1;
-      id = nextId++;
-    }
-    usedIds.add(id);
-    return { ...car, id };
-  });
-
-  await Car.insertMany(docs);
+function resolveCarQuery(param) {
+  const raw = String(param ?? '').trim();
+  const numeric = Number(raw);
+  if (Number.isInteger(numeric) && numeric > 0 && String(numeric) === raw) {
+    return { id: numeric };
+  }
+  if (/^[a-fA-F0-9]{24}$/.test(raw)) {
+    return { _id: raw };
+  }
+  return null;
 }
 
 // Get all cars (auto-seeds if empty)
@@ -227,7 +197,6 @@ exports.getCars = async (req, res) => {
       console.log('No cars found in database. Seeding initial cars...');
       await Car.insertMany(initialCars);
     }
-    await ensureFeaturedFleet();
     await remapLegacyCarImages();
     cars = await Car.find().sort({ id: 1 });
     return res.status(200).json(cars);
@@ -239,11 +208,11 @@ exports.getCars = async (req, res) => {
 
 exports.getCarById = async (req, res) => {
   try {
-    const carId = parseInt(req.params.id, 10);
-    if (Number.isNaN(carId)) {
+    const query = resolveCarQuery(req.params.id);
+    if (!query) {
       return res.status(400).json({ message: 'Invalid car ID' });
     }
-    const car = await Car.findOne({ id: carId });
+    const car = await Car.findOne(query);
     if (!car) return res.status(404).json({ message: 'Car not found' });
     return res.status(200).json(car);
   } catch (err) {
@@ -255,7 +224,7 @@ exports.getCarById = async (req, res) => {
 // Add new car
 exports.addCar = async (req, res) => {
   try {
-    const { name, price, type, seats, luggage, img } = req.body;
+    const { name, price, priceUsd, type, seats, luggage, img } = req.body;
     if (!name || !price || !type || !seats || !luggage || !img) {
       return res.status(400).json({ message: 'All fields must be filled' });
     }
@@ -268,6 +237,7 @@ exports.addCar = async (req, res) => {
       id: nextId,
       name,
       price,
+      priceUsd: priceUsd || '',
       type,
       seats,
       luggage,
@@ -285,16 +255,16 @@ exports.addCar = async (req, res) => {
 // Update existing car
 exports.updateCar = async (req, res) => {
   try {
-    const carId = parseInt(req.params.id);
-    if (isNaN(carId)) {
+    const query = resolveCarQuery(req.params.id);
+    if (!query) {
       return res.status(400).json({ message: 'Invalid car ID' });
     }
 
-    const { name, price, type, seats, luggage, img } = req.body;
+    const { name, price, priceUsd, type, seats, luggage, img } = req.body;
 
     const updatedCar = await Car.findOneAndUpdate(
-      { id: carId },
-      { name, price, type, seats, luggage, img, updatedAt: Date.now() },
+      query,
+      { name, price, priceUsd: priceUsd || '', type, seats, luggage, img, updatedAt: Date.now() },
       { new: true }
     );
 
@@ -312,12 +282,12 @@ exports.updateCar = async (req, res) => {
 // Delete car
 exports.deleteCar = async (req, res) => {
   try {
-    const carId = parseInt(req.params.id);
-    if (isNaN(carId)) {
+    const query = resolveCarQuery(req.params.id);
+    if (!query) {
       return res.status(400).json({ message: 'Invalid car ID' });
     }
 
-    const deletedCar = await Car.findOneAndDelete({ id: carId });
+    const deletedCar = await Car.findOneAndDelete(query);
     if (!deletedCar) {
       return res.status(404).json({ message: 'Car not found' });
     }

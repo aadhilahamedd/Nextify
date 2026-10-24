@@ -7,9 +7,9 @@ export const COMPANY = {
   description:
     'Nextify provides private chauffeurs, airport transfers, event transport, and VIP assistance across Saudi Arabia, backed by a professional team in Riyadh.',
   email: 'info@nextify.sa',
-  phonePrimary: '+966 55 587 6331',
-  phonePrimaryDigits: '966555876331',
-  phoneSecondary: '+966 53 762 8099',
+  phonePrimary: '+966 55 599 2937',
+  phonePrimaryDigits: '966555992937',
+  phoneSecondary: '',
   phoneLandline: '+966 13 823 3882',
   hours: '24/7 chauffeur service',
   addressLines: [
@@ -19,11 +19,22 @@ export const COMPANY = {
     'Riyadh, Kingdom of Saudi Arabia',
   ],
   addressShort: 'Laban, Riyadh, Saudi Arabia',
-  website: 'https://www.nextify.sa',
+  website: 'https://www.nextifylimo.com/',
+  tga: {
+    licensed: true,
+    licenseType: 'Main Private Taxi',
+    licenseNumber: '18/00001274',
+    organizationId: '7037492100',
+    crNumber: '1010960603',
+    issued: '2026-04-16',
+    expires: '2029-04-16',
+    issuedLabel: '16 Apr 2026',
+    expiresLabel: '16 Apr 2029',
+    document: '/images/TGA license/TGA approval.pdf',
+  },
 };
 
 export const COMPANY_PHONES = [
   COMPANY.phonePrimary,
-  COMPANY.phoneSecondary,
   COMPANY.phoneLandline,
 ];

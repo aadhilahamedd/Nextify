@@ -24,6 +24,22 @@ export const SERVICE_DESCRIPTIONS = {
 
 export const AIRPORTS = ['Riyadh', 'Jeddah', 'Dammam'];
 
+export const VEHICLE_IMAGES = {
+  sedan: '/images/cars/mercedes-s-class.webp',
+  ford_taurus: '/images/cars/ford-taurus.webp',
+  prado_fortuner: '/images/cars/gmc-tahoe.webp',
+  gmc_yukon: '/images/cars/gmc-yukon-xl-at4.webp',
+  mini_van: '/images/cars/toyota-hiace.webp',
+  mercedes_v_class: '/images/cars/mercedes-v-class.webp',
+  mini_suv: '/images/cars/bmw-5-series.webp',
+  chevrolet_suburban: '/images/cars/chevrolet-suburban.webp',
+  gmc_tahoe: '/images/cars/gmc-tahoe.webp',
+};
+
+export function getVehicleImage(category) {
+  return VEHICLE_IMAGES[category] || '';
+}
+
 export const VEHICLES_BY_SERVICE = {
   airport_transfer: [
     { category: 'sedan', label: 'Sedan' },

@@ -8,7 +8,7 @@ export function inferVehicleCategory(car) {
   if (name.includes('prado') || name.includes('fortuner')) return 'prado_fortuner';
   if (name.includes('suburban')) return 'chevrolet_suburban';
   if (name.includes('tahoe')) return 'gmc_tahoe';
-  if (name.includes('yukon')) return 'gmc_yukon';
+  if (name === 'gmc' || name.includes('gmc') || name.includes('yukon')) return 'gmc_yukon';
   if (name.includes('v-class') || name.includes('v class')) return 'mercedes_v_class';
   if (name.includes('coaster') || type.includes('coach')) return 'toyota_coaster';
   if (type.includes('van') || name.includes('hiace') || name.includes('sprinter')) return 'mini_van';
@@ -40,16 +40,17 @@ export function getVehiclePricingHints(rules, car) {
     if (serviceType === 'chauffeur') {
       const half = matched.find((r) => r.durationType === 'half_day');
       if (half) {
-        hints.push({ serviceType, label: SERVICE_LABELS[serviceType], price: half.price, suffix: '/ Half Day' });
+        hints.push({ serviceType, label: SERVICE_LABELS[serviceType], price: half.price, priceUsd: half.priceUsd, suffix: '/ Half Day' });
       }
       continue;
     }
 
-    const minPrice = Math.min(...matched.map((r) => r.price));
+    const cheapest = matched.reduce((best, rule) => (rule.price < best.price ? rule : best), matched[0]);
     hints.push({
       serviceType,
       label: SERVICE_LABELS[serviceType],
-      price: minPrice,
+      price: cheapest.price,
+      priceUsd: cheapest.priceUsd,
       suffix: serviceType === 'intercity_transfer' ? ' (from)' : '',
     });
   }

@@ -6,6 +6,7 @@ import Row from 'react-bootstrap/Row';
 import Col from 'react-bootstrap/Col';
 import { getPricingRulesAPI } from '../Services/allAPI';
 import VehiclePricingDisplay from './pricing/VehiclePricingDisplay';
+import { formatCarDayPrice } from '../utils/currency';
 
 function Cardetails() {
   const location = useLocation();
@@ -61,6 +62,11 @@ function Cardetails() {
           <Col lg={5}>
             <div>
               <h1 className="display-4 fw-normal mb-2" style={{ fontFamily: 'Georgia, serif' }}>{car.name}</h1>
+              {formatCarDayPrice(car) && (
+                <p className="mb-3" style={{ color: '#eeb012', fontSize: '1.15rem', fontWeight: 600 }}>
+                  {formatCarDayPrice(car)} <span style={{ color: '#888', fontWeight: 400, fontSize: '0.85rem' }}>/ day</span>
+                </p>
+              )}
               <VehiclePricingDisplay rules={pricingRules} car={car} compact />
               
               <div style={{ width: '60px', height: '2px', backgroundColor: '#eeb012', marginBottom: '30px' }}></div>

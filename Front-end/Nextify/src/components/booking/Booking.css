@@ -243,8 +243,25 @@
   background: #141210;
   border: 1px solid rgba(200, 162, 97, 0.22);
   border-radius: 18px;
-  padding: 24px;
+  padding: 20px;
   color: #fff;
+}
+
+.book-summary-vehicle {
+  width: 100%;
+  margin: 0 0 14px;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #0b0b0b;
+}
+
+.book-summary-vehicle img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: 100%;
+  object-fit: contain;
+  object-position: center;
 }
 
 .book-summary-row {

@@ -39,16 +39,13 @@ function Header() {
   };
 
   return (
-    <div
-      className={isLogin ? 'site-header-bar' : 'position-absolute w-100 z-3'}
-      style={{ top: 0, left: 0, zIndex: 1100 }}
-    >
+    <div className="site-header-bar">
       <Navbar
         expand="lg"
         variant="dark"
         expanded={expanded}
         onToggle={setExpanded}
-        className={`main-navbar ${isLogin ? 'login-navbar' : 'home-navbar pt-4'}`}
+        className={`main-navbar ${isLogin ? 'login-navbar' : ''}`}
       >
         <Container className="main-navbar-container">
           <Navbar.Brand as={Link} to="/" onClick={closeMenu} className="border-0 text-decoration-none shadow-none me-auto" style={{ outline: "none" }}>
@@ -57,12 +54,13 @@ function Header() {
           <Navbar.Toggle aria-controls="basic-navbar-nav" style={{ borderColor: 'rgba(255,255,255,0.18)', background: 'transparent' }} />
           <Navbar.Collapse id="basic-navbar-nav" className="main-navbar-collapse justify-content-lg-end">
             <Nav className="main-navbar-nav flex-column flex-lg-row gap-2 gap-lg-3 align-items-start align-items-lg-center py-3 py-lg-0">
-              <Nav.Link as={Link} to="/" onClick={closeMenu} className="text-decoration-none border-0" style={{ color: '#cda274' }}>Home</Nav.Link>
-              <Nav.Link as={Link} to="/about" onClick={closeMenu} className="text-decoration-none border-0 text-white">About Us</Nav.Link>
-              <Nav.Link as={Link} to="/carlist" onClick={closeMenu} className="text-decoration-none border-0 text-white">Car List</Nav.Link>
-              <Nav.Link as={Link} to="/booking" onClick={closeMenu} className="text-decoration-none border-0 text-white">Book Now</Nav.Link>
-              <Nav.Link as={Link} to="/track-booking" onClick={closeMenu} className="text-decoration-none border-0 text-white">Track Booking</Nav.Link>
-              <Nav.Link as={Link} to="/contact" onClick={closeMenu} className="text-decoration-none border-0 text-white">Contact Us</Nav.Link>
+              <Nav.Link as={Link} to="/" onClick={closeMenu} className="nav-hover-link text-decoration-none border-0">Home</Nav.Link>
+              <Nav.Link as={Link} to="/about" onClick={closeMenu} className="nav-hover-link text-decoration-none border-0">About Us</Nav.Link>
+              <Nav.Link as={Link} to="/carlist" onClick={closeMenu} className="nav-hover-link text-decoration-none border-0">Car List</Nav.Link>
+              <Nav.Link as={Link} to="/booking" onClick={closeMenu} className="nav-hover-link text-decoration-none border-0">Book Now</Nav.Link>
+              <Nav.Link as={Link} to="/track-booking" onClick={closeMenu} className="nav-hover-link text-decoration-none border-0">Track Booking</Nav.Link>
+              <Nav.Link as={Link} to="/contact" onClick={closeMenu} className="nav-hover-link text-decoration-none border-0">Contact Us</Nav.Link>
+              <Nav.Link as={Link} to="/qr" onClick={closeMenu} className="nav-hover-link text-decoration-none border-0">QR Code</Nav.Link>
               {isAdmin ? (
                 <div className="header-admin-actions d-flex flex-column flex-lg-row align-items-stretch align-items-lg-center gap-2">
                   <Link
@@ -86,7 +84,7 @@ function Header() {
                   <Link
                     to="/login"
                     onClick={closeMenu}
-                    className="btn text-white rounded-pill px-3 py-2 text-decoration-none"
+                    className="btn nav-hover-link text-white rounded-pill px-3 py-2 text-decoration-none"
                     style={{ border: '1px solid rgba(255,255,255,0.18)', backgroundColor: 'transparent', display: 'flex', alignItems: 'center', gap: '8px' }}
                   >
                     Login <i className="bi bi-box-arrow-in-right"></i>

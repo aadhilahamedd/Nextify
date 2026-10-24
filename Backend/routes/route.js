@@ -11,6 +11,7 @@ const driverController = require('../controllers/driverController');
 const paymentController = require('../controllers/paymentController');
 const whatsappRoutes = require('./whatsappRoutes');
 const chatController = require('../controllers/chatController');
+const reviewController = require('../controllers/reviewController');
 const jwtMiddleware = require('../middleware/jwtMiddleware');
 const optionalJwtMiddleware = require('../middleware/optionalJwtMiddleware');
 const adminMiddleware = require('../middleware/adminMiddleware');
@@ -91,6 +92,10 @@ router.post('/api/payment/webhook', paymentController.webhook);
 router.get('/api/payments/booking/:bookingId', jwtMiddleware, adminMiddleware, paymentController.getPaymentByBooking);
 router.get('/api/payments', jwtMiddleware, adminMiddleware, paymentController.getAllPayments);
 router.use(whatsappRoutes);
+
+// ====== Reviews ======
+router.get('/api/reviews', reviewController.getReviews);
+router.post('/api/reviews', reviewController.createReview);
 
 // ====== Chat ======
 router.post('/api/chat', chatController.chat);

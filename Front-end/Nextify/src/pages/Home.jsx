@@ -4,14 +4,14 @@ import Container from 'react-bootstrap/Container'
 import { applyLocalCarImages, getCarImageUrl, getEliteCollectionCars, initialCars } from '../utils/carsStorage'
 import { getCarsAPI } from '../Services/allAPI'
 import ServiceRates from '../components/pricing/ServiceRates'
+import ClientSection from '../components/ClientSection'
+import AboutReviews from '../components/AboutReviews'
 import { COMPANY } from '../utils/company'
 import { COMPANY_PHONE, getWhatsAppUrl } from '../utils/whatsapp'
+import { formatCarDayPrice } from '../utils/currency'
 
-const backgrounds = [
-  '/images/hero/bmw-7-series.webp',
-  '/images/hero/benz-s-class.webp',
-  '/images/hero/lexus-es-350.webp',
-];
+const HERO_IMAGE = '/images/hero/mercedes-s-class-premium.jpg';
+const HERO_IMAGE_MOBILE = '/images/hero/mercedes-s-class-premium-mobile.jpg';
 
 const brandLogos = [
   { name: 'Mercedes-Benz', src: '/images/brands/mercedes.webp' },
@@ -24,8 +24,6 @@ const brandLogos = [
 ];
 
 function Home() {
-  const [currentBg, setCurrentBg] = useState(0);
-  const [prevBg, setPrevBg] = useState(-1);
   const [dbCars, setDbCars] = useState(initialCars);
 
   useEffect(() => {
@@ -45,83 +43,100 @@ function Home() {
   }
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setPrevBg(currentBg);
-      setCurrentBg((prev) => (prev + 1) % backgrounds.length);
-    }, 4500);
-    return () => clearInterval(interval);
-  }, [currentBg]);
-
-  useEffect(() => {
     if (window.location.hash !== '#how-it-works') return;
     document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, []);
 
   return (
     <>
-      <div
-        className="position-relative d-flex align-items-center hero-section"
-        style={{
-          height: '100vh',
-          backgroundColor: '#0a0a0a',
-          overflow: 'hidden'
-        }}
-      >
-        {/* Background Images for perfectly smooth cross-fading */}
-        {backgrounds.map((bg, index) => {
-          const isActive = index === currentBg;
+      <div className="position-relative d-flex align-items-end hero-section">
+        <img
+          src={HERO_IMAGE}
+          alt="Mercedes-Benz S-Class chauffeur car"
+          className="position-absolute hero-photo hero-photo-desktop"
+        />
+        <img
+          src={HERO_IMAGE_MOBILE}
+          alt="Mercedes-Benz S-Class chauffeur car"
+          className="position-absolute hero-photo hero-photo-mobile"
+        />
+        <div className="position-absolute w-100 h-100 hero-overlay" />
 
-          return (
-            <img
-              key={index}
-              src={bg}
-              alt="Luxury Car"
-              className="position-absolute"
-              style={{
-                top: 0,
-                left: 0,
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-                transform: isActive ? 'scale(1.05)' : 'scale(1)',
-                transition: 'opacity 2s ease-in-out, transform 6s linear',
-                opacity: isActive ? 1 : 0,
-                zIndex: isActive ? 2 : 1
-              }}
-            />
-          );
-        })}
+        <Container className="position-relative hero-copy">
+          <p className="hero-kicker mb-2">Luxury chauffeur service</p>
+          <h1 className="hero-title mb-3">Premium chauffeur in Saudi Arabia</h1>
+          <p className="hero-desc hero-desc-desktop mb-4">
+            Private airport transfers, city rides, and event transport with a professional chauffeur and a curated luxury fleet.
+          </p>
+          <p className="hero-desc hero-desc-mobile mb-3">
+            Airport transfers, city rides, and event transport with a professional chauffeur.
+          </p>
 
-        {/* Subtle dark overlay removed for brightness as requested */}
-        <div className="position-absolute w-100 h-100" style={{ backgroundColor: 'rgba(0, 0, 0, 0.1)', top: 0, left: 0, zIndex: 1 }}></div>
-
-        <Container className="position-relative hero-copy" style={{ zIndex: 2 }}>
-          <div className="row">
-            <div className="col-lg-7 col-md-9 text-white">
-              <p className="mb-3 fw-semibold hero-kicker" style={{ color: '#a0a0a0', letterSpacing: '2px', fontSize: '0.85rem' }}>
-                ARRIVE IN STYLE
-              </p>
-              <h1 className="mb-4 hero-title" style={{ fontFamily: 'Georgia, serif', lineHeight: '1.1' }}>
-                Luxury Cars,<br className="d-md-none" /> First-Class<br className="d-none d-md-inline" /> Experience
-              </h1>
-              <p className="mb-5 hero-desc" style={{ color: '#e0e0e0', lineHeight: '1.6' }}>
-                Redefine your journey with Nextify. Experience a curated fleet of world-class vehicles paired with the personalized, first-class service you deserve.
-              </p>
+          <div className="hero-pills">
+            <div className="hero-pill">
+              <i className="bi bi-star"></i>
+              <div>
+                <strong>15+ luxury cars</strong>
+                <span>Curated fleet</span>
+              </div>
             </div>
+            <div className="hero-pill">
+              <i className="bi bi-shield-check"></i>
+              <div>
+                <strong>Fully insured</strong>
+                <span>Every journey</span>
+              </div>
+            </div>
+            <div className="hero-pill">
+              <i className="bi bi-headset"></i>
+              <div>
+                <strong>24/7 support</strong>
+                <span>Always available</span>
+              </div>
+            </div>
+            <div className="hero-pill">
+              <i className="bi bi-clock"></i>
+              <div>
+                <strong>On-time chauffeurs</strong>
+                <span>Airport &amp; city</span>
+              </div>
+            </div>
+            <a
+              href={getWhatsAppUrl(COMPANY_PHONE, 'Hello Nextify, I would like to book a chauffeur.')}
+              target="_blank"
+              rel="noreferrer"
+              className="hero-pill hero-pill-link"
+            >
+              <i className="bi bi-whatsapp"></i>
+              <div>
+                <strong>WhatsApp</strong>
+                <span>Instant booking</span>
+              </div>
+            </a>
+          </div>
+
+          <div className="hero-simple">
+            <p className="hero-simple-meta mb-0">15+ luxury cars · Fully insured · 24/7</p>
           </div>
         </Container>
 
-        {/* Bottom Buttons Row */}
-        <div className="position-absolute bottom-0 w-100 d-flex flex-row hero-bottom-bar" style={{ zIndex: 10 }}>
-
-          <Link to="/carlist" className="text-white text-decoration-none d-flex justify-content-between align-items-center w-100 hero-bottom-btn">
-            <span>See Our Collection</span>
-            <i className="bi bi-arrow-right fs-4"></i>
+        <div className="hero-simple-actions">
+          <Link to="/carlist" className="hero-simple-btn">
+            <span>See Our<br />Collection</span>
+            <i className="bi bi-arrow-right"></i>
           </Link>
-          <Link to="/booking" className="text-white text-decoration-none d-flex justify-content-between align-items-center w-100 hero-bottom-btn">
-            <span>Start Reservation</span>
-            <i className="bi bi-arrow-right fs-4"></i>
+          <Link to="/booking" className="hero-simple-btn">
+            <span>Start<br />Reservation</span>
           </Link>
+          <a
+            href={getWhatsAppUrl(COMPANY_PHONE, 'Hello Nextify, I would like to book a chauffeur.')}
+            target="_blank"
+            rel="noreferrer"
+            className="hero-simple-wa"
+            aria-label="WhatsApp Nextify"
+          >
+            <i className="bi bi-whatsapp"></i>
+          </a>
         </div>
       </div>
 
@@ -204,7 +219,7 @@ function Home() {
                     <p className="mb-1 text-uppercase collection-card-type">{car.type}</p>
                     <h3 className="h4 mb-3" style={{ fontFamily: 'Georgia, serif' }}>{car.name}</h3>
                     <div className="d-flex justify-content-between align-items-center">
-                      <span className="fw-bold fs-5">{car.price}</span>
+                      <span className="fw-bold" style={{ fontSize: '0.95rem' }}>{formatCarDayPrice(car) || car.price}</span>
                       <button
                         type="button"
                         className="lux-btn lux-btn-sm"
@@ -304,6 +319,8 @@ function Home() {
 
     <ServiceRates />
 
+    <ClientSection />
+
     {/* About Section */}
       <section id="about" className="py-5" style={{ backgroundColor: '#0f0f0f', color: 'white' }}>
         <Container className="py-5">
@@ -318,6 +335,30 @@ function Home() {
                 <p style={{ color: '#888', fontSize: '1.1rem', maxWidth: '500px' }}>
                   Redefining luxury travel in Saudi Arabia since {COMPANY.foundedYear}, founded by {COMPANY.founder}, with professional chauffeurs and unmatched reliability.
                 </p>
+                <div className="tga-license-card mt-4">
+                  <div className="d-flex align-items-center gap-2 mb-2">
+                    <i className="bi bi-patch-check-fill" style={{ color: '#eeb012' }}></i>
+                    <p className="text-uppercase small mb-0" style={{ color: '#eeb012', letterSpacing: 2, fontWeight: 700 }}>TGA licensed</p>
+                  </div>
+                  <p className="mb-2" style={{ color: '#f3e6c4', fontSize: '0.95rem' }}>
+                    Nextify is a TGA-approved, TGA-licensed company for private taxi transport in Saudi Arabia.
+                  </p>
+                  <p className="tga-license-number mb-2">{COMPANY.tga.licenseNumber}</p>
+                  <p className="mb-1 small" style={{ color: '#d8c38a' }}>
+                    {COMPANY.tga.licenseType} · Valid through {COMPANY.tga.expiresLabel}
+                  </p>
+                  <p className="mb-3 small" style={{ color: '#aaa' }}>
+                    Company ID {COMPANY.tga.organizationId} · CR {COMPANY.tga.crNumber}
+                  </p>
+                  <a
+                    href={encodeURI(COMPANY.tga.document)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="tga-license-link"
+                  >
+                    View TGA license
+                  </a>
+                </div>
               </div>
 
               <div className="row g-4">
@@ -370,17 +411,7 @@ function Home() {
                   }}
                 />
               </div>
-              <div className="mt-5 pt-3">
-                <p className="mb-5" style={{ color: '#888', lineHeight: '1.8' }}>
-                  Embark on a journey with Nextify, your premier destination for luxury car rentals in Saudi Arabia. We provide unparalleled access to a world-class fleet, ensuring prestige, safety, and exceptional service at any time.
-                </p>
-                <button
-                  className="btn rounded-pill px-5 py-3 fw-bold border-0"
-                  style={{ backgroundColor: '#eefe31', color: '#000', fontSize: '0.9rem' }}
-                >
-                  Discover Our Story
-                </button>
-              </div>
+              <AboutReviews />
             </div>
           </div>
         </Container>
@@ -389,31 +420,16 @@ function Home() {
     {/* Events & Testimonial Section */}
     <section className="py-5" style={{ backgroundColor: '#000000', color: 'white' }}>
       <Container className="py-5">
-        <div className="row mb-5 pb-5" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-          {/* Testimonial Side */}
+        <div className="row mb-5 pb-5 align-items-center" style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
           <div className="col-lg-5 pe-lg-5 mb-5 mb-lg-0">
-            <div className="d-flex justify-content-between align-items-center mb-4" style={{ maxWidth: '380px' }}>
-              <div className="d-flex gap-2" style={{ color: '#f0f424', fontSize: '1.1rem' }}>
-                <i className="bi bi-star-fill"></i>
-                <i className="bi bi-star-fill"></i>
-                <i className="bi bi-star-fill"></i>
-                <i className="bi bi-star-fill"></i>
-                <i className="bi bi-star-fill"></i>
-              </div>
-              <div className="rounded px-2 py-1" style={{ backgroundColor: '#555', color: '#fff', fontSize: '0.75rem', fontWeight: 'bold' }}>
-                5.0
-              </div>
-            </div>
-            <p className="mb-4" style={{ color: '#aaa', fontSize: '1.05rem', lineHeight: '1.7', maxWidth: '380px' }}>
-              We recently used Nextify's transportation services for a major corporate event, and we couldn't be happier. The private chauffeurs were punctual and courteous, and the vehicles were immaculate. Our executives and guests were thoroughly impressed with the level of service.
-            </p>
-            <div style={{ borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '20px', maxWidth: '380px' }}>
-              <span className="fw-bold text-white" style={{ fontSize: '0.9rem' }}>James T, </span>
-              <span style={{ color: '#777', fontSize: '0.9rem' }}>Corporate Event Planner</span>
+            <div className="events-fleet-photo">
+              <img
+                src="/images/events-bulk-fleet.jpg?v=2"
+                alt="Nextify luxury SUVs and vans lined up for a bulk event"
+              />
             </div>
           </div>
 
-          {/* Events Side */}
           <div className="col-lg-7 ps-lg-5">
             <div className="d-flex align-items-center gap-3 mb-4">
               <div style={{ width: '40px', height: '1px', backgroundColor: '#8a8940' }}></div>
@@ -425,9 +441,9 @@ function Home() {
             <p className="mb-4" style={{ color: '#888', fontSize: '1.05rem', lineHeight: '1.6', maxWidth: '600px' }}>
               Planning large-scale celebrations? We provide bulk car rentals tailored for all your events, from weddings to corporate gatherings. Choose from our extensive fleet for seamless transport.
             </p>
-            <button className="btn rounded-pill px-4 py-2 mt-3 fw-medium border-0" style={{ backgroundColor: '#f0f424', color: '#000', fontSize: '0.95rem' }}>
+            <Link to="/contact" className="btn rounded-pill px-4 py-2 mt-3 fw-medium border-0 text-decoration-none" style={{ backgroundColor: '#f0f424', color: '#000', fontSize: '0.95rem' }}>
               Contact Us
-            </button>
+            </Link>
           </div>
         </div>
 

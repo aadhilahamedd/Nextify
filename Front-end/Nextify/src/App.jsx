@@ -21,6 +21,7 @@ import BookingConfirmation from './pages/BookingConfirmation'
 import TrackBooking from './pages/TrackBooking'
 import MockPaymentCheckout from './pages/MockPaymentCheckout'
 import PaymentResult from './pages/PaymentResult'
+import QrCodePage from './pages/QrCode'
 import { COMPANY_PHONE, getWhatsAppUrl } from './utils/whatsapp'
 
 function App() {
@@ -51,6 +52,7 @@ function App() {
         <Route path="/payment-result" element={<PaymentResult />} />
         <Route path="/booking-confirmation/:bookingNumber" element={<BookingConfirmation />} />
         <Route path="/track-booking" element={<TrackBooking />} />
+        <Route path="/qr" element={<QrCodePage />} />
         <Route path="*" element={<Pnf />} />
       </Routes>
       {!isAdminRoute && <Footer />}

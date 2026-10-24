@@ -369,7 +369,9 @@ export const getCarsAPI = async () => {
 
 export const addCarAPI = async (carData) => {
   try {
-    return await commonAPI("POST", `${serverURL}/api/cars`, carData, getAuthHeaders());
+    const response = await commonAPI("POST", `${serverURL}/api/cars`, carData, getAuthHeaders());
+    if (response.status === 201 || response.status === 200) return unwrap(response);
+    return handleError({ response }, response?.data?.message || "Failed to add car");
   } catch (err) {
     return handleError(err, "Failed to add car");
   }
@@ -377,15 +379,37 @@ export const addCarAPI = async (carData) => {
 
 export const updateCarAPI = async (id, carData) => {
   try {
-    return await commonAPI("PUT", `${serverURL}/api/cars/${id}`, carData, getAuthHeaders());
+    const response = await commonAPI("PUT", `${serverURL}/api/cars/${id}`, carData, getAuthHeaders());
+    if (response.status === 200) return unwrap(response);
+    return handleError({ response }, response?.data?.message || "Failed to update car");
   } catch (err) {
     return handleError(err, "Failed to update car");
   }
 };
 
+export const getReviewsAPI = async () => {
+  try {
+    const response = await commonAPI("GET", `${serverURL}/api/reviews`, "");
+    return unwrap(response);
+  } catch (err) {
+    return handleError(err, "Failed to load reviews");
+  }
+};
+
+export const submitReviewAPI = async (reviewData) => {
+  try {
+    const response = await commonAPI("POST", `${serverURL}/api/reviews`, reviewData, { "Content-Type": "application/json" });
+    return unwrap(response);
+  } catch (err) {
+    return handleError(err, "Failed to add review");
+  }
+};
+
 export const deleteCarAPI = async (id) => {
   try {
-    return await commonAPI("DELETE", `${serverURL}/api/cars/${id}`, "", getAuthHeaders());
+    const response = await commonAPI("DELETE", `${serverURL}/api/cars/${id}`, undefined, getAuthHeaders());
+    if (response.status === 200) return unwrap(response);
+    return handleError({ response }, response?.data?.message || "Failed to delete car");
   } catch (err) {
     return handleError(err, "Failed to delete car");
   }

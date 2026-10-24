@@ -7,6 +7,7 @@ import {
   SERVICE_DESCRIPTIONS,
   AIRPORTS,
   VEHICLES_BY_SERVICE,
+  getVehicleImage,
   INTERCITY_ROUTES,
   GCC_DESTINATIONS,
   DURATION_OPTIONS,
@@ -177,7 +178,7 @@ function BookingWizard() {
 
     const payload = {
       ...buildPricingPayload(),
-      vehicleName: selectedVehicle?.label,
+      vehicleName: selectedVehicle?.label || form.vehicleName,
       travelDate: form.travelDate,
       travelTime: form.travelTime,
       schedule: { pickupDateTime: `${form.travelDate}T${form.travelTime}` },
@@ -319,7 +320,17 @@ function BookingWizard() {
           <p className="book-empty-quote">Choose a vehicle to see the official Nextify rate. Prices are never estimated on this page.</p>
         </div>
       )}
-      {quote && <PriceSummary form={{ ...form, vehicleName: selectedVehicle?.label }} quote={quote} compact />}
+      {quote && (
+        <PriceSummary
+          form={{
+            ...form,
+            vehicleName: selectedVehicle?.label,
+            vehicleImage: getVehicleImage(form.vehicleCategory),
+          }}
+          quote={quote}
+          compact
+        />
+      )}
       <div className="book-trust">
         <span><i className="bi bi-person-badge" /> Professional chauffeur included</span>
         <span><i className="bi bi-currency-exchange" /> Prices in SAR</span>

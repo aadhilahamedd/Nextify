@@ -3,7 +3,7 @@ const logo = '/images/logo.webp';
 import Container from 'react-bootstrap/Container';
 import { Link } from 'react-router-dom';
 import { COMPANY } from '../utils/company';
-import { COMPANY_PHONE } from '../utils/whatsapp';
+import { COMPANY_PHONE, getWhatsAppUrl } from '../utils/whatsapp';
 
 function Footer() {
   return (
@@ -21,7 +21,7 @@ function Footer() {
               <div className="d-flex align-items-center justify-content-center border border-secondary rounded-circle" style={{ width: '40px', height: '40px' }}>
                 <i className="bi bi-telephone text-warning"></i>
               </div>
-              <a href={`tel:${COMPANY.phonePrimaryDigits}`} className="fw-semibold text-white text-decoration-none">{COMPANY_PHONE}</a>
+              <a href={`tel:${COMPANY.phonePrimaryDigits}`} className="fw-semibold text-white text-decoration-none">{COMPANY.phonePrimary}</a>
             </div>
           </div>
 
@@ -41,6 +41,7 @@ function Footer() {
               <li className="mb-3"><Link to="/contact" className="text-white-50 text-decoration-none">Customer support</Link></li>
               <li className="mb-3"><Link to={{ pathname: '/', hash: '#how-it-works' }} className="text-white-50 text-decoration-none">How It Works</Link></li>
               <li className="mb-3"><Link to="/track-booking" className="text-white-50 text-decoration-none">Track Booking</Link></li>
+              <li className="mb-3"><Link to="/qr" className="text-white-50 text-decoration-none">Website QR</Link></li>
               <li className="mb-3"><Link to="/contact" className="text-white-50 text-decoration-none">Privacy Policy</Link></li>
             </ul>
           </div>
@@ -58,9 +59,9 @@ function Footer() {
             <div className="d-flex gap-3 mb-3">
               <i className="bi bi-telephone text-warning"></i>
               <p className="text-white-50 small mb-0">
-                {COMPANY.phonePrimary}<br />
-                {COMPANY.phoneSecondary}<br />
-                {COMPANY.phoneLandline}
+                <a href={`tel:${COMPANY.phonePrimaryDigits}`} className="text-white-50 text-decoration-none">{COMPANY.phonePrimary}</a>
+                <br />
+                <a href={`tel:${COMPANY.phoneLandline.replace(/\s/g, '')}`} className="text-white-50 text-decoration-none">{COMPANY.phoneLandline}</a>
               </p>
             </div>
             <div className="d-flex gap-3">
@@ -81,7 +82,7 @@ function Footer() {
           <div className="d-flex gap-4">
             <a href={COMPANY.website} target="_blank" rel="noreferrer" className="text-white-50"><i className="bi bi-globe fs-5"></i></a>
             <a href={`mailto:${COMPANY.email}`} className="text-white-50"><i className="bi bi-envelope fs-5"></i></a>
-            <a href={`tel:${COMPANY.phonePrimaryDigits}`} className="text-white-50"><i className="bi bi-telephone fs-5"></i></a>
+            <a href={getWhatsAppUrl(COMPANY_PHONE, 'Hello Nextify, I need help with a booking')} target="_blank" rel="noreferrer" className="text-white-50" aria-label="WhatsApp Nextify"><i className="bi bi-whatsapp fs-5"></i></a>
           </div>
         </div>
       </Container>

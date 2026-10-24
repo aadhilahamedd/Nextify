@@ -6,6 +6,7 @@ import serverURL from '../Services/serverURL'
 import { submitContactMessageAPI } from '../Services/allAPI'
 import { saveLocalContactMessage } from '../utils/contactMessagesStorage'
 
+import { Link } from 'react-router-dom'
 import { COMPANY } from '../utils/company'
 
 function Contact() {
@@ -232,6 +233,23 @@ function Contact() {
             </div>
           </Col>
         </Row>
+
+        <div className="p-4 p-md-5 rounded-4 mb-5 d-flex flex-column flex-md-row align-items-md-center justify-content-between gap-3" style={{ backgroundColor: '#111111', border: '1px solid rgba(238,176,18,0.22)' }}>
+          <div>
+            <p className="text-uppercase small mb-2" style={{ color: '#eeb012', letterSpacing: 2 }}>QR Code</p>
+            <h3 className="h4 mb-2" style={{ fontFamily: 'Georgia, serif' }}>Scan to open Nextify</h3>
+            <p className="mb-0" style={{ color: '#888' }}>
+              Print or share the website QR. Scanning it opens {COMPANY.website}.
+            </p>
+          </div>
+          <Link
+            to="/qr"
+            className="btn rounded-pill px-4 py-3 fw-semibold border-0 text-decoration-none"
+            style={{ background: 'linear-gradient(135deg, #a88448 0%, #c8a261 100%)', color: '#000' }}
+          >
+            Open QR &amp; Scanner
+          </Link>
+        </div>
 
         {error && <div className="alert alert-warning">{error}</div>}
 

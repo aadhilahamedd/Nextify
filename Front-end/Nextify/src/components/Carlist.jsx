@@ -4,16 +4,29 @@ import { useNavigate } from 'react-router-dom'
 import { applyLocalCarImages, getCarImageUrl, initialCars, sortCarsForShowcase } from '../utils/carsStorage'
 import { getCarsAPI, addCarAPI, updateCarAPI, deleteCarAPI, getPricingRulesAPI } from '../Services/allAPI'
 import VehiclePricingDisplay from './pricing/VehiclePricingDisplay'
+import { formatCarDayPrice, sarToUsd, parsePriceNumber } from '../utils/currency'
+
+const getCarListId = (car) => {
+  const numeric = Number(car?.id)
+  if (Number.isInteger(numeric) && numeric > 0 && String(car.id).length < 16) return numeric
+  return car?._id || car?.id
+}
+
+const getApiMessage = (res, fallback) =>
+  res?.error || res?.data?.message || res?.message || fallback
 
 function Carlist() {
   const navigate = useNavigate();
   const [cars, setCars] = useState(initialCars)
   const [showModal, setShowModal] = useState(false)
   const [editingCar, setEditingCar] = useState(null)
-  const [editData, setEditData] = useState({ name: '', price: '', type: '', seats: '', luggage: '', img: '' })
+  const [editData, setEditData] = useState({ name: '', price: '', priceUsd: '', type: '', seats: '', luggage: '', img: '' })
   const [preview, setPreview] = useState(null)
   const [activeFilter, setActiveFilter] = useState('All')
   const [pricingRules, setPricingRules] = useState([])
+  const [actionError, setActionError] = useState('')
+  const [actionSuccess, setActionSuccess] = useState('')
+  const [saving, setSaving] = useState(false)
 
   const user = useMemo(() => {
     try {
@@ -32,7 +45,8 @@ function Carlist() {
     setEditingCar(car)
     setEditData({
       name: car.name,
-      price: car.price,
+      price: car.price || '',
+      priceUsd: car.priceUsd || '',
       type: car.type,
       seats: car.seats,
       luggage: car.luggage,
@@ -50,13 +64,20 @@ function Carlist() {
 
   const openAddModal = () => {
     setEditingCar(null)
-    setEditData({ name: '', price: '', type: '', seats: '', luggage: '', img: '' })
+    setEditData({ name: '', price: '', priceUsd: '', type: '', seats: '', luggage: '', img: '' })
     setPreview(null)
     setShowModal(true)
   }
 
   const handleEditChange = (field, value) => {
-    setEditData((prev) => ({ ...prev, [field]: value }))
+    setEditData((prev) => {
+      const next = { ...prev, [field]: value }
+      if (field === 'price') {
+        const sar = parsePriceNumber(value)
+        if (sar != null && !prev.priceUsd) next.priceUsd = String(sarToUsd(sar))
+      }
+      return next
+    })
   }
 
   const handleImageSelect = (event) => {
@@ -72,7 +93,7 @@ function Carlist() {
 
   const fetchCars = async () => {
     const response = await getCarsAPI()
-    if (response && response.data && Array.isArray(response.data) && response.data.length) {
+    if (response && Array.isArray(response.data)) {
       setCars(applyLocalCarImages(response.data))
     }
   }
@@ -86,23 +107,37 @@ function Carlist() {
 
   const saveAdd = async () => {
     const trimmedName = editData.name.trim()
-    if (!trimmedName) return
-    
+    if (!trimmedName) {
+      setActionError('Enter a car name.')
+      return
+    }
+    if (!editData.img) {
+      setActionError('Choose a cover image before adding a car.')
+      return
+    }
+
+    const sar = editData.price.trim()
+    const usd = editData.priceUsd.trim() || (parsePriceNumber(sar) != null ? String(sarToUsd(parsePriceNumber(sar))) : '')
     const newCar = {
       name: trimmedName,
-      price: editData.price || '$0/day',
+      price: sar || '0',
+      priceUsd: usd,
       type: editData.type || 'Unknown',
       seats: editData.seats || 'N/A',
       luggage: editData.luggage || 'N/A',
       img: editData.img
     }
 
+    setSaving(true)
     const response = await addCarAPI(newCar)
+    setSaving(false)
     if (response.status === 201 || response.status === 200) {
-      fetchCars()
+      setActionError('')
+      setActionSuccess('Car added to the fleet.')
+      await fetchCars()
       closeModal()
     } else {
-      alert(response.error || 'Failed to add car')
+      setActionError(getApiMessage(response, 'Failed to add car. Sign in as admin and try again.'))
     }
   }
 
@@ -120,22 +155,39 @@ function Carlist() {
 
   const saveEdit = async () => {
     if (!editingCar) return
-    const response = await updateCarAPI(editingCar.id, editData)
+    const carId = getCarListId(editingCar)
+    if (!carId) {
+      setActionError('This car has no valid ID, so it cannot be updated.')
+      return
+    }
+    setSaving(true)
+    const response = await updateCarAPI(carId, editData)
+    setSaving(false)
     if (response.status === 200) {
-      fetchCars()
+      setActionError('')
+      setActionSuccess('Car updated.')
+      await fetchCars()
       closeModal()
     } else {
-      alert(response.error || 'Failed to update car')
+      setActionError(getApiMessage(response, 'Failed to update car. Sign in as admin and try again.'))
     }
   }
 
-  const deleteCar = async (carId) => {
-    if (!window.confirm('Delete this car from the list?')) return
+  const deleteCar = async (car) => {
+    if (!window.confirm(`Delete ${car.name} from the fleet?`)) return
+    const carId = getCarListId(car)
+    if (!carId) {
+      setActionError('This car has no valid ID, so it cannot be deleted.')
+      return
+    }
     const response = await deleteCarAPI(carId)
     if (response.status === 200) {
-      fetchCars()
+      setActionError('')
+      setActionSuccess(`${car.name} was removed from the fleet.`)
+      setCars((prev) => prev.filter((item) => getCarListId(item) !== carId))
+      await fetchCars()
     } else {
-      alert(response.error || 'Failed to delete car')
+      setActionError(getApiMessage(response, 'Failed to delete car. Sign in as admin and try again.'))
     }
   }
 
@@ -143,7 +195,7 @@ function Carlist() {
     const type = String(car.type || '').toLowerCase()
     const name = String(car.name || '').toLowerCase()
 
-    if (type.includes('suv') || name.includes('yukon') || name.includes('tahoe') || name.includes('suburban')) return 'SUV'
+    if (type.includes('suv') || name.includes('gmc') || name.includes('yukon') || name.includes('tahoe') || name.includes('suburban')) return 'SUV'
     if (type.includes('coach') || type.includes('bus') || type.includes('mini bus') || name.includes('coaster')) return 'Coaches'
     if (type.includes('van') || type.includes('minivan') || type.includes('passenger van') || name.includes('hiace') || name.includes('sprinter') || name.includes('v-class')) return 'Van'
     if (type.includes('sedan')) return 'Sedan'
@@ -189,6 +241,9 @@ function Carlist() {
             )}
           </div>
 
+          {actionError && <div className="alert alert-danger py-2">{actionError}</div>}
+          {actionSuccess && <div className="alert alert-success py-2">{actionSuccess}</div>}
+
           <div className="d-flex flex-wrap justify-content-center gap-2 gap-md-3 mb-4">
             {filterOptions.map((option) => (
               <button
@@ -212,7 +267,7 @@ function Carlist() {
 
           <div className="row g-4">
             {filteredCars.map((car) => (
-              <div key={car.id} className="col-lg-4 col-md-6 mb-4">
+              <div key={getCarListId(car) || car.name} className="col-lg-4 col-md-6 mb-4">
                 <div
                   className="h-100 d-flex flex-column fleet-card"
                   style={{
@@ -243,7 +298,7 @@ function Carlist() {
                       <button type="button" onClick={(e) => { e.stopPropagation(); openEditModal(car) }} style={actionIconStyle} title="Edit car">
                         <i className="bi bi-pencil-square"></i>
                       </button>
-                      <button type="button" onClick={(e) => { e.stopPropagation(); deleteCar(car.id) }} style={deleteIconStyle} title="Delete car">
+                      <button type="button" onClick={(e) => { e.stopPropagation(); deleteCar(car) }} style={deleteIconStyle} title="Delete car">
                         <i className="bi bi-trash"></i>
                       </button>
                     </div>
@@ -273,6 +328,12 @@ function Carlist() {
                   </span>
                 </div>
 
+                {formatCarDayPrice(car) && (
+                  <p className="mb-2 fw-semibold" style={{ color: '#eeb012', fontSize: '0.95rem' }}>
+                    {formatCarDayPrice(car)}
+                    <span className="ms-1" style={{ color: '#888', fontWeight: 400, fontSize: '0.75rem' }}>/ day</span>
+                  </p>
+                )}
                 <VehiclePricingDisplay rules={pricingRules} car={car} />
 
                 <div className="d-flex justify-content-between align-items-center pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.1)' }}>
@@ -321,8 +382,12 @@ function Carlist() {
                 <input value={editData.name} onChange={(e) => handleEditChange('name', e.target.value)} style={inputStyle} />
               </div>
               <div style={{ display: 'grid', gap: '10px' }}>
-                <label style={{ color: '#f3f3f3', fontSize: '0.9rem' }}>Price</label>
-                <input value={editData.price} onChange={(e) => handleEditChange('price', e.target.value)} style={inputStyle} />
+                <label style={{ color: '#f3f3f3', fontSize: '0.9rem' }}>SAR Price</label>
+                <input value={editData.price} onChange={(e) => handleEditChange('price', e.target.value)} style={inputStyle} placeholder="e.g. 1500" />
+              </div>
+              <div style={{ display: 'grid', gap: '10px' }}>
+                <label style={{ color: '#f3f3f3', fontSize: '0.9rem' }}>Dollar Price</label>
+                <input value={editData.priceUsd} onChange={(e) => handleEditChange('priceUsd', e.target.value)} style={inputStyle} placeholder="e.g. 400" />
               </div>
               <div style={{ display: 'grid', gap: '10px' }}>
                 <label style={{ color: '#f3f3f3', fontSize: '0.9rem' }}>Type</label>
@@ -338,8 +403,8 @@ function Carlist() {
               </div>
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '6px' }}>
                 <button onClick={closeModal} style={secondaryModalButtonStyle}>Cancel</button>
-                <button onClick={editingCar ? saveEdit : saveAdd} style={primaryModalButtonStyle}>
-                  {editingCar ? 'Save Changes' : 'Add Car'}
+                <button onClick={editingCar ? saveEdit : saveAdd} style={primaryModalButtonStyle} disabled={saving}>
+                  {saving ? 'Saving...' : editingCar ? 'Save Changes' : 'Add Car'}
                 </button>
               </div>
             </div>

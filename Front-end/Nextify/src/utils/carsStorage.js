@@ -18,11 +18,12 @@ const LOCAL_IMAGES_BY_NAME = {
   'Mercedes-Benz S-Class': '/images/cars/mercedes-s-class.webp',
   'BMW 7 Series': '/images/cars/bmw-7-series.webp',
   'Ford Taurus': '/images/cars/ford-taurus.webp',
+  'GMC': '/images/cars/gmc-yukon-xl-at4.webp',
   'GMC Yukon XL AT4': '/images/cars/gmc-yukon-xl-at4.webp',
   'BMW 5 Series': '/images/cars/bmw-5-series.webp',
   'Mercedes-Benz E-Class': '/images/cars/mercedes-e-class.webp',
-  'GMC Tahoe': '/images/cars/gmc-tahoe.webp',
-  'Chevrolet Suburban': '/images/cars/chevrolet-suburban.webp',
+  'GMC Tahoe': '/images/cars/gmc-yukon-xl-at4.webp',
+  'Chevrolet Suburban': '/images/cars/gmc-yukon-xl-at4.webp',
   'Mercedes-Benz eVito Tourer': '/images/cars/mercedes-evito-tourer.webp',
 };
 
@@ -45,8 +46,34 @@ export function resolveCarImage(car) {
   return getCarImageUrl(car?.img);
 }
 
+function isGmcFamily(car) {
+  const name = String(car?.name || '').toLowerCase();
+  return name.includes('gmc') || name.includes('yukon') || name.includes('tahoe') || name.includes('suburban');
+}
+
+export function collapseGmcFleet(cars = []) {
+  const gmcCars = cars.filter(isGmcFamily);
+  const otherCars = cars.filter((car) => !isGmcFamily(car));
+  if (!gmcCars.length) return cars;
+
+  const preferred =
+    gmcCars.find((car) => /yukon/i.test(car.name)) ||
+    gmcCars.find((car) => /^gmc$/i.test(car.name)) ||
+    gmcCars[0];
+
+  return [
+    {
+      ...preferred,
+      name: 'GMC',
+      type: preferred.type || 'Full-Size SUV',
+      img: LOCAL_IMAGES_BY_NAME.GMC,
+    },
+    ...otherCars,
+  ];
+}
+
 export function applyLocalCarImages(cars = []) {
-  return cars.map((car) => ({ ...car, img: resolveCarImage(car) }));
+  return collapseGmcFleet(cars).map((car) => ({ ...car, img: resolveCarImage(car) }));
 }
 
 export function getEliteCollectionCars(cars = []) {
@@ -58,9 +85,7 @@ export function getEliteCollectionCars(cars = []) {
 
 export function getShowcaseRank(car) {
   const name = String(car?.name || '').toLowerCase();
-  if (name.includes('yukon')) return 1;
-  if (name.includes('tahoe')) return 2;
-  if (name.includes('suburban')) return 3;
+  if (name === 'gmc' || name.includes('gmc') || name.includes('yukon')) return 1;
   return 100;
 }
 
@@ -156,30 +181,13 @@ export const initialCars = [
   },
   {
     id: 10,
-    name: 'GMC Yukon XL AT4',
+    name: 'GMC',
     img: '/images/cars/gmc-yukon-xl-at4.webp',
-    price: '$300/day',
+    price: 'SAR 1125',
+    priceUsd: '300',
     type: 'Full-Size SUV',
     seats: '7–8 passengers',
     luggage: '1,175 Liters'
-  },
-  {
-    id: 15,
-    name: 'GMC Tahoe',
-    img: '/images/cars/gmc-tahoe.webp',
-    price: '$300/day',
-    type: 'Full-Size SUV',
-    seats: '7–8 passengers',
-    luggage: '1,200 Liters'
-  },
-  {
-    id: 16,
-    name: 'Chevrolet Suburban',
-    img: '/images/cars/chevrolet-suburban.webp',
-    price: '$300/day',
-    type: 'Full-Size SUV',
-    seats: '7–8 passengers',
-    luggage: '1,217 Liters'
   },
   {
     id: 11,

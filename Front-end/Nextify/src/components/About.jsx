@@ -8,16 +8,36 @@ function About() {
   return (
     <div style={{ backgroundColor: '#0a0a0a', color: 'white', minHeight: '100vh', paddingTop: '140px', paddingBottom: '80px' }}>
       <Container>
-        <div className="text-center mb-5">
-          <p className="text-uppercase fw-semibold mb-2" style={{ color: '#eeb012', letterSpacing: '3px', fontSize: '0.8rem' }}>
-            About Us
-          </p>
-          <h2 className="display-4 fw-normal mb-4" style={{ fontFamily: 'Georgia, serif', color: '#fff' }}>
-            Luxury travel tailored to your every need
-          </h2>
-          <p className="mx-auto" style={{ maxWidth: '720px', color: '#bfbfbf', lineHeight: '1.8' }}>
-            Founded in {COMPANY.foundedYear} by {COMPANY.founder}, Nextify combines premium vehicles, trusted chauffeurs, and seamless service across Saudi Arabia. Whether you need airport transfers, city rides, chauffeur service, intercity travel, or GCC transfers, we make every journey feel exceptional.
-          </p>
+        <div className="row align-items-center g-4 mb-5">
+          <div className="col-lg-7 text-start">
+            <p className="text-uppercase fw-semibold mb-2" style={{ color: '#eeb012', letterSpacing: '3px', fontSize: '0.8rem' }}>
+              About Us
+            </p>
+            <h2 className="h1 fw-normal mb-4" style={{ fontFamily: 'Georgia, serif', color: '#fff' }}>
+              Luxury travel tailored to your every need
+            </h2>
+            <p className="mb-4" style={{ color: '#bfbfbf', lineHeight: 1.8, maxWidth: '540px' }}>
+              Founded in {COMPANY.foundedYear} by {COMPANY.founder}, Nextify combines premium vehicles, trusted chauffeurs, and seamless service across Saudi Arabia. Whether you need airport transfers, city rides, chauffeur service, intercity travel, or GCC transfers, we make every journey feel exceptional.
+            </p>
+            <p className="mb-0 small" style={{ color: '#888', maxWidth: '540px' }}>
+              TGA licensed · Company ID {COMPANY.tga.organizationId} · License {COMPANY.tga.licenseNumber}
+            </p>
+          </div>
+          <div className="col-lg-5 d-flex justify-content-lg-end justify-content-center">
+            <img
+              src="/images/about-mark.png"
+              alt="Nextify Limo Service"
+              style={{
+                display: 'block',
+                width: 240,
+                height: 240,
+                objectFit: 'contain',
+                flexShrink: 0,
+                background: 'transparent',
+                borderRadius: '50%',
+              }}
+            />
+          </div>
         </div>
 
         <Row className="g-4 mb-5">

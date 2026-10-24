@@ -16,6 +16,11 @@ const carSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+  priceUsd: {
+    type: String,
+    trim: true,
+    default: '',
+  },
   type: {
     type: String,
     required: true,
@@ -36,7 +41,8 @@ const carSchema = new mongoose.Schema({
     required: true
   }
 }, {
-  timestamps: true
+  timestamps: true,
+  id: false,
 });
 
 module.exports = mongoose.model('Car', carSchema);
