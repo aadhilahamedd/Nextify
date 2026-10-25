@@ -17,8 +17,18 @@ function parseDateValue(value) {
   return new Date(y, m - 1, d);
 }
 
+function formatSlashDate(value, lang) {
+  const selected = value instanceof Date ? value : parseDateValue(value);
+  if (!selected) return '';
+  const day = pad(selected.getDate());
+  const month = pad(selected.getMonth() + 1);
+  const year = String(selected.getFullYear());
+  const shown = `${day}/${month}/${year}`;
+  return lang === 'ar' ? toArabicIndic(shown) : shown;
+}
+
 export function LocaleDateInput({ value, min, onChange, className }) {
-  const { lang, t, formatNumber } = useLanguage();
+  const { lang, t } = useLanguage();
   const wrapRef = useRef(null);
   const selected = parseDateValue(value);
   const minDate = parseDateValue(min);
@@ -34,14 +44,12 @@ export function LocaleDateInput({ value, min, onChange, className }) {
       if (!wrapRef.current?.contains(event.target)) setOpen(false);
     };
     document.addEventListener('mousedown', onDoc);
-    return () => document.removeEventListener('mousedown', onDoc);
+    document.addEventListener('touchstart', onDoc);
+    return () => {
+      document.removeEventListener('mousedown', onDoc);
+      document.removeEventListener('touchstart', onDoc);
+    };
   }, []);
-
-  if (lang !== 'ar') {
-    return (
-      <input type="date" min={min} dir="ltr" lang="en-GB" className={className} value={value} onChange={(e) => onChange(e.target.value)} />
-    );
-  }
 
   const months = t('dates.months');
   const weekdays = t('dates.weekdays');
@@ -50,21 +58,20 @@ export function LocaleDateInput({ value, min, onChange, className }) {
   const start = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const cells = [...Array(start).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)];
-
-  const label = selected
-    ? `${formatNumber(selected.getDate())} ${months[selected.getMonth()]} ${formatNumber(selected.getFullYear())}`
-    : t('dates.pickDate');
+  const label = selected ? formatSlashDate(selected, lang) : t('dates.pickDate');
 
   return (
     <div className="book-picker" ref={wrapRef}>
       <button type="button" className={`${className} book-picker-trigger`} onClick={() => setOpen((v) => !v)}>
-        {label}
+        <span className="book-date-value" dir="ltr">{label}</span>
       </button>
       {open && (
         <div className="book-cal" role="dialog" aria-label={t('booking.travelDate')}>
           <div className="book-cal-head">
             <button type="button" onClick={() => setView(new Date(year, month - 1, 1))} aria-label="Previous month">‹</button>
-            <strong>{months[month]} {formatNumber(year)}</strong>
+            <strong>
+              {months[month]} <span className="book-date-value" dir="ltr">{lang === 'ar' ? toArabicIndic(year) : year}</span>
+            </strong>
             <button type="button" onClick={() => setView(new Date(year, month + 1, 1))} aria-label="Next month">›</button>
           </div>
           <div className="book-cal-grid">
@@ -87,7 +94,7 @@ export function LocaleDateInput({ value, min, onChange, className }) {
                     setOpen(false);
                   }}
                 >
-                  {formatNumber(day)}
+                  <span className="book-date-value" dir="ltr">{lang === 'ar' ? toArabicIndic(day) : day}</span>
                 </button>
               );
             })}
@@ -111,17 +118,15 @@ export function LocaleTimeInput({ value, onChange, className }) {
       if (!wrapRef.current?.contains(event.target)) setOpen(false);
     };
     document.addEventListener('mousedown', onDoc);
-    return () => document.removeEventListener('mousedown', onDoc);
+    document.addEventListener('touchstart', onDoc);
+    return () => {
+      document.removeEventListener('mousedown', onDoc);
+      document.removeEventListener('touchstart', onDoc);
+    };
   }, []);
 
-  if (lang !== 'ar') {
-    return (
-      <input type="time" dir="ltr" lang="en-GB" className={className} value={value} onChange={(e) => onChange(e.target.value)} />
-    );
-  }
-
   const label = value
-    ? `${toArabicIndic(hour)}:${toArabicIndic(minute)}`
+    ? (lang === 'ar' ? `${toArabicIndic(hour)}:${toArabicIndic(minute)}` : `${hour}:${minute}`)
     : t('dates.pickTime');
 
   const pick = (nextHour, nextMinute) => {
@@ -131,7 +136,7 @@ export function LocaleTimeInput({ value, onChange, className }) {
   return (
     <div className="book-picker" ref={wrapRef}>
       <button type="button" className={`${className} book-picker-trigger`} onClick={() => setOpen((v) => !v)}>
-        {label}
+        <span className="book-date-value" dir="ltr">{label}</span>
       </button>
       {open && (
         <div className="book-clock" role="dialog" aria-label={t('booking.travelTime')}>
@@ -143,7 +148,7 @@ export function LocaleTimeInput({ value, onChange, className }) {
                 className={hour === h ? 'is-active' : ''}
                 onClick={() => pick(h, minute && minutes.includes(minute) ? minute : '00')}
               >
-                {toArabicIndic(h)}
+                <span className="book-date-value" dir="ltr">{lang === 'ar' ? toArabicIndic(h) : h}</span>
               </button>
             ))}
           </div>
@@ -158,7 +163,7 @@ export function LocaleTimeInput({ value, onChange, className }) {
                   setOpen(false);
                 }}
               >
-                {toArabicIndic(m)}
+                <span className="book-date-value" dir="ltr">{lang === 'ar' ? toArabicIndic(m) : m}</span>
               </button>
             ))}
           </div>

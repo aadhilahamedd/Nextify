@@ -23,12 +23,12 @@ function About() {
               {t('about.intro', { year: formatNumber(COMPANY.foundedYear), founder: COMPANY.founder })}
             </p>
             <p className="mb-0 small" style={{ color: '#888', maxWidth: '540px' }}>
-              {t('about.tgaLine', { id: COMPANY.tga.organizationId, license: COMPANY.tga.licenseNumber })}
+              {t('about.tgaLine')}
             </p>
           </div>
           <div className="col-lg-5 d-flex justify-content-lg-end justify-content-center">
             <img
-              src="/images/about-mark.png"
+              src="/images/about-mark.webp"
               alt="Nextify Limo Service"
               style={{
                 display: 'block',

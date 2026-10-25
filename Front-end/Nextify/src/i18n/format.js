@@ -1,4 +1,4 @@
-import { parsePriceNumber, sarToUsd } from '../utils/currency';
+import { parsePriceNumber, roundSarDisplay, roundUsdDisplay, sarToUsd } from '../utils/currency';
 
 const ARABIC_DIGITS = {
   0: '٠',
@@ -43,7 +43,7 @@ export function formatDateForLang(value, lang = 'en') {
   if (!value) return '';
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return String(value);
-  return date.toLocaleDateString(lang === 'ar' ? 'ar-SA' : 'en-GB', {
+  return date.toLocaleDateString(lang === 'ar' ? 'ar-SA-u-ca-gregory' : 'en-GB', {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
@@ -54,7 +54,7 @@ export function formatDateTimeForLang(value, lang = 'en') {
   if (!value) return '';
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return String(value);
-  return date.toLocaleString(lang === 'ar' ? 'ar-SA' : 'en-GB', {
+  return date.toLocaleString(lang === 'ar' ? 'ar-SA-u-ca-gregory' : 'en-GB', {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
@@ -69,7 +69,7 @@ export function formatCarDayPriceForLang(car, lang = 'en') {
   const usd = parsePriceNumber(car.priceUsd) ?? (sar != null ? sarToUsd(sar) : null);
   if (sar == null && usd == null) return car.price || '';
   const parts = [];
-  if (sar != null) parts.push(formatSarForLang(sar, lang));
-  if (usd != null) parts.push(formatUsdForLang(usd, lang));
+  if (sar != null) parts.push(formatSarForLang(roundSarDisplay(sar), lang));
+  if (usd != null) parts.push(formatUsdForLang(roundUsdDisplay(usd), lang));
   return parts.join(' · ');
 }

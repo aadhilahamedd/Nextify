@@ -85,15 +85,33 @@ export function getEliteCollectionCars(cars = []) {
 
 export function getShowcaseRank(car) {
   const name = String(car?.name || '').toLowerCase();
-  if (name === 'gmc' || name.includes('gmc') || name.includes('yukon')) return 1;
-  return 100;
+  const type = String(car?.type || '').toLowerCase();
+  const text = `${name} ${type}`;
+
+  if (name === 'gmc' || name.includes('gmc') || name.includes('yukon') || name.includes('tahoe') || name.includes('suburban')) {
+    return 1;
+  }
+  if (text.includes('bus') || text.includes('coaster') || text.includes('coach')) {
+    return 4;
+  }
+  if (
+    text.includes('van') ||
+    text.includes('minivan') ||
+    text.includes('hiace') ||
+    text.includes('sprinter') ||
+    text.includes('v-class') ||
+    text.includes('evito')
+  ) {
+    return 3;
+  }
+  return 2;
 }
 
 export function sortCarsForShowcase(cars = []) {
   return [...cars].sort((a, b) => {
     const rankDiff = getShowcaseRank(a) - getShowcaseRank(b);
     if (rankDiff !== 0) return rankDiff;
-    return (a.id || 0) - (b.id || 0);
+    return String(a.name || '').localeCompare(String(b.name || ''));
   });
 }
 

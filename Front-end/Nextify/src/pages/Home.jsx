@@ -11,8 +11,8 @@ import { COMPANY_PHONE, getWhatsAppUrl } from '../utils/whatsapp'
 import { formatCarDayPriceForLang } from '../i18n/format'
 import { useLanguage } from '../i18n/LanguageContext'
 
-const HERO_IMAGE = '/images/hero/mercedes-s-class-premium.jpg';
-const HERO_IMAGE_MOBILE = '/images/hero/mercedes-s-class-premium-mobile.jpg';
+const HERO_IMAGE = '/images/hero/mercedes-s-class-premium.webp';
+const HERO_IMAGE_MOBILE = '/images/hero/mercedes-s-class-premium-mobile.webp';
 
 const brandLogos = [
   { name: 'Mercedes-Benz', src: '/images/brands/mercedes.webp' },
@@ -345,21 +345,7 @@ function Home() {
                   <p className="mb-2" style={{ color: '#f3e6c4', fontSize: '0.95rem' }}>
                     {t('home.tgaText')}
                   </p>
-                  <p className="tga-license-number mb-2">{COMPANY.tga.licenseNumber}</p>
-                  <p className="mb-1 small" style={{ color: '#d8c38a' }}>
-                    {t('home.tgaType')} · {t('home.tgaValid')} {COMPANY.tga.expiresLabel}
-                  </p>
-                  <p className="mb-3 small" style={{ color: '#aaa' }}>
-                    {t('home.companyId')} {COMPANY.tga.organizationId} · CR {COMPANY.tga.crNumber}
-                  </p>
-                  <a
-                    href={encodeURI(COMPANY.tga.document)}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="tga-license-link"
-                  >
-                    {t('home.viewTga')}
-                  </a>
+                  <p className="tga-license-number mb-0">{COMPANY.tga.licenseNumber}</p>
                 </div>
               </div>
 
@@ -426,7 +412,7 @@ function Home() {
           <div className="col-lg-5 pe-lg-5 mb-5 mb-lg-0">
             <div className="events-fleet-photo">
               <img
-                src="/images/events-bulk-fleet.jpg?v=2"
+                src="/images/events-bulk-fleet.webp"
                 alt="Nextify luxury SUVs and vans lined up for a bulk event"
               />
             </div>

@@ -3,12 +3,12 @@ import Container from 'react-bootstrap/Container';
 import { useLanguage } from '../i18n/LanguageContext';
 
 const clients = [
-  { name: 'Ajeej Capital', logo: '/images/Clients/AJEEJ capital.png', fit: 'wide' },
-  { name: 'Al Badiah Transportation', logo: '/images/Clients/Al badiah.png', fit: 'tall' },
-  { name: 'Care Solutions', logo: '/images/Clients/Care Solutions.png', fit: 'tall' },
-  { name: 'ITL World', logo: '/images/Clients/ITL Company.jpeg', fit: 'square' },
-  { name: 'Roland Berger', logo: '/images/Clients/Roland Berger.png', fit: 'wide' },
-  { name: 'Seven Seas Services', logo: '/images/Clients/Seven Seas Services.jpeg', fit: 'wide' },
+  { name: 'Ajeej Capital', logo: '/images/Clients/AJEEJ capital.webp', fit: 'wide' },
+  { name: 'Al Badiah Transportation', logo: '/images/Clients/Al badiah.webp', fit: 'tall' },
+  { name: 'Care Solutions', logo: '/images/Clients/Care Solutions.webp', fit: 'tall' },
+  { name: 'ITL World', logo: '/images/Clients/ITL Company.webp', fit: 'square' },
+  { name: 'Roland Berger', logo: '/images/Clients/Roland Berger.webp', fit: 'wide' },
+  { name: 'Seven Seas Services', logo: '/images/Clients/Seven Seas Services.webp', fit: 'wide' },
 ];
 
 export default function ClientSection() {

@@ -530,6 +530,12 @@ html[dir="rtl"] .dest-ac-list {
   cursor: pointer;
 }
 
+.book-date-value {
+  direction: ltr;
+  unicode-bidi: isolate;
+  display: inline-block;
+}
+
 html[dir="rtl"] .book-picker-trigger {
   text-align: right;
 }

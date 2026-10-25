@@ -15,6 +15,18 @@ export function sarToUsd(sar) {
   return Math.round((n / SAR_PER_USD) * 100) / 100;
 }
 
+export function roundUsdDisplay(amount) {
+  const n = Number(amount);
+  if (!Number.isFinite(n)) return null;
+  return Math.round(n);
+}
+
+export function roundSarDisplay(amount) {
+  const n = Number(amount);
+  if (!Number.isFinite(n)) return null;
+  return Math.round(n / 50) * 50;
+}
+
 export function formatMoney(amount, currency) {
   if (amount == null || !Number.isFinite(Number(amount))) return '';
   const n = Number(amount);

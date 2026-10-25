@@ -2,6 +2,17 @@ import React from 'react';
 import { getVehicleImage } from './bookingConstants';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { translatePlace, translateService, translateVehicle } from '../../i18n/places';
+import { toArabicIndic } from '../../i18n/format';
+
+function formatBookingWhen(dateValue, timeValue, lang) {
+  if (!dateValue) return '';
+  const [year, month, day] = String(dateValue).split('-');
+  if (!year || !month || !day) return dateValue;
+  const datePart = `${day}/${month}/${year}`;
+  const shown = [lang === 'ar' ? toArabicIndic(datePart) : datePart];
+  if (timeValue) shown.push(lang === 'ar' ? toArabicIndic(timeValue) : timeValue);
+  return <span dir="ltr" className="book-date-value">{shown.join(' ')}</span>;
+}
 
 export default function PriceSummary({ form, quote, compact = false }) {
   const { t, lang, formatSar } = useLanguage();
@@ -36,7 +47,7 @@ export default function PriceSummary({ form, quote, compact = false }) {
     form?.gccDestination && [t('booking.destLabel'), translatePlace(form.gccDestination, t, lang)],
     form?.vehicleName && [t('booking.vehicle'), translateVehicle(form?.vehicleCategory, form.vehicleName, t)],
     form?.durationType && [t('booking.durationLabel'), form.durationType === 'half_day' ? t('booking.halfDay') : t('booking.fullDay')],
-    form?.travelDate && [t('booking.date'), `${form.travelDate}${form.travelTime ? ` ${form.travelTime}` : ''}`],
+    form?.travelDate && [t('booking.date'), formatBookingWhen(form.travelDate, form.travelTime, lang)],
   ].filter(Boolean);
 
   if (!compact) {
