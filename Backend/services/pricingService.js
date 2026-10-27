@@ -7,6 +7,18 @@ const {
 
 const DEFAULT_CURRENCY = 'SAR';
 
+const CATEGORY_ALIASES = {
+  gmc_yukon: 'gmc',
+  gmc_tahoe: 'gmc',
+  chevrolet_suburban: 'gmc',
+  mini_van: 'toyota_hiace',
+};
+
+function normalizeVehicleCat(category) {
+  const cat = String(category || '').trim();
+  return CATEGORY_ALIASES[cat] || cat;
+}
+
 function customQuote(message) {
   return {
     success: true,
@@ -37,6 +49,8 @@ function fixedQuote(rule, extra = {}) {
 
 function matchVehicleCategory(rule, vehicleCategory, vehicleName) {
   if (rule.vehicleApplicability === 'all') return true;
+  const vCat = normalizeVehicleCat(vehicleCategory);
+  if (vCat && rule.vehicleCategory === vCat) return true;
   if (vehicleCategory && rule.vehicleCategory === vehicleCategory) return true;
   if (vehicleCategory && rule.vehicleNames?.length) {
     const catNorm = vehicleCategory.replace(/_/g, ' ').toLowerCase();
@@ -53,25 +67,33 @@ function matchVehicleCategory(rule, vehicleCategory, vehicleName) {
   return false;
 }
 
+function airportMatches(rule, airport) {
+  const airportNorm = (airport || '').toLowerCase();
+  if (!rule.airports?.length) return true;
+  if (!airportNorm) return true;
+  return rule.airports.some((a) => airportNorm.includes(a.toLowerCase()) || a.toLowerCase().includes(airportNorm));
+}
+
+function pickRule(rules, vehicleCategory, vehicleName, extraMatch = () => true) {
+  const vCat = normalizeVehicleCat(vehicleCategory);
+  const exact = rules.find((rule) => extraMatch(rule) && vCat && rule.vehicleCategory === vCat);
+  if (exact) return exact;
+  return rules.find((rule) => extraMatch(rule) && matchVehicleCategory(rule, vehicleCategory, vehicleName));
+}
+
 async function findAirportRule(airport, vehicleCategory, vehicleName) {
   const rules = await PricingRule.find({ serviceType: 'airport_transfer', active: true });
-  const airportNorm = (airport || '').toLowerCase();
-  return rules.find((rule) => {
-    const airportMatch =
-      !rule.airports?.length ||
-      rule.airports.some((a) => airportNorm.includes(a.toLowerCase()) || a.toLowerCase().includes(airportNorm));
-    return airportMatch && matchVehicleCategory(rule, vehicleCategory, vehicleName);
-  });
+  return pickRule(rules, vehicleCategory, vehicleName, (rule) => airportMatches(rule, airport));
 }
 
 async function findCityRule(vehicleCategory, vehicleName) {
   const rules = await PricingRule.find({ serviceType: 'city_transfer', active: true, origin: 'Riyadh' });
-  return rules.find((r) => matchVehicleCategory(r, vehicleCategory, vehicleName));
+  return pickRule(rules, vehicleCategory, vehicleName);
 }
 
 async function findChauffeurRule(vehicleCategory, vehicleName, durationType) {
   const rules = await PricingRule.find({ serviceType: 'chauffeur', active: true, durationType });
-  return rules.find((r) => matchVehicleCategory(r, vehicleCategory, vehicleName));
+  return pickRule(rules, vehicleCategory, vehicleName);
 }
 
 async function findIntercityRule(origin, destination, vehicleCategory, vehicleName) {
@@ -87,7 +109,7 @@ async function findIntercityRule(origin, destination, vehicleCategory, vehicleNa
   const allRule = rules.find((r) => r.vehicleApplicability === 'all');
   if (allRule) return allRule;
 
-  return rules.find((r) => matchVehicleCategory(r, vehicleCategory, vehicleName));
+  return pickRule(rules, vehicleCategory, vehicleName);
 }
 
 async function findGccRule(destination, vehicleCategory) {
@@ -118,7 +140,7 @@ async function calculatePrice(payload) {
     distanceKm,
   } = payload;
 
-  const vCat = vehicleCategory || vehicle?.category || '';
+  const vCat = normalizeVehicleCat(vehicleCategory || vehicle?.category || '');
   const vName = vehicleName || vehicle?.name || vehicle?.label || '';
 
   if (!serviceType) {
@@ -140,7 +162,7 @@ async function calculatePrice(payload) {
       }
       if (!vCat && !vName) return customQuote('Please select a vehicle.');
       const rule = await findCityRule(vCat, vName);
-      if (!rule) return customQuote('No fixed city transfer rate for this vehicle.');
+      if (!rule) return customQuote('City transfer is not available for this vehicle.');
       return fixedQuote(rule, { serviceType, origin: 'Riyadh', maxDistanceKm: 20 });
     }
 
@@ -150,6 +172,9 @@ async function calculatePrice(payload) {
       }
       if (!vCat && !vName) return customQuote('Please select a vehicle.');
       const rule = await findChauffeurRule(vCat, vName, durationType);
+      if (!rule && durationType === 'half_day') {
+        return customQuote('This vehicle is available for full day service only.');
+      }
       if (!rule) return customQuote('No chauffeur rate for this vehicle and duration. Custom quote required.');
       return fixedQuote(rule, { serviceType, durationType });
     }
@@ -174,7 +199,7 @@ async function calculatePrice(payload) {
       if (!vCat) return customQuote('Please select a GCC vehicle.');
       const result = await findGccRule(destination, vCat);
       if (result === 'invalid_vehicle') {
-        return customQuote('GCC transfers only support GMC Yukon, GMC Tahoe, and Chevrolet Suburban.');
+        return customQuote('GCC transfers only support GMC.');
       }
       if (!result) return customQuote('This GCC route requires a custom quote.');
       return fixedQuote(result, { serviceType, origin: 'Riyadh', destination: result.destination });

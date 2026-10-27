@@ -73,7 +73,7 @@ const TOOL_DEFINITIONS = [
         vehicleCategory: {
           type: ['string', 'null'],
           description:
-            'Vehicle category such as sedan, ford_taurus, prado_fortuner, gmc_yukon, gmc_tahoe, chevrolet_suburban, mini_van, mercedes_v_class',
+            'Vehicle category such as gmc, ford_taurus, lexus_es, bmw_5, bmw_7, mercedes_s, mercedes_e, mercedes_v_class, toyota_hiace, toyota_coaster',
         },
         vehicleName: {
           type: ['string', 'null'],
@@ -156,21 +156,24 @@ function emptyToNull(value) {
 function normalizeVehicleCategory(category, name) {
   const raw = `${category || ''} ${name || ''}`.toLowerCase();
   if (!raw.trim()) return { vehicleCategory: '', vehicleName: name || '' };
-  if (raw.includes('v-class') || raw.includes('v class') || raw.includes('evito')) {
+  if (raw.includes('coaster')) return { vehicleCategory: 'toyota_coaster', vehicleName: name || category };
+  if (raw.includes('hiace')) return { vehicleCategory: 'toyota_hiace', vehicleName: name || category };
+  if (raw.includes('coach')) return { vehicleCategory: 'mercedes_coach', vehicleName: name || category };
+  if (raw.includes('sprinter')) return { vehicleCategory: 'mercedes_sprinter', vehicleName: name || category };
+  if (raw.includes('evito') || (raw.includes('vito') && !raw.includes('v-class'))) {
+    return { vehicleCategory: 'mercedes_vito', vehicleName: name || category };
+  }
+  if (raw.includes('v-class') || raw.includes('v class')) {
     return { vehicleCategory: 'mercedes_v_class', vehicleName: name || category };
   }
   if (raw.includes('taurus')) return { vehicleCategory: 'ford_taurus', vehicleName: name || category };
-  if (raw.includes('coaster') || raw.includes('mini van') || raw.includes('minivan') || raw.includes('hiace')) {
-    return { vehicleCategory: 'mini_van', vehicleName: name || category };
-  }
-  if (raw.includes('suburban')) return { vehicleCategory: 'chevrolet_suburban', vehicleName: name || category };
-  if (raw.includes('tahoe')) return { vehicleCategory: 'gmc_tahoe', vehicleName: name || category };
-  if (raw.includes('yukon') || raw.includes('gmc')) return { vehicleCategory: 'gmc_yukon', vehicleName: name || category };
-  if (raw.includes('prado') || raw.includes('fortuner') || raw.includes('mini suv')) {
-    return { vehicleCategory: 'prado_fortuner', vehicleName: name || category };
-  }
-  if (raw.includes('sedan') || raw.includes('s-class') || raw.includes('es 350') || raw.includes('impala') || raw.includes('7 series') || raw.includes('5 series') || raw.includes('e-class')) {
-    return { vehicleCategory: 'sedan', vehicleName: name || category };
+  if (raw.includes('lexus') || raw.includes('es 350')) return { vehicleCategory: 'lexus_es', vehicleName: name || category };
+  if (raw.includes('e-class') || raw.includes('e class')) return { vehicleCategory: 'mercedes_e', vehicleName: name || category };
+  if (raw.includes('s-class') || raw.includes('s class')) return { vehicleCategory: 'mercedes_s', vehicleName: name || category };
+  if (raw.includes('5 series')) return { vehicleCategory: 'bmw_5', vehicleName: name || category };
+  if (raw.includes('7 series')) return { vehicleCategory: 'bmw_7', vehicleName: name || category };
+  if (raw.includes('suburban') || raw.includes('tahoe') || raw.includes('yukon') || raw.includes('gmc')) {
+    return { vehicleCategory: 'gmc', vehicleName: name || category };
   }
   return { vehicleCategory: category || '', vehicleName: name || '' };
 }

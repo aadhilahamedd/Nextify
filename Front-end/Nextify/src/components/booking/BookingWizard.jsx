@@ -5,7 +5,6 @@ import {
   SERVICE_TYPES,
   SERVICE_DESCRIPTIONS,
   AIRPORTS,
-  VEHICLES_BY_SERVICE,
   getVehicleImage,
   INTERCITY_ROUTES,
   GCC_DESTINATIONS,
@@ -14,10 +13,12 @@ import {
 } from './bookingConstants';
 import PriceSummary from './PriceSummary';
 import DestinationAutocomplete from './DestinationAutocomplete';
+import VehiclePicker from './VehiclePicker';
 import { LocaleDateInput, LocaleTimeInput } from './ArabicDateTime';
+import { FLEET_CLASS, findFleetVehicle, getVehiclesForService } from '../../data/fleetVehicles';
 import { calculatePriceAPI, createBookingAPI } from '../../Services/allAPI';
 import { useLanguage } from '../../i18n/LanguageContext';
-import { translatePlace, translateService, translateVehicle } from '../../i18n/places';
+import { translatePlace, translateService } from '../../i18n/places';
 import './Booking.css';
 
 const SERVICE_ICONS = {
@@ -38,6 +39,7 @@ function BookingWizard() {
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [vehicleFilter, setVehicleFilter] = useState('All');
   const wizardRef = useRef(null);
   const skipWizardScroll = useRef(true);
 
@@ -50,11 +52,25 @@ function BookingWizard() {
     [t]
   );
 
-  const vehicles = VEHICLES_BY_SERVICE[form.serviceType] || [];
+  const vehicles = useMemo(
+    () => getVehiclesForService(form.serviceType, vehicleFilter, form.durationType),
+    [form.serviceType, vehicleFilter, form.durationType]
+  );
+  const selectedVehicle = findFleetVehicle({ category: form.vehicleCategory, name: form.vehicleName });
   const today = new Date().toISOString().slice(0, 10);
+  const vehicleFilters = [
+    { id: 'All', label: t('fleet.all') },
+    { id: FLEET_CLASS.FIRST, label: t('fleet.firstClass') },
+    { id: FLEET_CLASS.BUSINESS, label: t('fleet.businessClass') },
+    { id: FLEET_CLASS.SUV, label: t('fleet.suv') },
+    { id: FLEET_CLASS.SEDAN, label: t('fleet.sedan') },
+    { id: FLEET_CLASS.VAN, label: t('fleet.van') },
+    { id: FLEET_CLASS.COACHES, label: t('fleet.coaches') },
+  ];
 
   useEffect(() => {
     const pre = location.state?.prefill;
+    const car = location.state?.car;
     if (pre?.serviceType) {
       setForm((f) => ({ ...f, serviceType: pre.serviceType }));
       setStep(1);
@@ -63,21 +79,36 @@ function BookingWizard() {
       setForm((f) => ({ ...f, serviceType: location.state.serviceType }));
       setStep(1);
     }
+    if (car) {
+      const fleet = findFleetVehicle(car);
+      if (fleet) {
+        setForm((f) => ({
+          ...f,
+          vehicleCategory: fleet.category,
+          vehicleName: fleet.label,
+          durationType: fleet.half == null ? 'full_day' : f.durationType,
+        }));
+        setVehicleFilter(fleet.fleetClass);
+        setStep(1);
+      }
+    }
   }, [location.state]);
+
+  useEffect(() => {
+    if (!form.vehicleCategory) return;
+    const allowed = getVehiclesForService(form.serviceType, 'All', form.durationType);
+    if (!allowed.some((v) => v.category === form.vehicleCategory)) {
+      setForm((f) => ({ ...f, vehicleCategory: '', vehicleName: '' }));
+      setQuote(null);
+    }
+  }, [form.serviceType, form.durationType]);
 
   const update = (patch) => {
     setForm((f) => ({ ...f, ...patch }));
-    const pricingKeys = [
-      'serviceType', 'vehicleCategory', 'vehicleName', 'airport', 'origin', 'destination',
-      'durationType', 'distanceKm', 'intercityRoute', 'gccDestination', 'pickupLocation',
-      'dropoffLocation', 'serviceLocation',
-    ];
-    if (Object.keys(patch).some((key) => pricingKeys.includes(key))) {
+    if (Object.prototype.hasOwnProperty.call(patch, 'vehicleCategory') && !patch.vehicleCategory) {
       setQuote(null);
     }
   };
-
-  const selectedVehicle = vehicles.find((v) => v.category === form.vehicleCategory);
 
   const buildPricingPayload = useCallback(() => {
     const route = INTERCITY_ROUTES.find((r) => r.label === form.intercityRoute);
@@ -100,6 +131,7 @@ function BookingWizard() {
 
   const fetchQuote = async () => {
     if (!form.vehicleCategory) return;
+    if (form.serviceType === 'chauffeur' && !form.durationType) return;
     setQuoteLoading(true);
     setError('');
     const res = await calculatePriceAPI(buildPricingPayload());
@@ -114,7 +146,20 @@ function BookingWizard() {
   useEffect(() => {
     if (form.vehicleCategory && step >= 1) fetchQuote();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.vehicleCategory, form.durationType, form.intercityRoute, form.gccDestination, form.distanceKm, form.serviceType]);
+  }, [
+    form.vehicleCategory,
+    form.vehicleName,
+    form.durationType,
+    form.intercityRoute,
+    form.gccDestination,
+    form.distanceKm,
+    form.serviceType,
+    form.airport,
+    form.destination,
+    form.origin,
+    form.pickupLocation,
+    form.dropoffLocation,
+  ]);
 
   useEffect(() => {
     if (skipWizardScroll.current) {
@@ -246,11 +291,21 @@ function BookingWizard() {
           <>
             <div className="col-12 col-md-6">
               <label className="book-label">{t('booking.pickup')}</label>
-              <input className="form-control book-input" value={form.pickupLocation} onChange={(e) => update({ pickupLocation: e.target.value, origin: 'Riyadh' })} placeholder={t('booking.pickupPh')} autoComplete="street-address" />
+              <DestinationAutocomplete
+                id="booking-pickup"
+                value={form.pickupLocation}
+                onChange={(pickupLocation) => update({ pickupLocation, origin: pickupLocation || 'Riyadh' })}
+                placeholder={t('booking.pickupPh')}
+              />
             </div>
             <div className="col-12 col-md-6">
               <label className="book-label">{t('booking.dropoff')}</label>
-              <input className="form-control book-input" value={form.dropoffLocation} onChange={(e) => update({ dropoffLocation: e.target.value, destination: e.target.value })} placeholder={t('booking.dropoffPh')} autoComplete="street-address" />
+              <DestinationAutocomplete
+                id="booking-dropoff"
+                value={form.dropoffLocation}
+                onChange={(dropoffLocation) => update({ dropoffLocation, destination: dropoffLocation })}
+                placeholder={t('booking.dropoffPh')}
+              />
             </div>
             <div className="col-12 col-md-6">
               <label className="book-label">{t('booking.distance')}</label>
@@ -264,13 +319,20 @@ function BookingWizard() {
           <>
             <div className="col-12 col-md-7">
               <label className="book-label">{t('booking.location')}</label>
-              <input className="form-control book-input" value={form.serviceLocation} onChange={(e) => update({ serviceLocation: e.target.value, pickupLocation: e.target.value })} placeholder={t('booking.locationPh')} autoComplete="street-address" />
+              <DestinationAutocomplete
+                id="booking-service-location"
+                value={form.serviceLocation}
+                onChange={(serviceLocation) => update({ serviceLocation, pickupLocation: serviceLocation })}
+                placeholder={t('booking.locationPh')}
+              />
             </div>
             <div className="col-12 col-md-5">
               <span className="book-label">{t('booking.duration')}</span>
               <div className="book-choice-grid">
                 {DURATION_OPTIONS.map((d) => (
-                  <Choice key={d.value} active={form.durationType === d.value} onClick={() => update({ durationType: d.value })}>{d.value === 'half_day' ? t('booking.halfDay') : t('booking.fullDay')}</Choice>
+                  <Choice key={d.value} active={form.durationType === d.value} onClick={() => update({ durationType: d.value })}>
+                    {d.value === 'half_day' ? t('booking.halfDayHrs') : t('booking.fullDayHrs')}
+                  </Choice>
                 ))}
               </div>
             </div>
@@ -317,7 +379,7 @@ function BookingWizard() {
 
   const summary = (
     <div className="book-summary-wrap">
-      {quoteLoading && <p className="book-empty-quote mb-3">{t('booking.confirming')}</p>}
+      {quoteLoading && !quote && <p className="book-empty-quote mb-3">{t('booking.confirming')}</p>}
       {!quote && !quoteLoading && (
         <div className="book-summary">
           <p className="book-kicker mb-2">{t('booking.fare')}</p>
@@ -391,7 +453,8 @@ function BookingWizard() {
                   type="button"
                   className={`book-service-card${form.serviceType === s.value ? ' is-active' : ''}`}
                   onClick={() => {
-                    update({ serviceType: s.value, vehicleCategory: '', vehicleName: '' });
+                    update({ serviceType: s.value, vehicleCategory: '', vehicleName: '', durationType: '' });
+                    setVehicleFilter('All');
                     setError('');
                     setStep(1);
                   }}
@@ -444,18 +507,39 @@ function BookingWizard() {
                       </div>
                     </div>
                     <h3 className="book-section-title mt-4">{t('booking.chooseVehicle')}</h3>
-                    <div className="book-choice-grid">
-                      {vehicles.map((v) => (
-                        <Choice
-                          key={v.category}
-                          active={form.vehicleCategory === v.category}
-                          onClick={() => update({ vehicleCategory: v.category, vehicleName: v.label })}
+                    <div className="book-vehicle-filters">
+                      {vehicleFilters.map((option) => (
+                        <button
+                          key={option.id}
+                          type="button"
+                          className={`book-vehicle-chip${vehicleFilter === option.id ? ' is-active' : ''}`}
+                          onClick={() => setVehicleFilter(option.id)}
                         >
-                          {translateVehicle(v.category, v.label, t)}
-                          <small>{t('booking.chauffeurIncluded')}</small>
-                        </Choice>
+                          {option.label}
+                        </button>
                       ))}
                     </div>
+                    <VehiclePicker
+                      vehicles={vehicles}
+                      value={form.vehicleCategory}
+                      placeholder={form.serviceType === 'chauffeur' && !form.durationType ? t('booking.pickDurationFirst') : t('booking.pickVehicle')}
+                      onChange={(v) => update({
+                        vehicleCategory: v.category,
+                        vehicleName: v.label,
+                      })}
+                    />
+                    {form.serviceType === 'chauffeur' && form.durationType === 'half_day' && (
+                      <span className="book-hint">{t('booking.halfDayVehicles')}</span>
+                    )}
+                    {form.serviceType === 'chauffeur' && form.durationType === 'full_day' && (
+                      <span className="book-hint">{t('booking.fullDayVehicles')}</span>
+                    )}
+                    {selectedVehicle?.fullDayNote && (
+                      <span className="book-hint">{t('booking.coachNote')}</span>
+                    )}
+                    {form.serviceType === 'city_transfer' && selectedVehicle?.city == null && form.vehicleCategory && (
+                      <span className="book-hint">{t('booking.cityUnavailable')}</span>
+                    )}
                     <div className="book-actions">
                       <button type="button" className="lux-btn" style={{ padding: '12px 28px' }} onClick={() => { if (validateTrip()) setStep(2); }}>
                         {t('booking.continue')}

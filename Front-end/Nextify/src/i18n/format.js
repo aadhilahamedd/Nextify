@@ -1,3 +1,4 @@
+import { findFleetVehicle } from '../data/fleetVehicles';
 import { parsePriceNumber, roundSarDisplay, roundUsdDisplay, sarToUsd } from '../utils/currency';
 
 const ARABIC_DIGITS = {
@@ -65,11 +66,13 @@ export function formatDateTimeForLang(value, lang = 'en') {
 
 export function formatCarDayPriceForLang(car, lang = 'en') {
   if (!car) return '';
-  const sar = parsePriceNumber(car.price);
+  const fleet = findFleetVehicle(car);
+  const fromFleet = fleet?.full != null;
+  const sar = fromFleet ? fleet.full : parsePriceNumber(car.price);
   const usd = parsePriceNumber(car.priceUsd) ?? (sar != null ? sarToUsd(sar) : null);
   if (sar == null && usd == null) return car.price || '';
   const parts = [];
-  if (sar != null) parts.push(formatSarForLang(roundSarDisplay(sar), lang));
+  if (sar != null) parts.push(formatSarForLang(fromFleet ? sar : roundSarDisplay(sar), lang));
   if (usd != null) parts.push(formatUsdForLang(roundUsdDisplay(usd), lang));
   return parts.join(' · ');
 }

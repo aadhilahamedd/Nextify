@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import Container from 'react-bootstrap/Container'
 import { useNavigate } from 'react-router-dom'
 import { applyLocalCarImages, getCarImageUrl, initialCars, sortCarsForShowcase } from '../utils/carsStorage'
+import { FLEET_CLASS, getFleetClass } from '../data/fleetVehicles'
 import { getCarsAPI, addCarAPI, updateCarAPI, deleteCarAPI, getPricingRulesAPI } from '../Services/allAPI'
 import VehiclePricingDisplay from './pricing/VehiclePricingDisplay'
 import { formatCarDayPriceForLang } from '../i18n/format'
@@ -195,26 +196,27 @@ function Carlist() {
   }
 
   const getCarCategory = (car) => {
+    const fleetClass = getFleetClass(car)
+    if (fleetClass) return fleetClass
     const type = String(car.type || '').toLowerCase()
     const name = String(car.name || '').toLowerCase()
 
-    if (type.includes('suv') || name.includes('gmc') || name.includes('yukon') || name.includes('tahoe') || name.includes('suburban')) return 'SUV'
-    if (type.includes('coach') || type.includes('bus') || type.includes('mini bus') || name.includes('coaster')) return 'Coaches'
-    if (type.includes('van') || type.includes('minivan') || type.includes('passenger van') || name.includes('hiace') || name.includes('sprinter') || name.includes('v-class')) return 'Van'
-    if (type.includes('sedan')) return 'Sedan'
-
-    // Premium tiers (simple mapping by model keywords)
-    if (name.includes('s-class') || name.includes('7 series')) return 'First class'
-    return 'Sedan'
+    if (type.includes('suv') || name.includes('gmc') || name.includes('yukon') || name.includes('tahoe') || name.includes('suburban')) return FLEET_CLASS.SUV
+    if (type.includes('coach') || type.includes('bus') || type.includes('mini bus') || name.includes('coaster')) return FLEET_CLASS.COACHES
+    if (type.includes('van') || type.includes('minivan') || type.includes('passenger van') || name.includes('hiace') || name.includes('sprinter') || name.includes('v-class')) return FLEET_CLASS.VAN
+    if (name.includes('s-class') || name.includes('7 series')) return FLEET_CLASS.FIRST
+    if (name.includes('e-class') || name.includes('5 series')) return FLEET_CLASS.BUSINESS
+    return FLEET_CLASS.SEDAN
   }
 
   const filterOptions = [
     { id: 'All', label: t('fleet.all') },
-    { id: 'First class', label: t('fleet.firstClass') },
-    { id: 'SUV', label: t('fleet.suv') },
-    { id: 'Sedan', label: t('fleet.sedan') },
-    { id: 'Van', label: t('fleet.van') },
-    { id: 'Coaches', label: t('fleet.coaches') },
+    { id: FLEET_CLASS.FIRST, label: t('fleet.firstClass') },
+    { id: FLEET_CLASS.BUSINESS, label: t('fleet.businessClass') },
+    { id: FLEET_CLASS.SUV, label: t('fleet.suv') },
+    { id: FLEET_CLASS.SEDAN, label: t('fleet.sedan') },
+    { id: FLEET_CLASS.VAN, label: t('fleet.van') },
+    { id: FLEET_CLASS.COACHES, label: t('fleet.coaches') },
   ]
 
   const filteredCars = sortCarsForShowcase(cars).filter((car) => {

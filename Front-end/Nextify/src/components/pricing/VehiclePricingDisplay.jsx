@@ -9,6 +9,7 @@ export default function VehiclePricingDisplay({ rules, car, compact = false }) {
   if (!hints.length) return null;
 
   const money = (h) => {
+    if (h.unavailable) return t('booking.cityUnavailable');
     const parts = [];
     if (h.price != null) parts.push(formatSar(h.price));
     if (h.priceUsd != null) parts.push(formatUsd(h.priceUsd));
@@ -16,7 +17,9 @@ export default function VehiclePricingDisplay({ rules, car, compact = false }) {
   };
 
   const suffix = (h) => {
+    if (h.unavailable) return '';
     if (h.suffix?.includes('Half Day')) return ` / ${t('booking.halfDay')}`;
+    if (h.suffix?.includes('Full Day')) return ` / ${t('booking.fullDay')}`;
     if (h.suffix?.includes('from')) return ` (${t('rates.from')})`;
     return h.suffix || '';
   };
@@ -27,7 +30,7 @@ export default function VehiclePricingDisplay({ rules, car, compact = false }) {
         {hints.map((h) => (
           <div key={h.serviceType} className="d-flex justify-content-between" style={{ fontSize: '0.9rem' }}>
             <span style={{ color: '#a0a0a0' }}>{translateService(h.serviceType, t)}</span>
-            <span style={{ color: '#eeb012', fontWeight: 600 }}>
+            <span style={{ color: h.unavailable ? '#888' : '#eeb012', fontWeight: 600 }}>
               {money(h)}{suffix(h)}
             </span>
           </div>

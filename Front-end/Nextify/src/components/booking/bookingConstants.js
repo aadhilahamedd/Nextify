@@ -1,3 +1,5 @@
+import { FLEET_VEHICLES, getVehicleImageByCategory, getVehiclesForService } from '../../data/fleetVehicles';
+
 export const SERVICE_TYPES = {
   AIRPORT: 'airport_transfer',
   CITY: 'city_transfer',
@@ -24,53 +26,18 @@ export const SERVICE_DESCRIPTIONS = {
 
 export const AIRPORTS = ['Riyadh', 'Jeddah', 'Dammam'];
 
-export const VEHICLE_IMAGES = {
-  sedan: '/images/cars/mercedes-s-class.webp',
-  ford_taurus: '/images/cars/ford-taurus.webp',
-  prado_fortuner: '/images/cars/gmc-tahoe.webp',
-  gmc_yukon: '/images/cars/gmc-yukon-xl-at4.webp',
-  mini_van: '/images/cars/toyota-hiace.webp',
-  mercedes_v_class: '/images/cars/mercedes-v-class.webp',
-  mini_suv: '/images/cars/bmw-5-series.webp',
-  chevrolet_suburban: '/images/cars/chevrolet-suburban.webp',
-  gmc_tahoe: '/images/cars/gmc-tahoe.webp',
-};
+export const VEHICLE_IMAGES = Object.fromEntries(FLEET_VEHICLES.map((v) => [v.category, v.image]));
 
 export function getVehicleImage(category) {
-  return VEHICLE_IMAGES[category] || '';
+  return getVehicleImageByCategory(category) || VEHICLE_IMAGES[category] || '';
 }
 
 export const VEHICLES_BY_SERVICE = {
-  airport_transfer: [
-    { category: 'sedan', label: 'Sedan' },
-    { category: 'ford_taurus', label: 'Ford Taurus' },
-    { category: 'prado_fortuner', label: 'Prado / Fortuner' },
-    { category: 'gmc_yukon', label: 'GMC Yukon / Tahoe / Chevrolet Suburban' },
-    { category: 'mini_van', label: 'Mini Van / Toyota Coaster' },
-    { category: 'mercedes_v_class', label: 'Mercedes V-Class' },
-  ],
-  city_transfer: [
-    { category: 'sedan', label: 'Sedan' },
-    { category: 'prado_fortuner', label: 'Prado / Fortuner' },
-    { category: 'gmc_yukon', label: 'GMC Yukon' },
-  ],
-  chauffeur: [
-    { category: 'sedan', label: 'Sedan' },
-    { category: 'prado_fortuner', label: 'Prado / Fortuner' },
-    { category: 'gmc_yukon', label: 'GMC Yukon' },
-  ],
-  intercity_transfer: [
-    { category: 'sedan', label: 'Sedan' },
-    { category: 'prado_fortuner', label: 'Prado / Fortuner' },
-    { category: 'mini_suv', label: 'Mini SUV' },
-    { category: 'gmc_yukon', label: 'GMC Yukon' },
-    { category: 'chevrolet_suburban', label: 'Chevrolet Suburban' },
-  ],
-  gcc_transfer: [
-    { category: 'gmc_yukon', label: 'GMC Yukon' },
-    { category: 'gmc_tahoe', label: 'GMC Tahoe' },
-    { category: 'chevrolet_suburban', label: 'Chevrolet Suburban' },
-  ],
+  airport_transfer: getVehiclesForService('airport_transfer'),
+  city_transfer: getVehiclesForService('city_transfer'),
+  chauffeur: getVehiclesForService('chauffeur'),
+  intercity_transfer: getVehiclesForService('intercity_transfer'),
+  gcc_transfer: getVehiclesForService('gcc_transfer'),
 };
 
 export const INTERCITY_ROUTES = [

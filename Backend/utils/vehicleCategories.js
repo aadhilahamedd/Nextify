@@ -1,38 +1,54 @@
-const GCC_CATEGORIES = ['gmc_yukon', 'gmc_tahoe', 'chevrolet_suburban'];
+const GCC_CATEGORIES = ['gmc', 'gmc_yukon', 'gmc_tahoe', 'chevrolet_suburban'];
 
 const GCC_LABELS = {
-  gmc_yukon: 'GMC Yukon',
+  gmc: 'GMC',
+  gmc_yukon: 'GMC',
   gmc_tahoe: 'GMC Tahoe',
   chevrolet_suburban: 'Chevrolet Suburban',
 };
 
 const SERVICE_VEHICLE_OPTIONS = {
   airport_transfer: [
-    { category: 'sedan', label: 'Sedan' },
+    { category: 'gmc', label: 'GMC' },
+    { category: 'bmw_5', label: 'BMW 5 Series' },
+    { category: 'bmw_7', label: 'BMW 7 Series' },
     { category: 'ford_taurus', label: 'Ford Taurus' },
-    { category: 'prado_fortuner', label: 'Prado / Fortuner' },
-    { category: 'gmc_yukon', label: 'GMC Yukon / Tahoe / Chevrolet Suburban' },
-    { category: 'mini_van', label: 'Mini Van / Toyota Coaster' },
-    { category: 'mercedes_v_class', label: 'Mercedes V-Class' },
+    { category: 'lexus_es', label: 'Lexus ES 350' },
+    { category: 'mercedes_e', label: 'Mercedes-Benz E-Class' },
+    { category: 'mercedes_s', label: 'Mercedes-Benz S-Class' },
+    { category: 'mercedes_vito', label: 'Mercedes-Benz Vito' },
+    { category: 'mercedes_sprinter', label: 'Mercedes-Benz Sprinter' },
+    { category: 'mercedes_v_class', label: 'Mercedes-Benz V-Class' },
+    { category: 'toyota_hiace', label: 'Toyota Hiace' },
+    { category: 'mercedes_coach', label: 'Mercedes-Benz Coach Bus' },
+    { category: 'toyota_coaster', label: 'Toyota Coaster' },
   ],
   city_transfer: [
-    { category: 'sedan', label: 'Sedan' },
-    { category: 'prado_fortuner', label: 'Prado / Fortuner' },
-    { category: 'gmc_yukon', label: 'GMC Yukon' },
+    { category: 'gmc', label: 'GMC' },
+    { category: 'ford_taurus', label: 'Ford Taurus' },
+    { category: 'lexus_es', label: 'Lexus ES 350' },
   ],
   chauffeur: [
-    { category: 'sedan', label: 'Sedan' },
-    { category: 'prado_fortuner', label: 'Prado / Fortuner' },
-    { category: 'gmc_yukon', label: 'GMC Yukon' },
+    { category: 'gmc', label: 'GMC' },
+    { category: 'bmw_5', label: 'BMW 5 Series' },
+    { category: 'bmw_7', label: 'BMW 7 Series' },
+    { category: 'ford_taurus', label: 'Ford Taurus' },
+    { category: 'lexus_es', label: 'Lexus ES 350' },
+    { category: 'mercedes_e', label: 'Mercedes-Benz E-Class' },
+    { category: 'mercedes_s', label: 'Mercedes-Benz S-Class' },
+    { category: 'mercedes_vito', label: 'Mercedes-Benz Vito' },
+    { category: 'mercedes_sprinter', label: 'Mercedes-Benz Sprinter' },
+    { category: 'mercedes_v_class', label: 'Mercedes-Benz V-Class' },
+    { category: 'toyota_hiace', label: 'Toyota Hiace' },
+    { category: 'mercedes_coach', label: 'Mercedes-Benz Coach Bus' },
+    { category: 'toyota_coaster', label: 'Toyota Coaster' },
   ],
   intercity_transfer: [
-    { category: 'sedan', label: 'Sedan' },
-    { category: 'prado_fortuner', label: 'Prado / Fortuner' },
-    { category: 'mini_suv', label: 'Mini SUV' },
-    { category: 'gmc_yukon', label: 'GMC Yukon' },
-    { category: 'chevrolet_suburban', label: 'Chevrolet Suburban' },
+    { category: 'gmc', label: 'GMC' },
+    { category: 'ford_taurus', label: 'Ford Taurus' },
+    { category: 'lexus_es', label: 'Lexus ES 350' },
   ],
-  gcc_transfer: GCC_CATEGORIES.map((c) => ({ category: c, label: GCC_LABELS[c] })),
+  gcc_transfer: [{ category: 'gmc', label: 'GMC' }],
 };
 
 const INTERCITY_ROUTES = [

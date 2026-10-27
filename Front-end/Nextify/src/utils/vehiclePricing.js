@@ -1,59 +1,40 @@
 import { SERVICE_LABELS } from '../components/booking/bookingConstants';
+import { findFleetVehicle } from '../data/fleetVehicles';
 
 export function inferVehicleCategory(car) {
-  const name = String(car?.name || '').toLowerCase();
-  const type = String(car?.type || '').toLowerCase();
+  return findFleetVehicle(car)?.category || null;
+}
 
-  if (name.includes('taurus')) return 'ford_taurus';
-  if (name.includes('prado') || name.includes('fortuner')) return 'prado_fortuner';
-  if (name.includes('suburban')) return 'chevrolet_suburban';
-  if (name.includes('tahoe')) return 'gmc_tahoe';
-  if (name === 'gmc' || name.includes('gmc') || name.includes('yukon')) return 'gmc_yukon';
-  if (name.includes('v-class') || name.includes('v class')) return 'mercedes_v_class';
-  if (name.includes('coaster') || type.includes('coach')) return 'toyota_coaster';
-  if (type.includes('van') || name.includes('hiace') || name.includes('sprinter')) return 'mini_van';
-  if (type.includes('suv')) return 'gmc_yukon';
-  if (type.includes('sedan') || name.includes('7 series') || name.includes('s-class') || name.includes('es 350')) {
-    return 'sedan';
+export function getVehiclePricingHints(_rules, car) {
+  const fleet = findFleetVehicle(car);
+  if (!fleet) return [];
+
+  const hints = [
+    { serviceType: 'airport_transfer', label: SERVICE_LABELS.airport_transfer, price: fleet.airport },
+  ];
+
+  if (fleet.city != null) {
+    hints.push({ serviceType: 'city_transfer', label: SERVICE_LABELS.city_transfer, price: fleet.city });
+  } else {
+    hints.push({ serviceType: 'city_transfer', label: SERVICE_LABELS.city_transfer, unavailable: true });
   }
-  return null;
-}
 
-function ruleMatchesVehicle(rule, category) {
-  if (rule.vehicleApplicability === 'all') return true;
-  if (rule.vehicleCategory === category) return true;
-  return false;
-}
-
-export function getVehiclePricingHints(rules, car) {
-  const category = inferVehicleCategory(car);
-  if (!category || !Array.isArray(rules)) return [];
-
-  const hints = [];
-  const services = ['airport_transfer', 'city_transfer', 'chauffeur', 'intercity_transfer', 'gcc_transfer'];
-
-  for (const serviceType of services) {
-    const serviceRules = rules.filter((r) => r.serviceType === serviceType && r.active !== false);
-    const matched = serviceRules.filter((r) => ruleMatchesVehicle(r, category));
-    if (!matched.length) continue;
-
-    if (serviceType === 'chauffeur') {
-      const half = matched.find((r) => r.durationType === 'half_day');
-      if (half) {
-        hints.push({ serviceType, label: SERVICE_LABELS[serviceType], price: half.price, priceUsd: half.priceUsd, suffix: '/ Half Day' });
-      }
-      continue;
-    }
-
-    const cheapest = matched.reduce((best, rule) => (rule.price < best.price ? rule : best), matched[0]);
+  if (fleet.half != null) {
     hints.push({
-      serviceType,
-      label: SERVICE_LABELS[serviceType],
-      price: cheapest.price,
-      priceUsd: cheapest.priceUsd,
-      suffix: serviceType === 'intercity_transfer' ? ' (from)' : '',
+      serviceType: 'chauffeur',
+      label: SERVICE_LABELS.chauffeur,
+      price: fleet.half,
+      suffix: '/ Half Day',
     });
   }
 
-  return hints.slice(0, 3);
+  hints.push({
+    serviceType: 'chauffeur_full',
+    label: SERVICE_LABELS.chauffeur,
+    price: fleet.full,
+    suffix: '/ Full Day',
+    note: fleet.fullDayNote ? 'destination' : '',
+  });
+
+  return hints;
 }
