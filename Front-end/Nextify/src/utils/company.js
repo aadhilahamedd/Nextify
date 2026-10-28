@@ -1,6 +1,7 @@
 export const COMPANY = {
   name: 'Nextify',
-  legalName: 'Nextify',
+  legalName: 'NEXTIFY BUSINESS SERVICE',
+  brand: 'NEXTIFY LIMO',
   founder: 'Mohammed Saleh Al Salem',
   foundedYear: 2011,
   tagline: 'Luxury chauffeur and ground transportation in Saudi Arabia.',

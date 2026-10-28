@@ -11,6 +11,31 @@ import { COMPANY } from '../utils/company'
 import { useLanguage } from '../i18n/LanguageContext'
 import './booking/Booking.css'
 
+const STALE_EMAILS = ['hello@nextify.sa', 'Support@nextify.com', 'info@nextify.sa']
+const STALE_PHONE_DIGITS = ['555876331', '537628099']
+const DEFAULT_TITLE = 'NEXTIFY LIMO | Luxury Chauffeur Service in Saudi Arabia'
+
+function phoneDigits(phone) {
+  return String(phone || '').replace(/\D/g, '')
+}
+
+function isStalePhone(phone) {
+  const digits = phoneDigits(phone)
+  return STALE_PHONE_DIGITS.some((part) => digits.includes(part))
+}
+
+function sanitizeContact(info = {}) {
+  const email = STALE_EMAILS.includes(info.email) ? COMPANY.email : (info.email || COMPANY.email)
+  const phone = isStalePhone(info.phone) ? COMPANY.phonePrimary : (info.phone || COMPANY.phonePrimary)
+  const location = info.location || COMPANY.addressLines.join(', ')
+  return { phone, email, location }
+}
+
+function telHref(phone) {
+  const digits = phoneDigits(phone)
+  return digits ? `tel:+${digits}` : undefined
+}
+
 function Contact() {
   const { t } = useLanguage()
   const [formData, setFormData] = useState({
@@ -31,11 +56,12 @@ function Contact() {
   const [contactInfo, setContactInfo] = useState(() => {
     try {
       const saved = JSON.parse(localStorage.getItem('nextifyContactInfo') || 'null')
-      if (saved?.email === 'hello@nextify.sa' || saved?.email === 'Support@nextify.com' || saved?.email === 'info@nextify.sa') {
+      if (!saved) return contactDefaults
+      if (STALE_EMAILS.includes(saved.email) || isStalePhone(saved.phone)) {
         localStorage.removeItem('nextifyContactInfo')
         return contactDefaults
       }
-      return saved || contactDefaults
+      return sanitizeContact(saved)
     } catch {
       return contactDefaults
     }
@@ -64,11 +90,7 @@ function Contact() {
         }
         const data = await response.json()
         if (data.contact && !hasCachedContact) {
-          setContactInfo({
-            phone: data.contact.phone,
-            email: data.contact.email,
-            location: data.contact.location
-          })
+          setContactInfo(sanitizeContact(data.contact))
         }
         setError('')
       } catch (err) {
@@ -86,6 +108,23 @@ function Contact() {
   useEffect(() => {
     setContactDraft(contactInfo)
   }, [contactInfo])
+
+  useEffect(() => {
+    const previousTitle = document.title
+    const previousDescription = document.querySelector('meta[name="description"]')?.getAttribute('content') || ''
+    document.title = `${t('nav.contact')} | NEXTIFY LIMO`
+    const meta = document.querySelector('meta[name="description"]')
+    if (meta) {
+      meta.setAttribute(
+        'content',
+        `Contact NEXTIFY LIMO, the chauffeur brand of NEXTIFY BUSINESS SERVICE. Email ${COMPANY.email}. Phone ${COMPANY.phonePrimary}. ${COMPANY.addressLines.join(', ')}`
+      )
+    }
+    return () => {
+      document.title = previousTitle || DEFAULT_TITLE
+      if (meta) meta.setAttribute('content', previousDescription)
+    }
+  }, [t])
 
   const startEditContact = () => {
     setContactDraft(contactInfo)
@@ -150,6 +189,9 @@ function Contact() {
           </h2>
           <p className="mx-auto" style={{ maxWidth: '680px', color: '#bfbfbf', lineHeight: '1.8' }}>
             {t('contact.lead')}
+          </p>
+          <p className="mx-auto mt-3" style={{ maxWidth: '680px', color: '#c8a261', lineHeight: '1.8' }}>
+            {t('contact.identity')}
           </p>
           {isAdmin && !editingContact && (
             <button
@@ -217,7 +259,11 @@ function Contact() {
               </div>
               <div className="contact-info-copy">
                 <h5 className="contact-info-title">{t('contact.call')}</h5>
-                {loading ? <p className="contact-info-hint">{t('contact.loading')}</p> : <p className="contact-info-value ltr-num" dir="ltr">{contactInfo.phone}</p>}
+                {loading ? <p className="contact-info-hint">{t('contact.loading')}</p> : (
+                  <p className="contact-info-value ltr-num" dir="ltr">
+                    <a href={telHref(contactInfo.phone)}>{contactInfo.phone}</a>
+                  </p>
+                )}
                 <p className="contact-info-hint">{t('contact.available247')}</p>
               </div>
             </div>
@@ -229,7 +275,11 @@ function Contact() {
               </div>
               <div className="contact-info-copy">
                 <h5 className="contact-info-title">{t('contact.email')}</h5>
-                {loading ? <p className="contact-info-hint">{t('contact.loading')}</p> : <p className="contact-info-value">{contactInfo.email}</p>}
+                {loading ? <p className="contact-info-hint">{t('contact.loading')}</p> : (
+                  <p className="contact-info-value">
+                    <a href={`mailto:${contactInfo.email}`}>{contactInfo.email}</a>
+                  </p>
+                )}
                 <p className="contact-info-hint">{t('contact.emailHint')}</p>
               </div>
             </div>
@@ -241,7 +291,15 @@ function Contact() {
               </div>
               <div className="contact-info-copy">
                 <h5 className="contact-info-title">{t('contact.location')}</h5>
-                {loading ? <p className="contact-info-hint">{t('contact.loading')}</p> : <p className="contact-info-value">{contactInfo.location}</p>}
+                {loading ? <p className="contact-info-hint">{t('contact.loading')}</p> : (
+                  <p className="contact-info-value">
+                    {String(contactInfo.location || '').includes('4576')
+                      ? COMPANY.addressLines.map((line) => (
+                        <React.Fragment key={line}>{line}<br /></React.Fragment>
+                      ))
+                      : contactInfo.location}
+                  </p>
+                )}
                 <p className="contact-info-hint">{t('contact.locationHint')}</p>
               </div>
             </div>

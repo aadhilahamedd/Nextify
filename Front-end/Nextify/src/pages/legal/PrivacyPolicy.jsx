@@ -1,4 +1,3 @@
-import React from 'react';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { getPrivacyContent } from '../../data/legalContent';
 import LegalDocument from './LegalDocument';

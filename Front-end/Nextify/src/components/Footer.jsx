@@ -86,6 +86,7 @@ function Footer() {
           <div className="d-flex flex-wrap justify-content-center gap-3 gap-md-4">
             <Link to="/privacy-policy" className="text-white-50 small text-decoration-none">{t('footer.privacy')}</Link>
             <Link to="/terms-and-conditions" className="text-white-50 small text-decoration-none">{t('footer.terms')}</Link>
+            <Link to="/contact" className="text-white-50 small text-decoration-none">{t('footer.contact')}</Link>
           </div>
           <div className="d-flex gap-4">
             <a href={COMPANY.website} target="_blank" rel="noreferrer" className="text-white-50"><i className="bi bi-globe fs-5"></i></a>
