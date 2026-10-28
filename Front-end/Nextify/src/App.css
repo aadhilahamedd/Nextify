@@ -114,11 +114,23 @@
 }
 
 .hero-title {
+  display: flex;
+  flex-direction: column;
   font-family: Georgia, serif;
   font-size: clamp(1.7rem, 3.4vw, 2.6rem);
-  font-weight: 400;
   line-height: 1.25;
+  color: #fff;
   max-width: 16ch;
+}
+
+.hero-title-thin {
+  display: block;
+  font-weight: 400;
+}
+
+.hero-title-thick {
+  display: block;
+  font-weight: 700;
 }
 
 .hero-desc {
@@ -276,7 +288,6 @@
   }
   .hero-simple-btn:nth-child(2) {
     justify-content: flex-start;
-    padding-right: 4.75rem;
   }
   .hero-simple-btn:hover,
   .hero-simple-btn:focus {
@@ -284,27 +295,6 @@
   }
   .hero-simple-btn i {
     font-size: 1.15rem;
-    color: #fff;
-  }
-  .hero-simple-wa {
-    position: absolute;
-    right: 14px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 52px;
-    height: 52px;
-    border-radius: 50%;
-    background: #25d366;
-    color: #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.45rem;
-    text-decoration: none;
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
-  }
-  .hero-simple-wa:hover,
-  .hero-simple-wa:focus {
     color: #fff;
   }
 }
@@ -977,14 +967,56 @@
   color: #c8a261;
 }
 
+.service-rate-col {
+  opacity: 0;
+  transform: translateY(56px);
+}
+
+.service-rates.is-inview .service-rate-col {
+  animation: service-rate-rise 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--rise-delay, 0ms);
+}
+
+@keyframes service-rate-rise {
+  from {
+    opacity: 0;
+    transform: translateY(56px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .service-rate-card {
+  position: relative;
+  isolation: isolate;
   height: 100%;
+  min-height: 280px;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  padding: 24px 22px;
-  background: #141414;
+  background: #111111;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 16px;
+}
+
+.service-rate-card-media {
+  display: none;
+}
+
+.service-rate-card::after {
+  display: none;
+}
+
+.service-rate-card-body {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  padding: 24px 22px;
+  background: #111111;
 }
 
 .service-rate-icon {
@@ -994,10 +1026,11 @@
   align-items: center;
   justify-content: center;
   margin-bottom: 16px;
-  border: 1px solid rgba(238, 176, 18, 0.28);
+  border: 1px solid rgba(200, 162, 97, 0.35);
   border-radius: 10px;
-  color: #eeb012;
+  color: #c8a261;
   font-size: 1.15rem;
+  background: rgba(200, 162, 97, 0.08);
 }
 
 .service-rate-title {
@@ -1005,11 +1038,12 @@
   font-family: Georgia, serif;
   font-size: 1.35rem;
   font-weight: 400;
+  color: #fff;
 }
 
 .service-rate-sub {
   margin: 0 0 18px;
-  color: #888;
+  color: rgba(255, 255, 255, 0.58);
   font-size: 0.88rem;
 }
 
@@ -1019,7 +1053,7 @@
 
 .service-rate-price strong {
   display: block;
-  color: #eeb012;
+  color: #c8a261;
   font-family: Georgia, serif;
   font-size: 1.35rem;
   font-weight: 600;
@@ -1034,6 +1068,14 @@
 
 .service-rate-loading {
   color: #888;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .service-rate-col {
+    opacity: 1;
+    transform: none;
+    animation: none;
+  }
 }
 
 .service-rate-btn {
@@ -1052,6 +1094,176 @@
 
 .service-rate-btn:hover {
   color: #000;
+}
+
+.contact-info-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  background-color: #111111;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.contact-info-icon {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(238, 176, 18, 0.12);
+  color: #eeb012;
+  font-size: 1.05rem;
+}
+
+.contact-info-copy {
+  min-width: 0;
+  flex: 1;
+  text-align: start;
+}
+
+.contact-info-title {
+  margin: 0 0 8px;
+  color: #eeb012;
+  letter-spacing: 3px;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.contact-info-value {
+  margin: 0 0 6px;
+  color: #fff;
+}
+
+.contact-info-hint {
+  margin: 0;
+  font-size: 0.875rem;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.contact-label {
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 8px;
+}
+
+.contact-req {
+  color: #f5f5f5;
+  font-weight: 700;
+}
+
+.contact-input,
+.contact-input:focus {
+  min-height: 48px;
+  padding: 12px 14px !important;
+  background-color: #0d0d0d !important;
+  border: 1px solid rgba(255, 255, 255, 0.16) !important;
+  border-radius: 8px !important;
+  color: #fff !important;
+  box-shadow: none !important;
+}
+
+.contact-input:focus {
+  border-color: rgba(238, 176, 18, 0.65) !important;
+}
+
+textarea.contact-input {
+  min-height: 140px;
+  resize: vertical;
+}
+
+.contact-input::placeholder {
+  color: rgba(255, 255, 255, 0.38);
+}
+
+.legal-page {
+  background: #0a0a0a;
+  color: #fff;
+  min-height: 100vh;
+  padding: 140px 0 80px;
+}
+
+.legal-kicker {
+  color: #eeb012;
+  letter-spacing: 3px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.legal-title {
+  font-family: Georgia, serif;
+  font-size: clamp(2rem, 4vw, 3rem);
+  font-weight: 400;
+  margin-bottom: 12px;
+}
+
+.legal-updated,
+.legal-intro {
+  color: rgba(255, 255, 255, 0.62);
+  line-height: 1.8;
+  max-width: 760px;
+}
+
+.legal-updated {
+  font-size: 0.88rem;
+  margin-bottom: 20px;
+}
+
+.legal-intro {
+  margin-bottom: 36px;
+}
+
+.legal-section {
+  max-width: 760px;
+  margin-bottom: 28px;
+}
+
+.legal-section h2 {
+  font-family: Georgia, serif;
+  font-size: 1.25rem;
+  font-weight: 400;
+  color: #f3e6c4;
+  margin-bottom: 12px;
+}
+
+.legal-section p,
+.legal-section li {
+  color: rgba(255, 255, 255, 0.72);
+  line-height: 1.8;
+  font-size: 0.98rem;
+}
+
+.legal-section ul {
+  padding-inline-start: 1.2rem;
+  margin-bottom: 0;
+}
+
+.legal-section li {
+  margin-bottom: 8px;
+}
+
+.legal-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 24px;
+  margin-top: 40px;
+  padding-top: 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  max-width: 760px;
+}
+
+.legal-links a {
+  color: #c8a261;
+  text-decoration: none;
+  font-size: 0.92rem;
+}
+
+.legal-links a:hover {
+  color: #eeb012;
 }
 
 

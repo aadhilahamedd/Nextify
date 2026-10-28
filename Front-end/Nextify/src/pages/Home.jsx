@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import Container from 'react-bootstrap/Container'
 import { applyLocalCarImages, getCarImageUrl, getEliteCollectionCars, initialCars } from '../utils/carsStorage'
@@ -13,6 +13,52 @@ import { useLanguage } from '../i18n/LanguageContext'
 
 const HERO_IMAGE = '/images/hero/mercedes-s-class-premium.webp';
 const HERO_IMAGE_MOBILE = '/images/hero/mercedes-s-class-premium-mobile.webp';
+
+function CountUpStat({ value, suffix, formatNumber }) {
+  const ref = useRef(null);
+  const started = useRef(false);
+  const [shown, setShown] = useState(1);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return undefined;
+
+    const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
+    if (reduceMotion) {
+      setShown(value);
+      return undefined;
+    }
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting || started.current) return;
+        started.current = true;
+        observer.disconnect();
+        const from = 1;
+        const duration = 1600;
+        const start = performance.now();
+        const tick = (now) => {
+          const progress = Math.min(1, (now - start) / duration);
+          const eased = 1 - (1 - progress) ** 3;
+          const next = Math.round(from + (value - from) * eased);
+          setShown(next);
+          if (progress < 1) requestAnimationFrame(tick);
+          else setShown(value);
+        };
+        requestAnimationFrame(tick);
+      },
+      { threshold: 0.45 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [value]);
+
+  return (
+    <h3 ref={ref} className="mb-3 stat-number" style={{ fontFamily: 'Georgia, serif', fontWeight: '400' }}>
+      {formatNumber(shown)}{suffix}
+    </h3>
+  );
+}
 
 const brandLogos = [
   { name: 'Mercedes-Benz', src: '/images/brands/mercedes.webp' },
@@ -66,7 +112,10 @@ function Home() {
 
         <Container className="position-relative hero-copy">
           <p className="hero-kicker mb-2">{t('hero.kicker')}</p>
-          <h1 className="hero-title mb-3">{t('hero.title')}</h1>
+          <h1 className="hero-title mb-3">
+            <span className="hero-title-thin">{t('hero.titleLine1')}</span>
+            <span className="hero-title-thick">{t('hero.titleLine2')}</span>
+          </h1>
           <p className="hero-desc hero-desc-desktop mb-4">
             {t('hero.desc')}
           </p>
@@ -130,15 +179,6 @@ function Home() {
           <Link to="/booking" className="hero-simple-btn">
             <span>{t('hero.startReservation')}</span>
           </Link>
-          <a
-            href={getWhatsAppUrl(COMPANY_PHONE, t('hero.waMessage'))}
-            target="_blank"
-            rel="noreferrer"
-            className="hero-simple-wa"
-            aria-label="WhatsApp Nextify"
-          >
-            <i className="bi bi-whatsapp"></i>
-          </a>
         </div>
       </div>
 
@@ -438,19 +478,19 @@ function Home() {
         {/* Statistics Row */}
         <div className="row text-center pt-2 stats-row">
           <div className="col-3">
-            <h3 className="mb-3 stat-number" style={{ fontFamily: 'Georgia, serif', fontWeight: '400' }}>{formatNumber(34)}K+</h3>
+            <CountUpStat value={34} suffix="K+" formatNumber={formatNumber} />
             <p className="mb-0 stat-label" style={{ color: '#777', fontSize: '1rem' }}>{t('home.happyClients')}</p>
           </div>
           <div className="col-3">
-            <h3 className="mb-3 stat-number" style={{ fontFamily: 'Georgia, serif', fontWeight: '400' }}>{formatNumber(99)}%</h3>
+            <CountUpStat value={99} suffix="%" formatNumber={formatNumber} />
             <p className="mb-0 stat-label" style={{ color: '#777', fontSize: '1rem' }}>{t('home.accidentFree')}</p>
           </div>
           <div className="col-3">
-            <h3 className="mb-3 stat-number" style={{ fontFamily: 'Georgia, serif', fontWeight: '400' }}>{formatNumber(15)}+</h3>
+            <CountUpStat value={15} suffix="+" formatNumber={formatNumber} />
             <p className="mb-0 stat-label" style={{ color: '#777', fontSize: '1rem' }}>{t('home.luxuryCars')}</p>
           </div>
           <div className="col-3">
-            <h3 className="mb-3 stat-number" style={{ fontFamily: 'Georgia, serif', fontWeight: '400' }}>{formatNumber(100)}%</h3>
+            <CountUpStat value={100} suffix="%" formatNumber={formatNumber} />
             <p className="mb-0 stat-label" style={{ color: '#777', fontSize: '1rem' }}>{t('home.fullyInsured')}</p>
           </div>
         </div>

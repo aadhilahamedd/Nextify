@@ -101,6 +101,12 @@ body,
     background-color: rgba(255, 255, 255, 0.04) !important;
   }
 
+  .header-end-actions {
+    width: 100%;
+    padding: 8px 24px 4px;
+    justify-content: flex-start;
+  }
+
   .main-navbar .navbar-nav .nav-link:hover,
   .main-navbar .navbar-nav .btn:hover,
   .main-navbar .navbar-nav .btn-link:hover,
@@ -147,6 +153,16 @@ body,
 
   .main-navbar-nav {
     margin-left: auto;
+  }
+
+  .main-navbar-nav .nav-hover-link {
+    padding-left: 0.55rem !important;
+    padding-right: 0.55rem !important;
+    white-space: nowrap;
+  }
+
+  .header-end-actions {
+    margin-inline-start: 6px;
   }
 }
 
@@ -289,34 +305,82 @@ body,
   }
 }
 
-.lang-switch {
+.header-end-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.nav-login-icon {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
   border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #fff !important;
+  text-decoration: none;
+  flex-shrink: 0;
+  line-height: 1;
+  font-size: 1rem;
+}
+
+.nav-login-icon:hover,
+.nav-login-icon:focus {
+  color: #eeb012 !important;
+  border-color: rgba(238, 176, 18, 0.55);
+}
+
+.lang-switch {
+  direction: ltr;
+  position: relative;
+  display: inline-grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  width: 92px;
+  height: 34px;
+  padding: 3px;
+  border: 0;
   border-radius: 999px;
+  background: #3a3a3a;
   white-space: nowrap;
 }
 
+.lang-switch::before {
+  content: '';
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 3px;
+  width: calc(50% - 3px);
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.22);
+  transition: transform 0.22s ease;
+  z-index: 0;
+}
+
+.lang-switch.is-ar::before {
+  transform: translateX(100%);
+}
+
 .lang-switch button {
+  position: relative;
+  z-index: 1;
   background: none;
   border: none;
-  color: rgba(255, 255, 255, 0.42);
+  color: #9a9a9a;
   font-size: 0.72rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
-  padding: 2px 0;
+  letter-spacing: 0.04em;
+  padding: 0;
   line-height: 1;
 }
 
 .lang-switch button.is-active {
-  color: #eeb012;
-}
-
-.lang-switch span {
-  color: rgba(255, 255, 255, 0.22);
-  font-size: 0.7rem;
+  color: #111;
 }
 
 .brands-slider,
@@ -386,11 +450,7 @@ html[dir="rtl"] .bi-arrow-left {
   }
   html[dir="rtl"] .hero-simple-btn:nth-child(2) {
     padding-right: 1.25rem;
-    padding-left: 4.75rem;
-  }
-  html[dir="rtl"] .hero-simple-wa {
-    right: auto;
-    left: 14px;
+    padding-left: 1.25rem;
   }
 }
 

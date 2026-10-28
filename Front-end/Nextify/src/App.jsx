@@ -22,6 +22,8 @@ import TrackBooking from './pages/TrackBooking'
 import MockPaymentCheckout from './pages/MockPaymentCheckout'
 import PaymentResult from './pages/PaymentResult'
 import QrCodePage from './pages/QrCode'
+import PrivacyPolicy from './pages/legal/PrivacyPolicy'
+import TermsConditions from './pages/legal/TermsConditions'
 import { COMPANY_PHONE, getWhatsAppUrl } from './utils/whatsapp'
 import { useLanguage } from './i18n/LanguageContext'
 
@@ -55,6 +57,8 @@ function App() {
         <Route path="/booking-confirmation/:bookingNumber" element={<BookingConfirmation />} />
         <Route path="/track-booking" element={<TrackBooking />} />
         <Route path="/qr" element={<QrCodePage />} />
+        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+        <Route path="/terms-and-conditions" element={<TermsConditions />} />
         <Route path="*" element={<Pnf />} />
       </Routes>
       {!isAdminRoute && <Footer />}

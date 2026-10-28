@@ -45,7 +45,8 @@ function Footer() {
               <li className="mb-3"><Link to={{ pathname: '/', hash: '#how-it-works' }} className="text-white-50 text-decoration-none">{t('footer.how')}</Link></li>
               <li className="mb-3"><Link to="/track-booking" className="text-white-50 text-decoration-none">{t('footer.track')}</Link></li>
               <li className="mb-3"><Link to="/qr" className="text-white-50 text-decoration-none">{t('footer.qr')}</Link></li>
-              <li className="mb-3"><Link to="/contact" className="text-white-50 text-decoration-none">{t('footer.privacy')}</Link></li>
+              <li className="mb-3"><Link to="/privacy-policy" className="text-white-50 text-decoration-none">{t('footer.privacy')}</Link></li>
+              <li className="mb-3"><Link to="/terms-and-conditions" className="text-white-50 text-decoration-none">{t('footer.terms')}</Link></li>
             </ul>
           </div>
 
@@ -82,6 +83,10 @@ function Footer() {
 
         <div className="d-flex flex-column flex-md-row justify-content-between align-items-center gap-4">
           <p className="text-white-50 small mb-0" style={{ letterSpacing: '1px' }}>© {formatNumber(new Date().getFullYear())} {t('footer.rights')}</p>
+          <div className="d-flex flex-wrap justify-content-center gap-3 gap-md-4">
+            <Link to="/privacy-policy" className="text-white-50 small text-decoration-none">{t('footer.privacy')}</Link>
+            <Link to="/terms-and-conditions" className="text-white-50 small text-decoration-none">{t('footer.terms')}</Link>
+          </div>
           <div className="d-flex gap-4">
             <a href={COMPANY.website} target="_blank" rel="noreferrer" className="text-white-50"><i className="bi bi-globe fs-5"></i></a>
             <a href={`mailto:${COMPANY.email}`} className="text-white-50"><i className="bi bi-envelope fs-5"></i></a>

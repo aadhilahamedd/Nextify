@@ -63,7 +63,7 @@ function Header() {
               <Nav.Link as={Link} to="/track-booking" onClick={closeMenu} className="nav-hover-link text-decoration-none border-0">{t('nav.track')}</Nav.Link>
               <Nav.Link as={Link} to="/contact" onClick={closeMenu} className="nav-hover-link text-decoration-none border-0">{t('nav.contact')}</Nav.Link>
               <Nav.Link as={Link} to="/qr" onClick={closeMenu} className="nav-hover-link text-decoration-none border-0">{t('nav.qr')}</Nav.Link>
-              {isAdmin ? (
+              {isAdmin && (
                 <div className="header-admin-actions d-flex flex-column flex-lg-row align-items-stretch align-items-lg-center gap-2">
                   <Link
                     to="/admin"
@@ -81,26 +81,27 @@ function Header() {
                     {t('nav.logout')}
                   </button>
                 </div>
-              ) : (
-                !isLogin && (
+              )}
+              <div className="header-end-actions">
+                <div className={`lang-switch ${lang === 'ar' ? 'is-ar' : 'is-en'}`} role="group" aria-label="Language">
+                  <button type="button" className={lang === 'en' ? 'is-active' : ''} onClick={() => { setLang('en'); closeMenu(); }}>
+                    EN
+                  </button>
+                  <button type="button" className={lang === 'ar' ? 'is-active' : ''} onClick={() => { setLang('ar'); closeMenu(); }}>
+                    AR
+                  </button>
+                </div>
+                {!isAdmin && !isLogin && (
                   <Link
                     to="/login"
                     onClick={closeMenu}
-                    className="btn nav-hover-link text-white rounded-pill px-3 py-2 text-decoration-none"
-                    style={{ border: '1px solid rgba(255,255,255,0.18)', backgroundColor: 'transparent', display: 'flex', alignItems: 'center', gap: '8px' }}
+                    className="nav-login-icon"
+                    aria-label={t('nav.login')}
+                    title={t('nav.login')}
                   >
-                    {t('nav.login')} <i className="bi bi-box-arrow-in-right"></i>
+                    <i className="bi bi-box-arrow-in-right" aria-hidden="true"></i>
                   </Link>
-                )
-              )}
-              <div className="lang-switch" role="group" aria-label="Language">
-                <button type="button" className={lang === 'en' ? 'is-active' : ''} onClick={() => { setLang('en'); closeMenu(); }}>
-                  ENG
-                </button>
-                <span>|</span>
-                <button type="button" className={lang === 'ar' ? 'is-active' : ''} onClick={() => { setLang('ar'); closeMenu(); }}>
-                  AR
-                </button>
+                )}
               </div>
             </Nav>
           </Navbar.Collapse>

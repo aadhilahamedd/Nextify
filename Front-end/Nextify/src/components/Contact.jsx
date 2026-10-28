@@ -9,6 +9,7 @@ import { saveLocalContactMessage } from '../utils/contactMessagesStorage'
 import { Link } from 'react-router-dom'
 import { COMPANY } from '../utils/company'
 import { useLanguage } from '../i18n/LanguageContext'
+import './booking/Booking.css'
 
 function Contact() {
   const { t } = useLanguage()
@@ -170,7 +171,7 @@ function Contact() {
                     type="text"
                     value={contactDraft.phone}
                     onChange={(e) => handleContactDraftChange('phone', e.target.value)}
-                    className="form-control p-3 bg-dark border-0 text-white"
+                    className="form-control p-3 contact-input"
                     placeholder="Phone number"
                   />
                 </div>
@@ -180,7 +181,7 @@ function Contact() {
                     type="email"
                     value={contactDraft.email}
                     onChange={(e) => handleContactDraftChange('email', e.target.value)}
-                    className="form-control p-3 bg-dark border-0 text-white"
+                    className="form-control p-3 contact-input"
                     placeholder="Contact email"
                   />
                 </div>
@@ -190,7 +191,7 @@ function Contact() {
                     type="text"
                     value={contactDraft.location}
                     onChange={(e) => handleContactDraftChange('location', e.target.value)}
-                    className="form-control p-3 bg-dark border-0 text-white"
+                    className="form-control p-3 contact-input"
                     placeholder="Location"
                   />
                 </div>
@@ -210,24 +211,39 @@ function Contact() {
 
         <Row className="g-4 mb-5">
           <Col md={4}>
-            <div className="p-4 rounded-4 h-100" style={{ backgroundColor: '#111111', border: '1px solid rgba(255,255,255,0.08)' }}>
-              <h5 className="mb-3" style={{ color: '#eeb012', fontFamily: 'Georgia, serif' }}>{t('contact.call')}</h5>
-              {loading ? <p className="text-white-50">{t('contact.loading')}</p> : <p className="mb-2 text-white-50 ltr-num" dir="ltr">{contactInfo.phone}</p>}
-              <p className="small text-white-50">{t('contact.available247')}</p>
+            <div className="contact-info-card p-4 rounded-4 h-100">
+              <div className="contact-info-icon" aria-hidden="true">
+                <i className="bi bi-telephone-fill"></i>
+              </div>
+              <div className="contact-info-copy">
+                <h5 className="contact-info-title">{t('contact.call')}</h5>
+                {loading ? <p className="contact-info-hint">{t('contact.loading')}</p> : <p className="contact-info-value ltr-num" dir="ltr">{contactInfo.phone}</p>}
+                <p className="contact-info-hint">{t('contact.available247')}</p>
+              </div>
             </div>
           </Col>
           <Col md={4}>
-            <div className="p-4 rounded-4 h-100" style={{ backgroundColor: '#111111', border: '1px solid rgba(255,255,255,0.08)' }}>
-              <h5 className="mb-3" style={{ color: '#eeb012', fontFamily: 'Georgia, serif' }}>{t('contact.email')}</h5>
-              {loading ? <p className="text-white-50">{t('contact.loading')}</p> : <p className="mb-2 text-white-50">{contactInfo.email}</p>}
-              <p className="small text-white-50">{t('contact.emailHint')}</p>
+            <div className="contact-info-card p-4 rounded-4 h-100">
+              <div className="contact-info-icon" aria-hidden="true">
+                <i className="bi bi-envelope-fill"></i>
+              </div>
+              <div className="contact-info-copy">
+                <h5 className="contact-info-title">{t('contact.email')}</h5>
+                {loading ? <p className="contact-info-hint">{t('contact.loading')}</p> : <p className="contact-info-value">{contactInfo.email}</p>}
+                <p className="contact-info-hint">{t('contact.emailHint')}</p>
+              </div>
             </div>
           </Col>
           <Col md={4}>
-            <div className="p-4 rounded-4 h-100" style={{ backgroundColor: '#111111', border: '1px solid rgba(255,255,255,0.08)' }}>
-              <h5 className="mb-3" style={{ color: '#eeb012', fontFamily: 'Georgia, serif' }}>{t('contact.location')}</h5>
-              {loading ? <p className="text-white-50">{t('contact.loading')}</p> : <p className="mb-2 text-white-50">{contactInfo.location}</p>}
-              <p className="small text-white-50">{t('contact.locationHint')}</p>
+            <div className="contact-info-card p-4 rounded-4 h-100">
+              <div className="contact-info-icon" aria-hidden="true">
+                <i className="bi bi-geo-alt-fill"></i>
+              </div>
+              <div className="contact-info-copy">
+                <h5 className="contact-info-title">{t('contact.location')}</h5>
+                {loading ? <p className="contact-info-hint">{t('contact.loading')}</p> : <p className="contact-info-value">{contactInfo.location}</p>}
+                <p className="contact-info-hint">{t('contact.locationHint')}</p>
+              </div>
             </div>
           </Col>
         </Row>
@@ -267,40 +283,38 @@ function Contact() {
           </Col>
 
           <Col lg={6}>
-            <div className="p-4 p-md-5 rounded-4" style={{ backgroundColor: '#111111', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <form onSubmit={handleSubmit} className="book-panel contact-form">
               {status && (
-                <div className={`alert alert-${statusType}`} role="alert">
+                <div className={statusType === 'danger' ? 'book-error' : 'book-hint mb-3'} role="alert">
                   {status}
                 </div>
               )}
-              <form onSubmit={handleSubmit} className="row g-4">
+              <div className="row g-3">
                 <div className="col-md-6">
-                  <label className="form-label fw-semibold text-white mb-2">{t('contact.name')}</label>
-                  <input type="text" required value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="form-control p-3 bg-dark border-0 text-white" placeholder={t('contact.name')} />
+                  <label className="book-label">{t('contact.name')} *</label>
+                  <input type="text" required value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="form-control book-input" placeholder={t('contact.namePh')} />
                 </div>
                 <div className="col-md-6">
-                  <label className="form-label fw-semibold text-white mb-2">{t('contact.email')}</label>
-                  <input type="email" required value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="form-control p-3 bg-dark border-0 text-white" placeholder={t('contact.yourEmail')} />
+                  <label className="book-label">{t('contact.email')} *</label>
+                  <input type="email" required value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="form-control book-input" placeholder={t('contact.yourEmail')} />
                 </div>
                 <div className="col-md-6">
-                  <label className="form-label fw-semibold text-white mb-2">{t('contact.phone')}</label>
-                  <input type="tel" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} className="form-control p-3 bg-dark border-0 text-white" placeholder={t('contact.phonePh')} />
+                  <label className="book-label">{t('contact.phone')}</label>
+                  <input type="tel" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} className="form-control book-input" placeholder={t('contact.phonePh')} />
                 </div>
                 <div className="col-md-6">
-                  <label className="form-label fw-semibold text-white mb-2">{t('contact.subject')}</label>
-                  <input type="text" required value={formData.subject} onChange={(e) => setFormData({ ...formData, subject: e.target.value })} className="form-control p-3 bg-dark border-0 text-white" placeholder={t('contact.subjectPh')} />
+                  <label className="book-label">{t('contact.subject')} *</label>
+                  <input type="text" required value={formData.subject} onChange={(e) => setFormData({ ...formData, subject: e.target.value })} className="form-control book-input" placeholder={t('contact.subjectPh')} />
                 </div>
                 <div className="col-12">
-                  <label className="form-label fw-semibold text-white mb-2">{t('contact.message')}</label>
-                  <textarea required value={formData.message} onChange={(e) => setFormData({ ...formData, message: e.target.value })} className="form-control p-3 bg-dark border-0 text-white" rows="5" placeholder={t('contact.messagePh')}></textarea>
+                  <label className="book-label">{t('contact.message')} *</label>
+                  <textarea required value={formData.message} onChange={(e) => setFormData({ ...formData, message: e.target.value })} className="form-control book-input" rows="5" placeholder={t('contact.messagePh')}></textarea>
                 </div>
-                <div className="col-12 text-end">
-                  <button type="submit" disabled={submitting} className="btn px-5 py-3 rounded-pill text-uppercase fw-bold" style={{ backgroundColor: submitting ? '#9a7a0c' : '#eeb012', color: '#000' }}>
-                    {submitting ? t('contact.sending') : t('contact.send')}
-                  </button>
-                </div>
-              </form>
-            </div>
+              </div>
+              <button type="submit" disabled={submitting} className="lux-btn w-100 mt-4" style={{ padding: '14px 24px' }}>
+                {submitting ? t('contact.sending') : t('contact.send')}
+              </button>
+            </form>
           </Col>
         </Row>
       </Container>
