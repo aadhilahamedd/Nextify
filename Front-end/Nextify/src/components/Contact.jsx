@@ -9,6 +9,7 @@ import { saveLocalContactMessage } from '../utils/contactMessagesStorage'
 import { Link } from 'react-router-dom'
 import { COMPANY } from '../utils/company'
 import { useLanguage } from '../i18n/LanguageContext'
+import { CheckCircleIcon, MailIcon, MapPinIcon, PencilIcon, PhoneIcon } from './icons'
 import './booking/Booking.css'
 
 const STALE_EMAILS = ['hello@nextify.sa', 'Support@nextify.com', 'info@nextify.sa']
@@ -200,7 +201,7 @@ function Contact() {
               className="btn btn-outline-warning rounded-pill mt-4"
               style={{ borderColor: 'rgba(238, 176, 18, 0.85)', color: '#f6d26e', padding: '12px 28px' }}
             >
-              <i className="bi bi-pencil-fill me-2"></i>
+              <PencilIcon size={16} className="me-2" />
               Edit Contact Details
             </button>
           )}
@@ -255,7 +256,7 @@ function Contact() {
           <Col md={4}>
             <div className="contact-info-card p-4 rounded-4 h-100">
               <div className="contact-info-icon" aria-hidden="true">
-                <i className="bi bi-telephone-fill"></i>
+                <PhoneIcon size={18} />
               </div>
               <div className="contact-info-copy">
                 <h5 className="contact-info-title">{t('contact.call')}</h5>
@@ -271,7 +272,7 @@ function Contact() {
           <Col md={4}>
             <div className="contact-info-card p-4 rounded-4 h-100">
               <div className="contact-info-icon" aria-hidden="true">
-                <i className="bi bi-envelope-fill"></i>
+                <MailIcon size={18} />
               </div>
               <div className="contact-info-copy">
                 <h5 className="contact-info-title">{t('contact.email')}</h5>
@@ -287,7 +288,7 @@ function Contact() {
           <Col md={4}>
             <div className="contact-info-card p-4 rounded-4 h-100">
               <div className="contact-info-icon" aria-hidden="true">
-                <i className="bi bi-geo-alt-fill"></i>
+                <MapPinIcon size={18} />
               </div>
               <div className="contact-info-copy">
                 <h5 className="contact-info-title">{t('contact.location')}</h5>
@@ -333,9 +334,9 @@ function Contact() {
                 {t('contact.readyText')}
               </p>
               <ul className="list-unstyled mt-4" style={{ color: '#bfbfbf', lineHeight: '2' }}>
-                <li><i className="bi bi-check2-circle me-2" style={{ color: '#eeb012' }}></i>{t('contact.airport')}</li>
-                <li><i className="bi bi-check2-circle me-2" style={{ color: '#eeb012' }}></i>{t('contact.hourly')}</li>
-                <li><i className="bi bi-check2-circle me-2" style={{ color: '#eeb012' }}></i>{t('contact.events')}</li>
+                <li className="d-flex align-items-center gap-2"><CheckCircleIcon size={16} />{t('contact.airport')}</li>
+                <li className="d-flex align-items-center gap-2"><CheckCircleIcon size={16} />{t('contact.hourly')}</li>
+                <li className="d-flex align-items-center gap-2"><CheckCircleIcon size={16} />{t('contact.events')}</li>
               </ul>
             </div>
           </Col>

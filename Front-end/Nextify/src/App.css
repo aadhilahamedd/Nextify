@@ -98,7 +98,8 @@
   top: 0;
   left: 0;
   background:
-    linear-gradient(180deg, rgba(0, 0, 0, 0.35) 0%, rgba(0, 0, 0, 0.18) 40%, rgba(0, 0, 0, 0.82) 100%);
+    linear-gradient(180deg, rgba(0, 0, 0, 0.55) 0%, rgba(0, 0, 0, 0.32) 38%, rgba(0, 0, 0, 0.78) 100%),
+    radial-gradient(ellipse at center, rgba(0, 0, 0, 0.08) 0%, rgba(0, 0, 0, 0.55) 100%);
 }
 
 .hero-copy {
@@ -144,54 +145,6 @@
   display: none;
 }
 
-.hero-pills {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
-.hero-simple {
-  display: none;
-}
-
-.hero-pill {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 150px;
-  padding: 10px 14px;
-  border-radius: 999px;
-  background: rgba(12, 12, 12, 0.78);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #fff;
-  text-decoration: none;
-}
-
-.hero-pill i {
-  color: #eeb012;
-  font-size: 1rem;
-}
-
-.hero-pill strong,
-.hero-pill span {
-  display: block;
-}
-
-.hero-pill strong {
-  font-size: 0.78rem;
-  font-weight: 600;
-}
-
-.hero-pill span {
-  font-size: 0.68rem;
-  color: rgba(255, 255, 255, 0.55);
-}
-
-.hero-pill-link:hover {
-  color: #fff;
-  border-color: rgba(238, 176, 18, 0.45);
-}
-
 .events-fleet-photo {
   overflow: hidden;
   border-radius: 18px;
@@ -211,12 +164,6 @@
   .events-fleet-photo img {
     height: 240px;
   }
-}
-
-.hero-simple-meta {
-  color: rgba(255, 255, 255, 0.62);
-  font-size: 0.82rem;
-  letter-spacing: 0.2px;
 }
 
 .hero-simple-actions {
@@ -246,12 +193,10 @@
   .hero-desc {
     max-width: 100%;
   }
-  .hero-desc-desktop,
-  .hero-pills {
+  .hero-desc-desktop {
     display: none;
   }
-  .hero-desc-mobile,
-  .hero-simple {
+  .hero-desc-mobile {
     display: block;
   }
   .hero-simple-actions {
@@ -366,6 +311,12 @@
 .collection-card:hover .collection-card-img {
   transform: scale(1.02);
 }
+.site-icon {
+  display: inline-block;
+  flex-shrink: 0;
+  vertical-align: -0.2em;
+}
+
 .fleet-card {
   overflow: hidden;
   border-radius: 12px;
@@ -424,6 +375,22 @@
   padding: 8px 16px;
   font-size: 0.72rem;
   min-width: 108px;
+}
+
+.fleet-card .lux-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  color: #fff;
+  box-shadow: none;
+}
+
+.fleet-card .lux-btn:hover,
+.fleet-card .lux-btn:focus {
+  color: #fff;
+  background: transparent;
+  border-color: #fff;
+  filter: none;
+  box-shadow: none;
 }
 .lux-btn-lg {
   width: 100%;
@@ -836,6 +803,37 @@
   color: #0a0a0a;
 }
 
+@media (min-width: 992px) {
+  .about-title-rest {
+    display: block;
+  }
+}
+
+.about-mark-col {
+  padding-inline-start: 0;
+}
+
+.about-mark {
+  display: block;
+  width: 280px;
+  height: 280px;
+  object-fit: contain;
+  flex-shrink: 0;
+  background: transparent;
+  border-radius: 50%;
+}
+
+@media (min-width: 992px) {
+  .about-mark-col {
+    padding-inline-start: 2.5rem;
+  }
+
+  .about-mark {
+    width: 360px;
+    height: 360px;
+  }
+}
+
 .about-reviews {
   padding: 18px 20px;
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -967,20 +965,95 @@
   color: #c8a261;
 }
 
-.service-rate-col {
+.service-rates {
+  position: relative;
+  overflow: hidden;
+  padding: 96px 0;
+  color: #fff;
+  background: #0a0a0a;
+}
+
+.service-rates-heading {
+  position: relative;
+  z-index: 1;
+  max-width: 640px;
+  margin: 0 auto 56px;
+  text-align: center;
   opacity: 0;
-  transform: translateY(56px);
+  transform: translateY(32px);
+}
+
+.service-rates.is-inview .service-rates-heading {
+  animation: service-rate-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.service-rates-kicker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 18px;
+  color: #888;
+  letter-spacing: 2px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.service-rates-line {
+  width: 40px;
+  height: 1px;
+  background: #eeb012;
+}
+
+.service-rates-heading h2 {
+  margin: 0 0 14px;
+  color: #fff;
+  font-size: clamp(2rem, 4.6vw, 3.15rem);
+  font-weight: 500;
+  letter-spacing: -0.035em;
+  line-height: 1.12;
+}
+
+.service-rates-tagline {
+  margin: 0 auto 12px;
+  max-width: 420px;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 1.05rem;
+  line-height: 1.65;
+}
+
+.service-rates-note {
+  margin: 0 auto;
+  max-width: 480px;
+  color: #888;
+  font-size: 0.86rem;
+  line-height: 1.6;
+}
+
+.service-rates-grid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 22px;
+}
+
+.service-rate-col {
+  min-width: 0;
+  opacity: 0;
+  transform: translateY(42px);
 }
 
 .service-rates.is-inview .service-rate-col {
-  animation: service-rate-rise 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: service-rate-rise 0.72s cubic-bezier(0.22, 1, 0.36, 1) both;
   animation-delay: var(--rise-delay, 0ms);
 }
 
 @keyframes service-rate-rise {
   from {
     opacity: 0;
-    transform: translateY(56px);
+    transform: translateY(42px);
   }
   to {
     opacity: 1;
@@ -990,92 +1063,116 @@
 
 .service-rate-card {
   position: relative;
-  isolation: isolate;
   height: 100%;
-  min-height: 280px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  background: #111111;
+  border-radius: 18px;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 16px;
+  background: #141414;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.28);
+  transition: transform 0.4s ease, box-shadow 0.4s ease, border-color 0.4s ease;
 }
 
-.service-rate-card-media {
-  display: none;
+.service-rate-card:hover {
+  transform: translateY(-6px);
+  border-color: rgba(200, 162, 97, 0.38);
+  box-shadow: 0 24px 44px rgba(0, 0, 0, 0.42);
 }
 
-.service-rate-card::after {
-  display: none;
+.service-rate-media {
+  position: relative;
+  flex-shrink: 0;
+  height: 198px;
+  overflow: hidden;
+  background: #111;
+}
+
+.service-rate-media img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  transition: transform 0.45s ease;
+}
+
+
+.service-rate-card:hover .service-rate-media img {
+  transform: scale(1.03);
 }
 
 .service-rate-card-body {
-  position: relative;
-  z-index: 2;
   display: flex;
   flex-direction: column;
   flex: 1;
-  padding: 24px 22px;
-  background: #111111;
+  padding: 22px 22px 22px;
+}
+
+.service-rate-name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
 }
 
 .service-rate-icon {
-  width: 42px;
-  height: 42px;
-  display: flex;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 16px;
-  border: 1px solid rgba(200, 162, 97, 0.35);
-  border-radius: 10px;
+  flex-shrink: 0;
   color: #c8a261;
-  font-size: 1.15rem;
-  background: rgba(200, 162, 97, 0.08);
 }
 
 .service-rate-title {
-  margin: 0 0 6px;
-  font-family: Georgia, serif;
-  font-size: 1.35rem;
-  font-weight: 400;
+  margin: 0;
   color: #fff;
+  font-size: 1.22rem;
+  font-weight: 500;
+  letter-spacing: -0.02em;
 }
 
 .service-rate-sub {
-  margin: 0 0 18px;
+  margin: 0 0 22px;
   color: rgba(255, 255, 255, 0.58);
-  font-size: 0.88rem;
+  font-size: 0.9rem;
+  line-height: 1.55;
 }
 
 .service-rate-price {
-  margin-bottom: 20px;
+  margin-bottom: 24px;
 }
 
-.service-rate-price strong {
+.service-rate-from {
+  display: block;
+  margin-bottom: 4px;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+}
+
+.service-rate-amount {
   display: block;
   color: #c8a261;
-  font-family: Georgia, serif;
-  font-size: 1.35rem;
+  font-size: 1.55rem;
   font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
 }
 
-.service-rate-price span {
+.service-rate-usd {
   display: block;
-  margin-top: 4px;
-  color: rgba(255, 255, 255, 0.62);
-  font-size: 0.92rem;
+  margin-top: 6px;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 0.9rem;
 }
 
 .service-rate-loading {
   color: #888;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .service-rate-col {
-    opacity: 1;
-    transform: none;
-    animation: none;
-  }
 }
 
 .service-rate-btn {
@@ -1083,17 +1180,104 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 42px;
-  padding: 0.55rem 1rem;
+  gap: 8px;
+  align-self: flex-start;
+  min-height: 46px;
+  padding: 0.65rem 1.25rem;
   border-radius: 999px;
-  background: linear-gradient(135deg, #a88448 0%, #c8a261 100%);
-  color: #000;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  background: transparent;
+  color: #fff;
   font-weight: 600;
   text-decoration: none;
+  box-shadow: none;
+  transition: border-color 0.35s ease, color 0.35s ease;
 }
 
-.service-rate-btn:hover {
-  color: #000;
+.service-rate-btn .site-icon {
+  color: #fff;
+  transition: transform 0.35s ease;
+}
+
+.service-rate-btn:hover,
+.service-rate-btn:focus {
+  color: #fff;
+  background: transparent;
+  border-color: #fff;
+  filter: none;
+  box-shadow: none;
+}
+
+.service-rate-btn:hover .site-icon {
+  transform: translateX(4px);
+}
+
+@media (max-width: 767.98px) {
+  .service-rate-media {
+    height: 188px;
+  }
+}
+
+@media (min-width: 768px) {
+  .service-rates-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .service-rate-media {
+    height: 200px;
+  }
+}
+
+@media (min-width: 992px) {
+  .service-rates {
+    padding: 112px 0;
+  }
+
+  .service-rates-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 24px;
+  }
+
+  .service-rate-col {
+    grid-column: span 2;
+  }
+
+  .service-rate-col:nth-child(4) {
+    grid-column: 2 / 4;
+  }
+
+  .service-rate-col:nth-child(5) {
+    grid-column: 4 / 6;
+  }
+
+  .service-rate-media {
+    height: 210px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .service-rates-heading,
+  .service-rate-col {
+    opacity: 1;
+    transform: none;
+    animation: none;
+  }
+
+  .service-rate-card,
+  .service-rate-media img,
+  .service-rate-btn,
+  .service-rate-btn .site-icon {
+    transition: none;
+  }
+
+  .service-rate-card:hover,
+  .service-rate-card:hover .service-rate-media img {
+    transform: none;
+  }
+}
+
+html[dir="rtl"] .service-rate-btn:hover .site-icon {
+  transform: translateX(-4px);
 }
 
 .contact-info-card {
@@ -1112,9 +1296,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(238, 176, 18, 0.12);
-  color: #eeb012;
-  font-size: 1.05rem;
+  background: rgba(255, 255, 255, 0.06);
+  color: #ececec;
 }
 
 .contact-info-copy {

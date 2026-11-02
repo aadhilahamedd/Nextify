@@ -1,4 +1,6 @@
+const mongoose = require('mongoose');
 const PricingRule = require('../models/PricingRule');
+const { APPROVED_RATES } = require('../seed/pricingSeed');
 const {
   GCC_CATEGORIES,
   normalizeServiceType,
@@ -81,44 +83,50 @@ function pickRule(rules, vehicleCategory, vehicleName, extraMatch = () => true) 
   return rules.find((rule) => extraMatch(rule) && matchVehicleCategory(rule, vehicleCategory, vehicleName));
 }
 
-async function findAirportRule(airport, vehicleCategory, vehicleName) {
-  const rules = await PricingRule.find({ serviceType: 'airport_transfer', active: true });
-  return pickRule(rules, vehicleCategory, vehicleName, (rule) => airportMatches(rule, airport));
+function approvedRules(serviceType, extra = () => true) {
+  return APPROVED_RATES.filter((rule) => rule.serviceType === serviceType && extra(rule));
 }
 
-async function findCityRule(vehicleCategory, vehicleName) {
-  const rules = await PricingRule.find({ serviceType: 'city_transfer', active: true, origin: 'Riyadh' });
-  return pickRule(rules, vehicleCategory, vehicleName);
+function findAirportRule(airport, vehicleCategory, vehicleName) {
+  return pickRule(
+    approvedRules('airport_transfer'),
+    vehicleCategory,
+    vehicleName,
+    (rule) => airportMatches(rule, airport),
+  );
 }
 
-async function findChauffeurRule(vehicleCategory, vehicleName, durationType) {
-  const rules = await PricingRule.find({ serviceType: 'chauffeur', active: true, durationType });
-  return pickRule(rules, vehicleCategory, vehicleName);
+function findCityRule(vehicleCategory, vehicleName) {
+  return pickRule(
+    approvedRules('city_transfer', (rule) => !rule.origin || rule.origin === 'Riyadh'),
+    vehicleCategory,
+    vehicleName,
+  );
 }
 
-async function findIntercityRule(origin, destination, vehicleCategory, vehicleName) {
+function findChauffeurRule(vehicleCategory, vehicleName, durationType) {
+  return pickRule(
+    approvedRules('chauffeur', (rule) => rule.durationType === durationType),
+    vehicleCategory,
+    vehicleName,
+  );
+}
+
+function findIntercityRule(origin, destination, vehicleCategory, vehicleName) {
   const route = normalizeRoute(origin, destination);
-  const rules = await PricingRule.find({
-    serviceType: 'intercity_transfer',
-    active: true,
-    origin: route.origin,
-    destination: route.destination,
-  });
+  const rules = approvedRules(
+    'intercity_transfer',
+    (rule) => rule.origin === route.origin && rule.destination === route.destination,
+  );
   if (!rules.length) return null;
-
   const allRule = rules.find((r) => r.vehicleApplicability === 'all');
   if (allRule) return allRule;
-
   return pickRule(rules, vehicleCategory, vehicleName);
 }
 
-async function findGccRule(destination, vehicleCategory) {
+function findGccRule(destination, vehicleCategory) {
   const destNorm = (destination || '').toLowerCase();
-  const rule = await PricingRule.findOne({
-    serviceType: 'gcc_transfer',
-    active: true,
-    destination: { $regex: new RegExp(destNorm, 'i') },
-  });
+  const rule = approvedRules('gcc_transfer').find((r) => String(r.destination || '').toLowerCase().includes(destNorm));
   if (!rule) return null;
   if (!GCC_CATEGORIES.includes(vehicleCategory)) return 'invalid_vehicle';
   if (rule.allowedVehicleCategories?.length && !rule.allowedVehicleCategories.includes(vehicleCategory)) {
@@ -150,7 +158,7 @@ async function calculatePrice(payload) {
   switch (serviceType) {
     case 'airport_transfer': {
       if (!vCat && !vName) return customQuote('Please select a vehicle.');
-      const rule = await findAirportRule(airport || origin, vCat, vName);
+      const rule = findAirportRule(airport || origin, vCat, vName);
       if (!rule) return customQuote('No fixed airport transfer rate for this vehicle. Custom quote required.');
       return fixedQuote(rule, { serviceType, airport: airport || origin });
     }
@@ -161,7 +169,7 @@ async function calculatePrice(payload) {
         return customQuote('Trips above 20 KM may require a custom quote.');
       }
       if (!vCat && !vName) return customQuote('Please select a vehicle.');
-      const rule = await findCityRule(vCat, vName);
+      const rule = findCityRule(vCat, vName);
       if (!rule) return customQuote('City transfer is not available for this vehicle.');
       return fixedQuote(rule, { serviceType, origin: 'Riyadh', maxDistanceKm: 20 });
     }
@@ -171,7 +179,7 @@ async function calculatePrice(payload) {
         throw new Error('Duration must be half_day or full_day');
       }
       if (!vCat && !vName) return customQuote('Please select a vehicle.');
-      const rule = await findChauffeurRule(vCat, vName, durationType);
+      const rule = findChauffeurRule(vCat, vName, durationType);
       if (!rule && durationType === 'half_day') {
         return customQuote('This vehicle is available for full day service only.');
       }
@@ -184,7 +192,7 @@ async function calculatePrice(payload) {
       if (!route.origin || !route.destination) {
         return customQuote('Please select a supported intercity route.');
       }
-      const rule = await findIntercityRule(route.origin, route.destination, vCat, vName);
+      const rule = findIntercityRule(route.origin, route.destination, vCat, vName);
       if (!rule) {
         return customQuote('This intercity route is not supported or requires a custom quote.');
       }
@@ -197,7 +205,7 @@ async function calculatePrice(payload) {
     case 'gcc_transfer': {
       if (!destination) return customQuote('Please select a GCC destination.');
       if (!vCat) return customQuote('Please select a GCC vehicle.');
-      const result = await findGccRule(destination, vCat);
+      const result = findGccRule(destination, vCat);
       if (result === 'invalid_vehicle') {
         return customQuote('GCC transfers only support GMC.');
       }
@@ -211,7 +219,18 @@ async function calculatePrice(payload) {
 }
 
 async function getPublicPricingSummary() {
-  const rules = await PricingRule.find({ active: true }).sort({ serviceType: 1, price: 1 });
+  let rules = APPROVED_RATES;
+  try {
+    if (mongoose.connection.readyState === 1) {
+      const docs = await Promise.race([
+        PricingRule.find({ active: true }).sort({ serviceType: 1, price: 1 }).maxTimeMS(800).lean().exec(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('mongo-timeout')), 900)),
+      ]);
+      if (docs?.length) rules = docs;
+    }
+  } catch {
+    rules = APPROVED_RATES;
+  }
   const summary = {};
   for (const rule of rules) {
     const current = summary[rule.serviceType];
@@ -235,7 +254,22 @@ async function getPublicPricingSummary() {
 
 async function getRulesByService(serviceType) {
   const st = normalizeServiceType(serviceType);
-  return PricingRule.find({ active: true, ...(st ? { serviceType: st } : {}) }).sort({ price: 1 });
+  const local = approvedRules(st || undefined).sort((a, b) => a.price - b.price);
+  if (!st) {
+    return [...APPROVED_RATES].sort((a, b) => a.price - b.price);
+  }
+  try {
+    if (mongoose.connection.readyState === 1) {
+      const docs = await Promise.race([
+        PricingRule.find({ active: true, serviceType: st }).sort({ price: 1 }).maxTimeMS(800).lean().exec(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('mongo-timeout')), 900)),
+      ]);
+      if (docs?.length) return docs;
+    }
+  } catch {
+    /* use approved rates */
+  }
+  return local;
 }
 
 module.exports = {

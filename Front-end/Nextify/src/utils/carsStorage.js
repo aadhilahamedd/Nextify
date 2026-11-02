@@ -1,42 +1,55 @@
 const IMAGE_MAP = {
-  local_sprinter: '/images/cars/mercedes-sprinter.webp',
-  local_lexus_es: '/images/cars/lexus-es-350.webp',
-  local_impala: '/images/cars/chevrolet-impala.webp',
-  local_hiace: '/images/cars/toyota-hiace.webp',
-  local_benz_s: '/images/cars/mercedes-s-class.webp',
-  local_bmw_7: '/images/cars/bmw-7-series.webp',
+  local_sprinter: '/images/car/mercedes-sprinter.webp',
+  local_lexus_es: '/images/car/lexus-es-350.webp',
+  local_impala: '/images/car/chevrolet-impala.webp',
+  local_hiace: '/images/car/toyota-hiace.webp',
+  local_benz_s: '/images/car/mercedes-s-class.webp',
+  local_bmw_7: '/images/car/bmw-7-series.webp',
 };
 
 const LOCAL_IMAGES_BY_NAME = {
-  'Mercedes-Benz Sprinter': '/images/cars/mercedes-sprinter.webp',
-  'Lexus ES 350': '/images/cars/lexus-es-350.webp',
-  'Chevrolet Impala': '/images/cars/chevrolet-impala.webp',
-  'Toyota Hiace': '/images/cars/toyota-hiace.webp',
-  'Toyota Coaster': '/images/cars/toyota-coaster.webp',
-  'Mercedes-Benz Coach Bus': '/images/cars/mercedes-coach-bus.webp',
-  'Mercedes-Benz V-Class': '/images/cars/mercedes-v-class.webp',
-  'Mercedes-Benz S-Class': '/images/cars/mercedes-s-class.webp',
-  'BMW 7 Series': '/images/cars/bmw-7-series.webp',
-  'Ford Taurus': '/images/cars/ford-taurus.webp',
-  'GMC': '/images/cars/gmc-yukon-xl-at4.webp',
-  'GMC Yukon XL AT4': '/images/cars/gmc-yukon-xl-at4.webp',
-  'BMW 5 Series': '/images/cars/bmw-5-series.webp',
-  'Mercedes-Benz E-Class': '/images/cars/mercedes-e-class.webp',
-  'GMC Tahoe': '/images/cars/gmc-yukon-xl-at4.webp',
-  'Chevrolet Suburban': '/images/cars/gmc-yukon-xl-at4.webp',
-  'Mercedes-Benz eVito Tourer': '/images/cars/mercedes-evito-tourer.webp',
+  'Mercedes-Benz Sprinter': '/images/car/mercedes-sprinter.webp',
+  'Lexus ES 350': '/images/car/lexus-es-350.webp',
+  'Chevrolet Impala': '/images/car/chevrolet-impala.webp',
+  'Toyota Hiace': '/images/car/toyota-hiace.webp',
+  'Toyota Coaster': '/images/car/toyota-coaster.webp',
+  'Mercedes-Benz Coach Bus': '/images/car/mercedes-coach-bus.webp',
+  'Mercedes-Benz V-Class': '/images/car/mercedes-v-class.webp',
+  'Mercedes-Benz S-Class': '/images/car/mercedes-s-class.webp',
+  'BMW 7 Series': '/images/car/bmw-7-series.webp',
+  'Ford Taurus': '/images/car/ford-taurus.webp',
+  'GMC': '/images/car/gmc-suv.webp',
+  'GMC Yukon XL AT4': '/images/car/gmc-suv.webp',
+  'BMW 5 Series': '/images/car/bmw-5-series.webp',
+  'Mercedes-Benz E-Class': '/images/car/mercedes-e-class.webp',
+  'GMC Tahoe': '/images/car/gmc-suv.webp',
+  'Chevrolet Suburban': '/images/car/gmc-suv.webp',
+  'Mercedes-Benz eVito Tourer': '/images/car/mercedes-evito-tourer.webp',
+  'Mercedes-Benz Vito': '/images/car/mercedes-evito-tourer.webp',
 };
+
+export function isCustomCarImage(img) {
+  const value = String(img || '').trim();
+  if (!value) return false;
+  if (value.startsWith('data:')) return true;
+  if (value.startsWith('blob:')) return true;
+  if (value.startsWith('/uploads')) return true;
+  if (/^https?:\/\//i.test(value) && !value.includes('unsplash.com')) return true;
+  return false;
+}
 
 export function getCarImageUrl(imgStr) {
   if (!imgStr) return '';
+  if (isCustomCarImage(imgStr)) return imgStr;
   const mapped = IMAGE_MAP[imgStr] || imgStr;
-  if (mapped.startsWith('/images/cars/') && !mapped.includes('?')) {
-    return `${mapped}?v=4`;
+  if ((mapped.startsWith('/images/car/') || mapped.startsWith('/images/cars/')) && !mapped.includes('?')) {
+    return `${mapped}?v=10`;
   }
   return mapped;
 }
 
 export function resolveCarImage(car) {
+  if (isCustomCarImage(car?.img)) return getCarImageUrl(car.img);
   const name = String(car?.name || '');
   const exact = LOCAL_IMAGES_BY_NAME[name];
   if (exact) return getCarImageUrl(exact);
@@ -66,7 +79,7 @@ export function collapseGmcFleet(cars = []) {
       ...preferred,
       name: 'GMC',
       type: preferred.type || 'Full-Size SUV',
-      img: LOCAL_IMAGES_BY_NAME.GMC,
+      img: isCustomCarImage(preferred.img) ? preferred.img : LOCAL_IMAGES_BY_NAME.GMC,
     },
     ...otherCars,
   ];
@@ -79,7 +92,7 @@ export function applyLocalCarImages(cars = []) {
 export function getEliteCollectionCars(cars = []) {
   return sortCarsForShowcase(applyLocalCarImages(cars)).filter((car) => {
     const img = String(car.img || '');
-    return getShowcaseRank(car) < 100 || img.startsWith('/images/cars/');
+    return getShowcaseRank(car) < 100 || img.startsWith('/images/car/') || img.startsWith('/images/cars/');
   });
 }
 
@@ -119,7 +132,7 @@ export const initialCars = [
   {
     id: 1,
     name: 'Mercedes-Benz Sprinter',
-    img: '/images/cars/mercedes-sprinter.webp',
+    img: '/images/car/mercedes-sprinter.webp',
     price: '$400/day',
     type: 'Luxury Van',
     seats: '12–15 passengers',
@@ -128,7 +141,7 @@ export const initialCars = [
   {
     id: 2,
     name: 'Lexus ES 350',
-    img: '/images/cars/lexus-es-350.webp',
+    img: '/images/car/lexus-es-350.webp',
     price: '$200/day',
     type: 'Luxury Sedan',
     seats: '3 passengers',
@@ -137,7 +150,7 @@ export const initialCars = [
   {
     id: 3,
     name: 'Chevrolet Impala',
-    img: '/images/cars/chevrolet-impala.webp',
+    img: '/images/car/chevrolet-impala.webp',
     price: '$150/day',
     type: 'Full-Size Sedan',
     seats: '3 passengers',
@@ -146,7 +159,7 @@ export const initialCars = [
   {
     id: 4,
     name: 'Toyota Hiace',
-    img: '/images/cars/toyota-hiace.webp',
+    img: '/images/car/toyota-hiace.webp',
     price: '$180/day',
     type: 'Passenger Van',
     seats: '10–14 passengers',
@@ -155,7 +168,7 @@ export const initialCars = [
   {
     id: 5,
     name: 'Toyota Coaster',
-    img: '/images/cars/toyota-coaster.webp',
+    img: '/images/car/toyota-coaster.webp',
     price: '$350/day',
     type: 'Mini Bus',
     seats: '22 passengers',
@@ -164,7 +177,7 @@ export const initialCars = [
   {
     id: 6,
     name: 'Mercedes-Benz Coach Bus',
-    img: '/images/cars/mercedes-coach-bus.webp',
+    img: '/images/car/mercedes-coach-bus.webp',
     price: '$800/day',
     type: 'Coach Bus',
     seats: '49 passengers',
@@ -173,7 +186,7 @@ export const initialCars = [
   {
     id: 7,
     name: 'Mercedes-Benz V-Class',
-    img: '/images/cars/mercedes-v-class.webp',
+    img: '/images/car/mercedes-v-class.webp',
     price: '$350/day',
     type: 'Luxury Minivan',
     seats: '6–7 passengers',
@@ -182,7 +195,7 @@ export const initialCars = [
   {
     id: 8,
     name: 'Mercedes-Benz S-Class',
-    img: '/images/cars/mercedes-s-class.webp',
+    img: '/images/car/mercedes-s-class.webp',
     price: '$280/day',
     type: 'Premium Executive',
     seats: '3–4 passengers',
@@ -191,7 +204,7 @@ export const initialCars = [
   {
     id: 9,
     name: 'Ford Taurus',
-    img: '/images/cars/ford-taurus.webp',
+    img: '/images/car/ford-taurus.webp',
     price: '$180/day',
     type: 'Executive Sedan',
     seats: '5 passengers',
@@ -200,7 +213,7 @@ export const initialCars = [
   {
     id: 10,
     name: 'GMC',
-    img: '/images/cars/gmc-yukon-xl-at4.webp',
+    img: '/images/car/gmc-suv.webp',
     price: 'SAR 1125',
     priceUsd: '300',
     type: 'Full-Size SUV',
@@ -210,7 +223,7 @@ export const initialCars = [
   {
     id: 11,
     name: 'BMW 7 Series',
-    img: '/images/cars/bmw-7-series.webp',
+    img: '/images/car/bmw-7-series.webp',
     price: '$250/day',
     type: 'Full-Size Luxury Sedan',
     seats: '3-5 passengers',
@@ -219,7 +232,7 @@ export const initialCars = [
   {
     id: 12,
     name: 'BMW 5 Series',
-    img: '/images/cars/bmw-5-series.webp',
+    img: '/images/car/bmw-5-series.webp',
     price: '$220/day',
     type: 'Mid-Size Luxury Sedan',
     seats: '3-5 passengers',
@@ -228,7 +241,7 @@ export const initialCars = [
   {
     id: 13,
     name: 'Mercedes-Benz E-Class',
-    img: '/images/cars/mercedes-e-class.webp',
+    img: '/images/car/mercedes-e-class.webp',
     price: '$230/day',
     type: 'Mid-Size Luxury Sedan',
     seats: '3-5 passengers',
@@ -237,7 +250,7 @@ export const initialCars = [
   {
     id: 14,
     name: 'Mercedes-Benz eVito Tourer',
-    img: '/images/cars/mercedes-evito-tourer.webp',
+    img: '/images/car/mercedes-evito-tourer.webp',
     price: '$280/day',
     type: 'Electric Passenger Van',
     seats: '8–9 passengers',

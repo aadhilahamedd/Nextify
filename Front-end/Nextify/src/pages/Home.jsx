@@ -10,6 +10,20 @@ import { COMPANY } from '../utils/company'
 import { COMPANY_PHONE, getWhatsAppUrl } from '../utils/whatsapp'
 import { formatCarDayPriceForLang } from '../i18n/format'
 import { useLanguage } from '../i18n/LanguageContext'
+import {
+  ArrowRightIcon,
+  AwardIcon,
+  BadgeCheckIcon,
+  BanknoteIcon,
+  CheckCircleIcon,
+  ClockIcon,
+  KeyIcon,
+  LockIcon,
+  MapPinIcon,
+  ShieldIcon,
+  SlidersIcon,
+  UserIcon,
+} from '../components/icons'
 
 const HERO_IMAGE = '/images/hero/mercedes-s-class-premium.webp';
 const HERO_IMAGE_MOBILE = '/images/hero/mercedes-s-class-premium-mobile.webp';
@@ -122,59 +136,12 @@ function Home() {
           <p className="hero-desc hero-desc-mobile mb-3">
             {t('hero.descMobile')}
           </p>
-
-          <div className="hero-pills">
-            <div className="hero-pill">
-              <i className="bi bi-star"></i>
-              <div>
-                <strong>{t('hero.cars')}</strong>
-                <span>{t('hero.curated')}</span>
-              </div>
-            </div>
-            <div className="hero-pill">
-              <i className="bi bi-shield-check"></i>
-              <div>
-                <strong>{t('hero.insured')}</strong>
-                <span>{t('hero.everyJourney')}</span>
-              </div>
-            </div>
-            <div className="hero-pill">
-              <i className="bi bi-headset"></i>
-              <div>
-                <strong>{t('hero.support')}</strong>
-                <span>{t('hero.always')}</span>
-              </div>
-            </div>
-            <div className="hero-pill">
-              <i className="bi bi-clock"></i>
-              <div>
-                <strong>{t('hero.onTime')}</strong>
-                <span>{t('hero.airportCity')}</span>
-              </div>
-            </div>
-            <a
-              href={getWhatsAppUrl(COMPANY_PHONE, t('hero.waMessage'))}
-              target="_blank"
-              rel="noreferrer"
-              className="hero-pill hero-pill-link"
-            >
-              <i className="bi bi-whatsapp"></i>
-              <div>
-                <strong>{t('hero.whatsapp')}</strong>
-                <span>{t('hero.instant')}</span>
-              </div>
-            </a>
-          </div>
-
-          <div className="hero-simple">
-            <p className="hero-simple-meta mb-0">{t('hero.simpleMeta')}</p>
-          </div>
         </Container>
 
         <div className="hero-simple-actions">
           <Link to="/carlist" className="hero-simple-btn">
             <span>{t('hero.seeCollection')}</span>
-            <i className="bi bi-arrow-right"></i>
+            <ArrowRightIcon size={16} />
           </Link>
           <Link to="/booking" className="hero-simple-btn">
             <span>{t('hero.startReservation')}</span>
@@ -283,7 +250,7 @@ function Home() {
               style={{ padding: '12px 36px', minWidth: '160px' }}
             >
               {t('home.more')}
-              <i className="bi bi-arrow-right ms-2" />
+              <ArrowRightIcon size={16} className="ms-2" />
             </Link>
           </div>
         </Container>
@@ -324,7 +291,7 @@ function Home() {
             <div className="mb-5">
               <div className="d-flex align-items-center gap-4 mb-4">
                 <div className="flex-shrink-0 d-flex align-items-center justify-content-center border border-secondary rounded-3" style={{ width: '50px', height: '50px' }}>
-                  <i className="bi bi-check2-circle text-warning fs-4"></i>
+                  <CheckCircleIcon size={22} />
                 </div>
                 <div>
                   <h4 className="h6 mb-1 text-white">{t('home.trusted')}</h4>
@@ -333,7 +300,7 @@ function Home() {
               </div>
               <div className="d-flex align-items-center gap-4 mb-4">
                 <div className="flex-shrink-0 d-flex align-items-center justify-content-center border border-secondary rounded-3" style={{ width: '50px', height: '50px' }}>
-                  <i className="bi bi-geo-alt text-warning fs-4"></i>
+                  <MapPinIcon size={22} />
                 </div>
                 <div>
                   <h4 className="h6 mb-1 text-white">{t('home.nationwide')}</h4>
@@ -342,7 +309,7 @@ function Home() {
               </div>
               <div className="d-flex align-items-center gap-4 mb-4">
                 <div className="flex-shrink-0 d-flex align-items-center justify-content-center border border-secondary rounded-3" style={{ width: '50px', height: '50px' }}>
-                  <i className="bi bi-currency-dollar text-warning fs-4"></i>
+                  <BanknoteIcon size={22} />
                 </div>
                 <div>
                   <h4 className="h6 mb-1 text-white">{t('home.refund')}</h4>
@@ -379,7 +346,7 @@ function Home() {
                 </p>
                 <div className="tga-license-card mt-4">
                   <div className="d-flex align-items-center gap-2 mb-2">
-                    <i className="bi bi-patch-check-fill" style={{ color: '#eeb012' }}></i>
+                    <BadgeCheckIcon size={18} />
                     <p className="text-uppercase small mb-0" style={{ color: '#eeb012', letterSpacing: 2, fontWeight: 700 }}>{t('home.tga')}</p>
                   </div>
                   <p className="mb-2" style={{ color: '#f3e6c4', fontSize: '0.95rem' }}>
@@ -391,28 +358,28 @@ function Home() {
 
               <div className="row g-4">
                 <div className="col-md-6 mb-4">
-                  <i className="bi bi-key fs-3 mb-3 d-block" style={{ color: '#eeb012' }}></i>
+                  <KeyIcon size={26} className="mb-3 d-block" />
                   <h4 className="h5 mb-3" style={{ fontFamily: 'Georgia, serif' }}>{t('home.easy')}</h4>
                   <p className="small" style={{ color: '#777', lineHeight: '1.6' }}>
                     {t('home.easyText')}
                   </p>
                 </div>
                 <div className="col-md-6 mb-4">
-                  <i className="bi bi-shield-check fs-3 mb-3 d-block" style={{ color: '#eeb012' }}></i>
+                  <ShieldIcon size={26} className="mb-3 d-block" />
                   <h4 className="h5 mb-3" style={{ fontFamily: 'Georgia, serif' }}>{t('home.protection')}</h4>
                   <p className="small" style={{ color: '#777', lineHeight: '1.6' }}>
                     {t('home.protectionText')}
                   </p>
                 </div>
                 <div className="col-md-6 mb-4">
-                  <i className="bi bi-clock fs-3 mb-3 d-block" style={{ color: '#eeb012' }}></i>
+                  <ClockIcon size={26} className="mb-3 d-block" />
                   <h4 className="h5 mb-3" style={{ fontFamily: 'Georgia, serif' }}>{t('home.onTime')}</h4>
                   <p className="small" style={{ color: '#777', lineHeight: '1.6' }}>
                     {t('home.onTimeText')}
                   </p>
                 </div>
                 <div className="col-md-6 mb-4">
-                  <i className="bi bi-star fs-3 mb-3 d-block" style={{ color: '#eeb012' }}></i>
+                  <AwardIcon size={26} className="mb-3 d-block" />
                   <h4 className="h5 mb-3" style={{ fontFamily: 'Georgia, serif' }}>{t('home.premium')}</h4>
                   <p className="small" style={{ color: '#777', lineHeight: '1.6' }}>
                     {t('home.premiumText')}
@@ -540,10 +507,10 @@ function Home() {
 
         <div className="row g-4 mb-5">
           {[
-            { step: '01', icon: 'bi-sliders', title: t('home.step1'), text: t('home.step1Text') },
-            { step: '02', icon: 'bi-geo-alt', title: t('home.step2'), text: t('home.step2Text') },
-            { step: '03', icon: 'bi-shield-lock', title: t('home.step3'), text: t('home.step3Text') },
-            { step: '04', icon: 'bi-person-badge', title: t('home.step4'), text: t('home.step4Text') },
+            { step: '01', Icon: SlidersIcon, title: t('home.step1'), text: t('home.step1Text') },
+            { step: '02', Icon: MapPinIcon, title: t('home.step2'), text: t('home.step2Text') },
+            { step: '03', Icon: LockIcon, title: t('home.step3'), text: t('home.step3Text') },
+            { step: '04', Icon: UserIcon, title: t('home.step4'), text: t('home.step4Text') },
           ].map((item) => (
             <div key={item.step} className="col-md-6 col-lg-3">
               <div
@@ -551,7 +518,7 @@ function Home() {
                 style={{ background: '#141414', border: '1px solid rgba(255,255,255,0.08)' }}
               >
                 <div className="d-flex justify-content-between align-items-center mb-4">
-                  <i className={`bi ${item.icon} fs-3`} style={{ color: '#eeb012' }} />
+                  <item.Icon size={24} />
                   <span style={{ color: '#555', fontFamily: 'Georgia, serif', fontSize: '1.25rem' }}>{item.step}</span>
                 </div>
                 <h3 className="h5 mb-3" style={{ fontFamily: 'Georgia, serif' }}>{item.title}</h3>

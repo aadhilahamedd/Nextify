@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Container from 'react-bootstrap/Container';
 import {
@@ -12,21 +12,33 @@ import {
   initialFormState,
 } from './bookingConstants';
 import PriceSummary from './PriceSummary';
+import PaymentMethods from './PaymentMethods';
 import DestinationAutocomplete from './DestinationAutocomplete';
 import VehiclePicker from './VehiclePicker';
-import { LocaleDateInput, LocaleTimeInput } from './ArabicDateTime';
-import { FLEET_CLASS, findFleetVehicle, getVehiclesForService } from '../../data/fleetVehicles';
+import { LocaleDateInput, LocaleTimeInput, getLocalDateValue, isTravelDateTimePast } from './ArabicDateTime';
+import { FLEET_CLASS, findFleetVehicle, getOfficialQuote, getVehiclesForService } from '../../data/fleetVehicles';
 import { calculatePriceAPI, createBookingAPI } from '../../Services/allAPI';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { translatePlace, translateService } from '../../i18n/places';
+import { TEMP_WHATSAPP_BOOKING_INSTEAD_OF_MOYASAR } from '../../utils/paymentMode';
+import { buildWhatsAppConfirmationMessage, openCompanyWhatsApp } from '../../utils/whatsapp';
 import './Booking.css';
+import { CheckCircleIcon, CoinsIcon, SERVICE_ICONS, ShieldIcon, UserIcon } from '../icons';
 
-const SERVICE_ICONS = {
-  airport_transfer: 'bi-airplane',
-  city_transfer: 'bi-geo-alt',
-  chauffeur: 'bi-clock-history',
-  intercity_transfer: 'bi-signpost-split',
-  gcc_transfer: 'bi-globe2',
+const SERVICE_IMAGES = {
+  airport_transfer: '/images/services/service-airport.jpg',
+  city_transfer: '/images/services/service-city.jpg',
+  chauffeur: '/images/services/service-chauffeur.jpg',
+  intercity_transfer: '/images/services/service-intercity.jpg',
+  gcc_transfer: '/images/services/service-gcc.jpg',
+};
+
+const SERVICE_ALT_KEYS = {
+  airport_transfer: 'rates.airportAlt',
+  city_transfer: 'rates.cityAlt',
+  chauffeur: 'rates.chauffeurAlt',
+  intercity_transfer: 'rates.intercityAlt',
+  gcc_transfer: 'rates.gccAlt',
 };
 
 function BookingWizard() {
@@ -41,7 +53,9 @@ function BookingWizard() {
   const [error, setError] = useState('');
   const [vehicleFilter, setVehicleFilter] = useState('All');
   const wizardRef = useRef(null);
+  const pageRef = useRef(null);
   const skipWizardScroll = useRef(true);
+  const [inView, setInView] = useState(false);
 
   const services = useMemo(
     () => Object.entries(SERVICE_TYPES).map(([, value]) => ({
@@ -57,7 +71,10 @@ function BookingWizard() {
     [form.serviceType, vehicleFilter, form.durationType]
   );
   const selectedVehicle = findFleetVehicle({ category: form.vehicleCategory, name: form.vehicleName });
-  const today = new Date().toISOString().slice(0, 10);
+  const today = getLocalDateValue();
+  const minTravelTime = form.travelDate === today
+    ? `${String(new Date().getHours()).padStart(2, '0')}:${String(new Date().getMinutes()).padStart(2, '0')}`
+    : undefined;
   const vehicleFilters = [
     { id: 'All', label: t('fleet.all') },
     { id: FLEET_CLASS.FIRST, label: t('fleet.firstClass') },
@@ -129,37 +146,65 @@ function BookingWizard() {
     };
   }, [form, selectedVehicle]);
 
-  const fetchQuote = async () => {
-    if (!form.vehicleCategory) return;
-    if (form.serviceType === 'chauffeur' && !form.durationType) return;
-    setQuoteLoading(true);
-    setError('');
-    const res = await calculatePriceAPI(buildPricingPayload());
-    setQuoteLoading(false);
-    if (res?.status === 200 && res.data?.quote) {
-      setQuote(res.data.quote);
-    } else {
-      setError(res?.data?.message || res?.error || t('booking.errPrice'));
-    }
-  };
+  const localQuote = useMemo(() => {
+    if (!form.vehicleCategory) return null;
+    if (form.serviceType === 'chauffeur' && !form.durationType) return null;
+    return getOfficialQuote(buildPricingPayload());
+  }, [buildPricingPayload, form.serviceType, form.vehicleCategory, form.durationType]);
 
   useEffect(() => {
-    if (form.vehicleCategory && step >= 1) fetchQuote();
+    setQuote(localQuote);
+    setError('');
+    if (step < 1 || !localQuote || localQuote.customQuoteRequired) {
+      setQuoteLoading(false);
+      return undefined;
+    }
+
+    let cancelled = false;
+    setQuoteLoading(false);
+    const timer = window.setTimeout(() => {
+      calculatePriceAPI(buildPricingPayload()).then((res) => {
+        if (cancelled) return;
+        const nextQuote = res?.data?.quote || (res?.data?.price != null ? res.data : null);
+        if (res?.status === 200 && nextQuote) {
+          setQuote(nextQuote);
+        }
+      });
+    }, 200);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+    // Price-only fields. Do not refetch while typing pickup/guest details.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
+    step,
+    localQuote,
     form.vehicleCategory,
-    form.vehicleName,
     form.durationType,
     form.intercityRoute,
     form.gccDestination,
     form.distanceKm,
     form.serviceType,
     form.airport,
-    form.destination,
-    form.origin,
-    form.pickupLocation,
-    form.dropoffLocation,
   ]);
+
+  useEffect(() => {
+    const el = pageRef.current;
+    if (!el) return undefined;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setInView(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.08, rootMargin: '0px 0px -6% 0px' }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     if (skipWizardScroll.current) {
@@ -180,6 +225,10 @@ function BookingWizard() {
   const validateTrip = () => {
     if (!form.travelDate || !form.travelTime) {
       setError(t('booking.errDate'));
+      return false;
+    }
+    if (isTravelDateTimePast(form.travelDate, form.travelTime)) {
+      setError(t('booking.errPast'));
       return false;
     }
     if (!form.vehicleCategory) {
@@ -247,11 +296,32 @@ function BookingWizard() {
 
     if (res?.status === 201 || res?.status === 200) {
       const booking = res.data?.booking || res.data?.data?.booking;
+      if (!booking?.bookingNumber) {
+        setError(res?.data?.message || res?.error || t('booking.errCreate'));
+        return;
+      }
       if (booking?.customQuoteRequired || quote?.customQuoteRequired) {
         navigate(`/booking-confirmation/${booking.bookingNumber}`, { state: { booking, customQuote: true } });
-      } else {
-        navigate('/payment', { state: { booking } });
+        return;
       }
+
+      if (TEMP_WHATSAPP_BOOKING_INSTEAD_OF_MOYASAR) {
+        const message = buildWhatsAppConfirmationMessage({
+          booking,
+          form,
+          quote,
+        });
+        const opened = openCompanyWhatsApp(message);
+        if (!opened.ok) {
+          setError(opened.error || t('booking.errWhatsApp'));
+        }
+        navigate(`/booking-confirmation/${booking.bookingNumber}`, {
+          state: { booking, whatsappPending: true },
+        });
+        return;
+      }
+
+      navigate('/payment', { state: { booking } });
     } else {
       setError(res?.data?.message || res?.error || t('booking.errCreate'));
     }
@@ -377,54 +447,61 @@ function BookingWizard() {
     }
   };
 
+  const summaryForm = {
+    ...form,
+    vehicleName: selectedVehicle?.label || form.vehicleName,
+    vehicleImage: getVehicleImage(form.vehicleCategory),
+  };
+
   const summary = (
     <div className="book-summary-wrap">
-      {quoteLoading && !quote && <p className="book-empty-quote mb-3">{t('booking.confirming')}</p>}
-      {!quote && !quoteLoading && (
+      {!form.vehicleCategory ? (
         <div className="book-summary">
           <p className="book-kicker mb-2">{t('booking.fare')}</p>
           <p className="book-empty-quote">{t('booking.chooseRate')}</p>
         </div>
-      )}
-      {quote && (
+      ) : (
         <PriceSummary
-          form={{
-            ...form,
-            vehicleName: selectedVehicle?.label,
-            vehicleImage: getVehicleImage(form.vehicleCategory),
-          }}
+          form={summaryForm}
           quote={quote}
+          loading={quoteLoading}
           compact
         />
       )}
       <div className="book-trust">
-        <span><i className="bi bi-person-badge" /> {t('booking.included')}</span>
-        <span><i className="bi bi-currency-exchange" /> {t('booking.pricesSar')}</span>
-        <span><i className="bi bi-shield-check" /> {t('booking.backendQuote')}</span>
+        <span><UserIcon size={15} /> {t('booking.included')}</span>
+        <span><CoinsIcon size={15} /> {t('booking.pricesSar')}</span>
+        <span><ShieldIcon size={15} /> {t('booking.backendQuote')}</span>
       </div>
-      {error && <div className="book-error">{error}</div>}
+      {TEMP_WHATSAPP_BOOKING_INSTEAD_OF_MOYASAR && step === 2 && !quote?.customQuoteRequired && (
+        <PaymentMethods />
+      )}
+      {error && !/timeout|network error|econnaborted/i.test(error) && (
+        <div className="book-error">{error}</div>
+      )}
       {step === 2 && (
         <button
           type="button"
           className="lux-btn w-100 mt-4"
           style={{ padding: '14px 24px' }}
-          disabled={loading || quoteLoading || !quote}
+          disabled={loading || !quote}
           onClick={handleSubmit}
         >
-          {loading ? t('booking.processing') : quote?.customQuoteRequired ? t('booking.requestQuote') : t('booking.continueBooking')}
+          {loading ? t('booking.processing') : quote?.customQuoteRequired ? t('booking.requestQuote') : t('booking.payNow')}
         </button>
       )}
     </div>
   );
 
   return (
-    <div className="book-page">
+    <div className={`book-page${inView ? ' is-inview' : ''}`} ref={pageRef}>
       <Container>
-        <div className="text-center mb-2">
+        <header className="book-heading">
           <p className="book-kicker">{t('booking.kicker')}</p>
+          <span className="book-heading-line" aria-hidden="true" />
           <h1 className="book-title">{t('booking.title')}</h1>
           <p className="book-lead">{t('booking.lead')}</p>
-        </div>
+        </header>
 
         <div className="book-wizard" ref={wizardRef}>
         <p className="book-progress-mobile">{t('booking.stepOf', { current: formatNumber(step + 1), label: step === 0 ? t('booking.service') : step === 1 ? t('booking.trip') : t('booking.guest') })}</p>
@@ -446,12 +523,20 @@ function BookingWizard() {
         </div>
 
         {step === 0 && (
-          <div className="row g-3">
-            {services.map((s) => (
-              <div key={s.value} className="col-md-6 col-lg-4">
+          <div className="book-service-grid">
+            {services.map((s, index) => {
+              const ServiceIcon = SERVICE_ICONS[s.value];
+              const selected = form.serviceType === s.value;
+              return (
+              <div
+                key={s.value}
+                className="book-service-item"
+                style={{ '--rise-delay': `${140 + index * 120}ms` }}
+              >
                 <button
                   type="button"
-                  className={`book-service-card${form.serviceType === s.value ? ' is-active' : ''}`}
+                  className={`book-service-card${selected ? ' is-active' : ''}`}
+                  aria-pressed={selected}
                   onClick={() => {
                     update({ serviceType: s.value, vehicleCategory: '', vehicleName: '', durationType: '' });
                     setVehicleFilter('All');
@@ -459,12 +544,34 @@ function BookingWizard() {
                     setStep(1);
                   }}
                 >
-                  <div className="book-service-icon"><i className={`bi ${SERVICE_ICONS[s.value]}`} /></div>
-                  <h5 className="mb-2" style={{ fontFamily: 'Georgia, serif' }}>{s.label}</h5>
-                  <p className="small mb-0" style={{ color: 'rgba(255,255,255,0.62)', lineHeight: 1.6 }}>{s.desc}</p>
+                  <div className="book-service-media">
+                    <img
+                      src={SERVICE_IMAGES[s.value]}
+                      alt={t(SERVICE_ALT_KEYS[s.value])}
+                      width={720}
+                      height={198}
+                      loading={index < 3 ? 'eager' : 'lazy'}
+                      decoding="async"
+                    />
+                    {selected && (
+                      <span className="book-service-check" aria-hidden="true">
+                        <CheckCircleIcon size={16} />
+                      </span>
+                    )}
+                  </div>
+                  <div className="book-service-body">
+                    <div className="book-service-name">
+                      <span className="book-service-icon" aria-hidden="true">
+                        {ServiceIcon ? <ServiceIcon size={16} /> : null}
+                      </span>
+                      <span className="book-service-title">{s.label}</span>
+                    </div>
+                    <p className="book-service-desc">{s.desc}</p>
+                  </div>
                 </button>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
@@ -495,7 +602,7 @@ function BookingWizard() {
                       </div>
                       <div className="col-12 col-md-6">
                         <label className="book-label">{t('booking.travelTime')}</label>
-                        <LocaleTimeInput className="form-control book-input" value={form.travelTime} onChange={(travelTime) => update({ travelTime })} />
+                        <LocaleTimeInput className="form-control book-input" value={form.travelTime} min={minTravelTime} onChange={(travelTime) => update({ travelTime })} />
                       </div>
                       <div className="col-12 col-md-6">
                         <label className="book-label">{t('booking.passengers')}</label>

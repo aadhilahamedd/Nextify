@@ -1,11 +1,12 @@
 import axios from "axios";
 
-const commonAPI = async (httpMethod, url, reqBody,reqHeaders) => {
+const commonAPI = async (httpMethod, url, reqBody, reqHeaders, extra = {}) => {
 
     const reqConfig = {
         method: httpMethod,
         url: url,
-        headers: reqHeaders
+        headers: reqHeaders,
+        ...(extra.timeout ? { timeout: extra.timeout } : {}),
     }
     if (reqBody !== '' && reqBody !== undefined && reqBody !== null) {
         reqConfig.data = reqBody

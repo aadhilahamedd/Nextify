@@ -14,27 +14,15 @@ function formatBookingWhen(dateValue, timeValue, lang) {
   return <span dir="ltr" className="book-date-value">{shown.join(' ')}</span>;
 }
 
-export default function PriceSummary({ form, quote, compact = false }) {
+export default function PriceSummary({ form, quote, compact = false, loading = false }) {
   const { t, lang, formatSar } = useLanguage();
   const price = quote?.price ?? quote?.totalAmount ?? quote?.quotedPrice ?? null;
   const customQuoteRequired =
     quote?.customQuoteRequired ||
     quote?.pricingType === 'custom_quote' ||
     quote?.breakdown?.pricingType === 'custom_quote';
-
-  if (customQuoteRequired) {
-    return (
-      <div className={compact ? 'book-summary' : 'rounded-4 p-4 border bg-white'}>
-        <p className="book-kicker mb-2">{t('booking.customQuote')}</p>
-        <h5 style={{ fontFamily: 'Georgia, serif' }}>{t('booking.customTitle')}</h5>
-        <p className="mb-0" style={{ color: compact ? 'rgba(255,255,255,0.62)' : '#666', lineHeight: 1.7 }}>
-          {quote.message || t('booking.customBody')}
-        </p>
-      </div>
-    );
-  }
-
-  if (price == null) return null;
+  const vehicleImage = form?.vehicleImage || getVehicleImage(form?.vehicleCategory);
+  const hasVehicle = Boolean(form?.vehicleCategory || form?.vehicleName || vehicleImage);
 
   const rows = [
     [t('booking.serviceLabel'), translateService(form?.serviceType, t) || form?.serviceType],
@@ -50,7 +38,27 @@ export default function PriceSummary({ form, quote, compact = false }) {
     form?.travelDate && [t('booking.date'), formatBookingWhen(form.travelDate, form.travelTime, lang)],
   ].filter(Boolean);
 
+  if (!hasVehicle && price == null && !loading && !customQuoteRequired) return null;
+
+  if (customQuoteRequired) {
+    return (
+      <div className={compact ? 'book-summary' : 'rounded-4 p-4 border bg-white'}>
+        {compact && vehicleImage && (
+          <div className="book-summary-vehicle">
+            <img src={vehicleImage} alt={form?.vehicleName || t('booking.vehicle')} />
+          </div>
+        )}
+        <p className="book-kicker mb-2">{t('booking.customQuote')}</p>
+        <h5 style={{ fontFamily: 'Georgia, serif' }}>{t('booking.customTitle')}</h5>
+        <p className="mb-0" style={{ color: compact ? 'rgba(255,255,255,0.62)' : '#666', lineHeight: 1.7 }}>
+          {quote.message || t('booking.customBody')}
+        </p>
+      </div>
+    );
+  }
+
   if (!compact) {
+    if (price == null) return null;
     return (
       <div className="rounded-4 p-4 border bg-white">
         <p className="text-uppercase small mb-3" style={{ color: '#a88448', letterSpacing: 2 }}>{t('booking.summary')}</p>
@@ -70,8 +78,6 @@ export default function PriceSummary({ form, quote, compact = false }) {
     );
   }
 
-  const vehicleImage = form?.vehicleImage || getVehicleImage(form?.vehicleCategory);
-
   return (
     <div className="book-summary">
       <p className="book-kicker mb-3">{t('booking.summary')}</p>
@@ -88,7 +94,13 @@ export default function PriceSummary({ form, quote, compact = false }) {
       ))}
       <div className="book-summary-total">
         <span>{t('booking.total')}</span>
-        <strong>{formatSar(price)}</strong>
+        {price != null ? (
+          <strong>{formatSar(price)}</strong>
+        ) : (
+          <strong className="book-summary-pending">
+            {loading ? t('booking.confirming') : '—'}
+          </strong>
+        )}
       </div>
       <p className="small mb-0 mt-3" style={{ color: 'rgba(255,255,255,0.48)' }}>
         {t('booking.fareNote')}

@@ -23,8 +23,8 @@
   --ut-surface-card-on-dark: rgba(255, 255, 255, 0.1);
   --ut-shadow-soft: 0 18px 40px rgba(0, 0, 0, 0.1);
   --ut-shadow-stage: 0 24px 48px rgba(0, 0, 0, 0.08);
-  --font-heading: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
-  --font-body: 'Montserrat', system-ui, sans-serif;
+  --font-heading: 'Inter Tight', 'Segoe UI', Tahoma, 'Noto Naskh Arabic', sans-serif;
+  --font-body: 'Inter Tight', 'Segoe UI', Tahoma, 'Noto Naskh Arabic', sans-serif;
 }
 
 html,

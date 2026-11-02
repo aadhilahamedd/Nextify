@@ -8,6 +8,7 @@ import { getPricingRulesAPI } from '../Services/allAPI';
 import VehiclePricingDisplay from './pricing/VehiclePricingDisplay';
 import { formatCarDayPriceForLang } from '../i18n/format';
 import { useLanguage } from '../i18n/LanguageContext';
+import { ArrowLeftIcon, ArrowRightIcon, BriefcaseIcon, UsersIcon } from './icons';
 
 function Cardetails() {
   const { t, lang } = useLanguage();
@@ -40,7 +41,7 @@ function Cardetails() {
           className="btn btn-link text-decoration-none text-light p-0 mb-4 d-flex align-items-center"
           style={{ fontSize: '0.9rem', letterSpacing: '1px' }}
         >
-          <i className="bi bi-arrow-left me-2"></i> {t('details.back')}
+          <ArrowLeftIcon size={16} className="me-2" /> {t('details.back')}
         </button>
 
         <Row className="g-5 align-items-center mt-2">
@@ -65,7 +66,7 @@ function Cardetails() {
             <div>
               <h1 className="display-4 fw-normal mb-2" style={{ fontFamily: 'Georgia, serif' }}>{car.name}</h1>
               {formatCarDayPriceForLang(car, lang) && (
-                <p className="mb-3" style={{ color: '#eeb012', fontSize: '1.15rem', fontWeight: 600 }}>
+                <p className="mb-3" style={{ color: '#f4f4f4', fontSize: '1.15rem', fontWeight: 600 }}>
                   {formatCarDayPriceForLang(car, lang)} <span style={{ color: '#888', fontWeight: 400, fontSize: '0.85rem' }}>{t('fleet.perDay')}</span>
                 </p>
               )}
@@ -81,7 +82,7 @@ function Cardetails() {
                 <div className="d-flex align-items-center p-3 rounded" style={{ backgroundColor: '#141414', border: '1px solid rgba(255,255,255,0.05)', transition: 'background-color 0.3s' }}
                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1a1a1a'}
                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#141414'}>
-                  <i className="bi bi-people-fill fs-4 me-3" style={{ color: '#eeb012' }}></i>
+                  <UsersIcon size={22} className="me-3" />
                   <div>
                     <p className="mb-0 text-uppercase" style={{ fontSize: '0.7rem', color: '#a0a0a0', letterSpacing: '1px' }}>{t('details.capacity')}</p>
                     <p className="mb-0 fw-semibold">{car.seats}</p>
@@ -91,7 +92,7 @@ function Cardetails() {
                 <div className="d-flex align-items-center p-3 rounded" style={{ backgroundColor: '#141414', border: '1px solid rgba(255,255,255,0.05)', transition: 'background-color 0.3s' }}
                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1a1a1a'}
                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#141414'}>
-                  <i className="bi bi-briefcase-fill fs-4 me-3" style={{ color: '#eeb012' }}></i>
+                  <BriefcaseIcon size={22} className="me-3" />
                   <div>
                     <p className="mb-0 text-uppercase" style={{ fontSize: '0.7rem', color: '#a0a0a0', letterSpacing: '1px' }}>{t('details.luggage')}</p>
                     <p className="mb-0 fw-semibold">{car.luggage}</p>
@@ -105,7 +106,7 @@ function Cardetails() {
                 className="lux-btn lux-btn-lg"
               >
                 {t('details.book')}
-                <i className="bi bi-arrow-right"></i>
+                <ArrowRightIcon size={16} />
               </button>
             </div>
           </Col>

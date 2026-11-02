@@ -6,6 +6,19 @@ function pad(n) {
   return String(n).padStart(2, '0');
 }
 
+export function getLocalDateValue(date = new Date()) {
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+export function isTravelDateTimePast(dateValue, timeValue) {
+  if (!dateValue || !timeValue) return false;
+  const [year, month, day] = dateValue.split('-').map(Number);
+  const [hour, minute] = timeValue.split(':').map(Number);
+  if (!year || !month || !day) return false;
+  const selected = new Date(year, month - 1, day, hour || 0, minute || 0, 0, 0);
+  return selected.getTime() < Date.now();
+}
+
 function toDateValue(year, month, day) {
   return `${year}-${pad(month + 1)}-${pad(day)}`;
 }
@@ -105,7 +118,7 @@ export function LocaleDateInput({ value, min, onChange, className }) {
   );
 }
 
-export function LocaleTimeInput({ value, onChange, className }) {
+export function LocaleTimeInput({ value, onChange, className, min }) {
   const { lang, t } = useLanguage();
   const wrapRef = useRef(null);
   const [open, setOpen] = useState(false);
@@ -129,7 +142,23 @@ export function LocaleTimeInput({ value, onChange, className }) {
     ? (lang === 'ar' ? `${toArabicIndic(hour)}:${toArabicIndic(minute)}` : `${hour}:${minute}`)
     : t('dates.pickTime');
 
+  const minHour = min ? Number(min.slice(0, 2)) : null;
+  const minMinute = min ? Number(min.slice(3, 5)) : null;
+  const isHourDisabled = (h) => minHour != null && Number(h) < minHour;
+  const isMinuteDisabled = (m) => {
+    if (minHour == null) return false;
+    const selectedHour = Number(hour || '00');
+    if (selectedHour < minHour) return true;
+    return selectedHour === minHour && Number(m) < minMinute;
+  };
+
   const pick = (nextHour, nextMinute) => {
+    if (isHourDisabled(nextHour)) return;
+    if (Number(nextHour) === minHour && Number(nextMinute) < minMinute) {
+      const nextAllowed = minutes.find((item) => Number(item) >= minMinute) || minutes[minutes.length - 1];
+      onChange(`${nextHour}:${nextAllowed}`);
+      return;
+    }
     onChange(`${nextHour}:${nextMinute}`);
   };
 
@@ -145,6 +174,7 @@ export function LocaleTimeInput({ value, onChange, className }) {
               <button
                 key={h}
                 type="button"
+                disabled={isHourDisabled(h)}
                 className={hour === h ? 'is-active' : ''}
                 onClick={() => pick(h, minute && minutes.includes(minute) ? minute : '00')}
               >
@@ -157,6 +187,7 @@ export function LocaleTimeInput({ value, onChange, className }) {
               <button
                 key={m}
                 type="button"
+                disabled={isMinuteDisabled(m)}
                 className={minute === m ? 'is-active' : ''}
                 onClick={() => {
                   pick(hour || '00', m);

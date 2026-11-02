@@ -150,7 +150,7 @@ export const deleteBookingAPI = async (id) => {
 // ====== PRICING ======
 export const calculatePriceAPI = async (payload) => {
   try {
-    const response = await commonAPI("POST", `${serverURL}/api/pricing/calculate`, payload, { "Content-Type": "application/json" });
+    const response = await commonAPI("POST", `${serverURL}/api/pricing/calculate`, payload, { "Content-Type": "application/json" }, { timeout: 8000 });
     return unwrap(response);
   } catch (err) {
     return handleError(err, "Price calculation failed");

@@ -30,7 +30,7 @@ export default function VehiclePricingDisplay({ rules, car, compact = false }) {
         {hints.map((h) => (
           <div key={h.serviceType} className="d-flex justify-content-between" style={{ fontSize: '0.9rem' }}>
             <span style={{ color: '#a0a0a0' }}>{translateService(h.serviceType, t)}</span>
-            <span style={{ color: h.unavailable ? '#888' : '#eeb012', fontWeight: 600 }}>
+            <span style={{ color: h.unavailable ? '#8a8a8a' : '#f4f4f4', fontWeight: 600 }}>
               {money(h)}{suffix(h)}
             </span>
           </div>
@@ -44,7 +44,7 @@ export default function VehiclePricingDisplay({ rules, car, compact = false }) {
       {hints.map((h) => (
         <div key={h.serviceType} style={{ fontSize: '0.85rem', color: '#ccc', marginBottom: 4 }}>
           <span style={{ color: '#888' }}>{translateService(h.serviceType, t)}: </span>
-          <span style={{ color: '#eeb012', fontWeight: 600 }}>
+          <span style={{ color: '#f4f4f4', fontWeight: 600 }}>
             {h.suffix?.includes('from') ? `${t('rates.from')} ` : ''}{money(h)}{h.suffix?.includes('Half Day') ? ` / ${t('booking.halfDay')}` : ''}
           </span>
         </div>

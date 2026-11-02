@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Route, Routes, useLocation } from 'react-router-dom'
 import './App.css'
 import Home from './pages/Home'
@@ -28,9 +29,32 @@ import { COMPANY_PHONE, getWhatsAppUrl } from './utils/whatsapp'
 import { useLanguage } from './i18n/LanguageContext'
 
 function App() {
-  const { pathname } = useLocation()
+  const { pathname, hash } = useLocation()
   const isAdminRoute = pathname.startsWith('/admin')
   const { t } = useLanguage()
+
+  useEffect(() => {
+    if (hash) {
+      const id = decodeURIComponent(hash.replace('#', ''))
+      const scrollToHash = () => {
+        const target = document.getElementById(id)
+        if (target) {
+          target.scrollIntoView({ behavior: 'auto', block: 'start' })
+          return
+        }
+        window.scrollTo(0, 0)
+      }
+      const frame = window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(scrollToHash)
+      })
+      return () => window.cancelAnimationFrame(frame)
+    }
+
+    window.scrollTo(0, 0)
+    document.documentElement.scrollTop = 0
+    document.body.scrollTop = 0
+    return undefined
+  }, [pathname, hash])
 
   return (
     <>

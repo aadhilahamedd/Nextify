@@ -7,11 +7,14 @@ import { Link, useLocation, useParams } from 'react-router-dom';
 import PriceSummary from '../components/booking/PriceSummary';
 
 import { SERVICE_LABELS } from '../components/booking/bookingConstants';
+import PaymentMethods from '../components/booking/PaymentMethods';
+import '../components/booking/Booking.css';
 
-import { buildConfirmedBookingWhatsAppMessage, COMPANY_PHONE, getWhatsAppUrl } from '../utils/whatsapp';
+import { buildConfirmedBookingWhatsAppMessage, buildWhatsAppConfirmationMessage, COMPANY_PHONE, getWhatsAppUrl } from '../utils/whatsapp';
 import { useLanguage } from '../i18n/LanguageContext';
 import { translateService } from '../i18n/places';
 import { formatDateTimeForLang } from '../i18n/format';
+import { AlertCircleIcon, CheckCircleIcon } from '../components/icons';
 
 
 
@@ -27,6 +30,11 @@ function BookingConfirmation() {
   const paymentSuccess = location.state?.paymentSuccess;
 
   const customQuote = location.state?.customQuote || booking?.customQuoteRequired;
+  const whatsappPending =
+    !customQuote &&
+    paymentSuccess !== true &&
+    paymentSuccess !== false &&
+    (Boolean(location.state?.whatsappPending) || booking?.paymentStatus === 'PENDING');
 
 
 
@@ -82,7 +90,17 @@ function BookingConfirmation() {
 
   const serviceType = booking.serviceType;
 
-  const whatsappMessage = buildConfirmedBookingWhatsAppMessage(booking);
+  const whatsappMessage = whatsappPending
+    ? buildWhatsAppConfirmationMessage({ booking })
+    : buildConfirmedBookingWhatsAppMessage(booking);
+
+  const heading = customQuote
+    ? t('confirm.quote')
+    : paymentSuccess === false
+      ? t('confirm.failed')
+      : whatsappPending
+        ? t('confirm.pending')
+        : t('confirm.confirmed');
 
   const pricingQuote = {
 
@@ -108,11 +126,13 @@ function BookingConfirmation() {
 
         <div className="text-center text-white mb-4">
 
-          <i className={`bi ${paymentSuccess === false ? 'bi-exclamation-circle' : 'bi-check-circle'} display-4 mb-3`} style={{ color: '#eeb012' }} />
+          {paymentSuccess === false
+            ? <AlertCircleIcon size={48} className="mb-3" />
+            : <CheckCircleIcon size={48} className="mb-3" />}
 
           <h2 style={{ fontFamily: 'Georgia, serif' }}>
 
-            {customQuote ? t('confirm.quote') : paymentSuccess === false ? t('confirm.failed') : t('confirm.confirmed')}
+            {heading}
 
           </h2>
 
@@ -121,6 +141,14 @@ function BookingConfirmation() {
             {t('confirm.id')} <strong>{booking.bookingNumber}</strong>
 
           </p>
+          {whatsappPending && (
+            <div style={{ maxWidth: 520, marginInline: 'auto' }}>
+              <p className="text-white-50 mt-2 mb-3">
+                {t('confirm.pendingLead')}
+              </p>
+              <PaymentMethods leadKey="confirm.payMethodsLead" />
+            </div>
+          )}
 
         </div>
 
@@ -182,7 +210,7 @@ function BookingConfirmation() {
 
             <i className="bi bi-whatsapp me-2" />
 
-            {t('confirm.wa')}
+            {whatsappPending ? t('confirm.sendWhatsApp') : t('confirm.wa')}
 
           </a>
 

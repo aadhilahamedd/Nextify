@@ -8,6 +8,7 @@ import VehiclePricingDisplay from './pricing/VehiclePricingDisplay'
 import { formatCarDayPriceForLang } from '../i18n/format'
 import { sarToUsd, parsePriceNumber } from '../utils/currency'
 import { useLanguage } from '../i18n/LanguageContext'
+import { BriefcaseIcon, CloseIcon, PencilIcon, PlusIcon, TrashIcon, UsersIcon } from './icons'
 
 const getCarListId = (car) => {
   const numeric = Number(car?.id)
@@ -87,12 +88,33 @@ function Carlist() {
   const handleImageSelect = (event) => {
     const file = event.target.files?.[0]
     if (!file) return
+    const applyImage = (dataUrl) => {
+      setPreview(dataUrl)
+      setEditData((prev) => ({ ...prev, img: dataUrl }))
+    }
     const reader = new FileReader()
     reader.onload = () => {
-      setPreview(reader.result)
-      setEditData((prev) => ({ ...prev, img: reader.result }))
+      const source = String(reader.result || '')
+      const image = new Image()
+      image.onload = () => {
+        const maxWidth = 1600
+        const scale = Math.min(1, maxWidth / Math.max(image.width, 1))
+        const canvas = document.createElement('canvas')
+        canvas.width = Math.max(1, Math.round(image.width * scale))
+        canvas.height = Math.max(1, Math.round(image.height * scale))
+        const ctx = canvas.getContext('2d')
+        if (!ctx) {
+          applyImage(source)
+          return
+        }
+        ctx.drawImage(image, 0, 0, canvas.width, canvas.height)
+        applyImage(canvas.toDataURL('image/jpeg', 0.82))
+      }
+      image.onerror = () => applyImage(source)
+      image.src = source
     }
     reader.readAsDataURL(file)
+    event.target.value = ''
   }
 
   const fetchCars = async () => {
@@ -168,6 +190,16 @@ function Carlist() {
     const response = await updateCarAPI(carId, editData)
     setSaving(false)
     if (response.status === 200) {
+      const savedCar = response.data?.car
+      if (savedCar) {
+        setCars((prev) => prev.map((item) => (
+          getCarListId(item) === carId ? { ...item, ...savedCar } : item
+        )))
+      } else {
+        setCars((prev) => prev.map((item) => (
+          getCarListId(item) === carId ? { ...item, ...editData } : item
+        )))
+      }
       setActionError('')
       setActionSuccess('Car updated.')
       await fetchCars()
@@ -247,7 +279,7 @@ function Carlist() {
                 className="btn btn-outline-light rounded-pill mt-4"
                 style={{ borderColor: 'rgba(246, 210, 110, 0.8)', color: '#f6d26e', padding: '12px 28px' }}
               >
-                <i className="bi bi-plus-lg me-2"></i>
+                <PlusIcon size={16} className="me-2" />
                 Add New Car
               </button>
             )}
@@ -301,6 +333,7 @@ function Carlist() {
                   <div className="fleet-card-image">
                   {car.img && (
                     <img
+                      key={String(car.img).slice(0, 80)}
                       src={getCarImageUrl(car.img)}
                       alt={car.name}
                     />
@@ -308,10 +341,10 @@ function Carlist() {
                   {isAdmin && (
                     <div style={{ position: 'absolute', top: 12, right: 12, display: 'flex', gap: '10px' }}>
                       <button type="button" onClick={(e) => { e.stopPropagation(); openEditModal(car) }} style={actionIconStyle} title="Edit car">
-                        <i className="bi bi-pencil-square"></i>
+                        <PencilIcon size={16} />
                       </button>
                       <button type="button" onClick={(e) => { e.stopPropagation(); deleteCar(car) }} style={deleteIconStyle} title="Delete car">
-                        <i className="bi bi-trash"></i>
+                        <TrashIcon size={16} />
                       </button>
                     </div>
                   )}
@@ -331,17 +364,17 @@ function Carlist() {
 
                 <div className="d-flex flex-wrap gap-2 mb-4 mt-auto">
                   <span className="badge bg-dark border border-secondary text-light fw-normal py-2 px-3 rounded-pill" style={{ fontSize: '0.75rem' }}>
-                    <i className="bi bi-people-fill me-2" style={{ color: '#eeb012' }}></i>
+                    <UsersIcon size={14} className="me-2" />
                     {car.seats}
                   </span>
                   <span className="badge bg-dark border border-secondary text-light fw-normal py-2 px-3 rounded-pill" style={{ fontSize: '0.75rem' }}>
-                    <i className="bi bi-briefcase-fill me-2" style={{ color: '#eeb012' }}></i>
+                    <BriefcaseIcon size={14} className="me-2" />
                     {car.luggage}
                   </span>
                 </div>
 
                 {formatCarDayPriceForLang(car, lang) && (
-                  <p className="mb-2 fw-semibold" style={{ color: '#eeb012', fontSize: '0.95rem' }}>
+                  <p className="mb-2 fw-semibold" style={{ color: '#f4f4f4', fontSize: '0.95rem' }}>
                     {formatCarDayPriceForLang(car, lang)}
                     <span className="ms-1" style={{ color: '#888', fontWeight: 400, fontSize: '0.75rem' }}>{t('fleet.perDay')}</span>
                   </p>
@@ -376,7 +409,7 @@ function Carlist() {
                 </p>
               </div>
               <button onClick={closeModal} style={closeButtonStyle} title="Close modal">
-                <i className="bi bi-x-lg"></i>
+                <CloseIcon size={18} />
               </button>
             </div>
             <div style={{ display: 'grid', gap: '14px' }}>

@@ -8,13 +8,23 @@ if (!uri) {
 }
 
 mongoose
-  .connect(uri)
+  .connect(uri, {
+    serverSelectionTimeoutMS: 8000,
+    socketTimeoutMS: 20000,
+    maxPoolSize: 10,
+  })
   .then(async () => {
     console.log('✅ Successfully connected to MongoDB!');
-    const { seedDefaults } = require('../services/seedService');
-    await seedDefaults();
+    try {
+      const { seedDefaults } = require('../services/seedService');
+      await Promise.race([
+        seedDefaults(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('seed-timeout')), 12000)),
+      ]);
+    } catch (err) {
+      console.error('Seed skipped:', err.message);
+    }
   })
   .catch((err) => {
     console.error('❌ MongoDB connection failed:', err.message);
-    process.exit(1);
   });

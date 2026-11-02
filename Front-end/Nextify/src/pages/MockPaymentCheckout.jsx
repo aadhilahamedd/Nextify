@@ -12,6 +12,8 @@ import PriceSummary from '../components/booking/PriceSummary';
 import { SERVICE_LABELS } from '../components/booking/bookingConstants';
 import { useLanguage } from '../i18n/LanguageContext';
 import { translateService } from '../i18n/places';
+import { TEMP_WHATSAPP_BOOKING_INSTEAD_OF_MOYASAR } from '../utils/paymentMode';
+import { buildWhatsAppConfirmationMessage, openCompanyWhatsApp } from '../utils/whatsapp';
 
 const MOYASAR_JS = 'https://cdn.moyasar.com/mpf/1.14.0/moyasar.js';
 const MOYASAR_CSS = 'https://cdn.moyasar.com/mpf/1.14.0/moyasar.css';
@@ -64,10 +66,22 @@ function MockPaymentCheckout() {
   const [checkout, setCheckout] = useState(null);
   const [error, setError] = useState('');
   const formReady = useRef(false);
+  const whatsappRedirected = useRef(false);
 
   useEffect(() => {
     const startCheckout = (current) => {
       sessionStorage.setItem('nextify_pending_booking', JSON.stringify(current));
+      if (TEMP_WHATSAPP_BOOKING_INSTEAD_OF_MOYASAR) {
+        if (whatsappRedirected.current) return;
+        whatsappRedirected.current = true;
+        const message = buildWhatsAppConfirmationMessage({ booking: current });
+        openCompanyWhatsApp(message);
+        navigate(`/booking-confirmation/${current.bookingNumber}`, {
+          state: { booking: current, whatsappPending: true },
+          replace: true,
+        });
+        return;
+      }
       createPaymentAPI(current._id).then((res) => {
         if (res?.status === 200 || res?.status === 201) {
           setPayment(res.data?.payment);

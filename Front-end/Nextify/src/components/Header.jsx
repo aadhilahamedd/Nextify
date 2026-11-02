@@ -6,6 +6,7 @@ import Navbar from 'react-bootstrap/Navbar';
 const logo = '/images/logo.webp';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../i18n/LanguageContext';
+import { LogInIcon } from './icons';
 
 function Header() {
   const location = useLocation();
@@ -99,7 +100,7 @@ function Header() {
                     aria-label={t('nav.login')}
                     title={t('nav.login')}
                   >
-                    <i className="bi bi-box-arrow-in-right" aria-hidden="true"></i>
+                    <LogInIcon size={18} />
                   </Link>
                 )}
               </div>

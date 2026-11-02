@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import { COMPANY } from '../utils/company';
 import { COMPANY_PHONE, getWhatsAppUrl } from '../utils/whatsapp';
 import { useLanguage } from '../i18n/LanguageContext';
+import { ClockIcon, GlobeIcon, MailIcon, MapPinIcon, PhoneIcon } from './icons';
 
 function Footer() {
   const { t, formatNumber } = useLanguage();
@@ -22,7 +23,7 @@ function Footer() {
             </p>
             <div className="d-flex align-items-center gap-3 mt-4">
               <div className="d-flex align-items-center justify-content-center border border-secondary rounded-circle" style={{ width: '40px', height: '40px' }}>
-                <i className="bi bi-telephone text-warning"></i>
+                <PhoneIcon size={16} />
               </div>
               <a href={`tel:${COMPANY.phonePrimaryDigits}`} className="fw-semibold text-white text-decoration-none ltr-num" dir="ltr">{COMPANY.phonePrimary}</a>
             </div>
@@ -53,15 +54,15 @@ function Footer() {
           <div className="col-lg-4 col-md-12">
             <h4 className="h6 text-uppercase fw-bold mb-4" style={{ letterSpacing: '2px', color: '#eeb012' }}>{t('footer.contactInfo')}</h4>
             <div className="d-flex gap-3 mb-3">
-              <i className="bi bi-clock text-warning"></i>
+              <ClockIcon size={16} />
               <p className="text-white-50 small mb-0">{t('company.hours')}</p>
             </div>
             <div className="d-flex gap-3 mb-3">
-              <i className="bi bi-envelope text-warning"></i>
+              <MailIcon size={16} />
               <a href={`mailto:${COMPANY.email}`} className="text-white-50 small mb-0 text-decoration-none">{COMPANY.email}</a>
             </div>
             <div className="d-flex gap-3 mb-3">
-              <i className="bi bi-telephone text-warning"></i>
+              <PhoneIcon size={16} />
               <p className="text-white-50 small mb-0">
                 <a href={`tel:${COMPANY.phonePrimaryDigits}`} className="text-white-50 text-decoration-none ltr-num" dir="ltr">{COMPANY.phonePrimary}</a>
                 <br />
@@ -69,7 +70,7 @@ function Footer() {
               </p>
             </div>
             <div className="d-flex gap-3">
-              <i className="bi bi-geo-alt text-warning"></i>
+              <MapPinIcon size={16} />
               <p className="text-white-50 small mb-0">
                 {addressLines.map((line) => (
                   <React.Fragment key={line}>{line}<br /></React.Fragment>
@@ -89,8 +90,8 @@ function Footer() {
             <Link to="/contact" className="text-white-50 small text-decoration-none">{t('footer.contact')}</Link>
           </div>
           <div className="d-flex gap-4">
-            <a href={COMPANY.website} target="_blank" rel="noreferrer" className="text-white-50"><i className="bi bi-globe fs-5"></i></a>
-            <a href={`mailto:${COMPANY.email}`} className="text-white-50"><i className="bi bi-envelope fs-5"></i></a>
+            <a href={COMPANY.website} target="_blank" rel="noreferrer" className="text-white-50"><GlobeIcon size={20} /></a>
+            <a href={`mailto:${COMPANY.email}`} className="text-white-50"><MailIcon size={20} /></a>
             <a href={getWhatsAppUrl(COMPANY_PHONE, t('wa.help'))} target="_blank" rel="noreferrer" className="text-white-50" aria-label={t('footer.whatsapp')}><i className="bi bi-whatsapp fs-5"></i></a>
           </div>
         </div>

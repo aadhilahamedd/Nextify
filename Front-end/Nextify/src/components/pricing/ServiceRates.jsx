@@ -1,46 +1,42 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import Container from 'react-bootstrap/Container';
 import { getPricingSummaryAPI } from '../../Services/allAPI';
 import { sarToUsd } from '../../utils/currency';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { translateService } from '../../i18n/places';
+import { ArrowRightIcon, SERVICE_ICONS } from '../icons';
 
 const CARDS = [
   {
     serviceType: 'airport_transfer',
-    title: 'Airport Transfer',
-    subtitle: 'Riyadh • Jeddah • Dammam',
-    icon: 'bi-airplane',
+    Icon: SERVICE_ICONS.airport_transfer,
     image: '/images/services/service-airport.jpg',
+    altKey: 'rates.airportAlt',
   },
   {
     serviceType: 'city_transfer',
-    title: 'City Transfer',
-    subtitle: 'Riyadh • Up to 20 KM',
-    icon: 'bi-geo-alt',
+    Icon: SERVICE_ICONS.city_transfer,
     image: '/images/services/service-city.jpg',
+    altKey: 'rates.cityAlt',
   },
   {
     serviceType: 'chauffeur',
-    title: 'Chauffeur Service',
-    subtitle: 'Half Day / Full Day',
-    icon: 'bi-person-badge',
+    Icon: SERVICE_ICONS.chauffeur,
     image: '/images/services/service-chauffeur.jpg',
+    altKey: 'rates.chauffeurAlt',
   },
   {
     serviceType: 'intercity_transfer',
-    title: 'Intercity',
-    subtitle: 'Riyadh • Khobar • Jubail • Jeddah',
-    icon: 'bi-signpost-split',
+    Icon: SERVICE_ICONS.intercity_transfer,
     image: '/images/services/service-intercity.jpg',
+    altKey: 'rates.intercityAlt',
   },
   {
     serviceType: 'gcc_transfer',
-    title: 'GCC Transfer',
-    subtitle: 'Dubai • Abu Dhabi • Bahrain • Qatar • Oman',
-    icon: 'bi-globe2',
+    Icon: SERVICE_ICONS.gcc_transfer,
     image: '/images/services/service-gcc.jpg',
+    altKey: 'rates.gccAlt',
   },
 ];
 
@@ -77,7 +73,7 @@ export default function ServiceRates() {
           observer.disconnect();
         }
       },
-      { threshold: 0.18, rootMargin: '0px 0px -8% 0px' }
+      { threshold: 0.12, rootMargin: '0px 0px -8% 0px' }
     );
     observer.observe(el);
     return () => observer.disconnect();
@@ -86,47 +82,59 @@ export default function ServiceRates() {
   return (
     <section
       ref={sectionRef}
-      className={`py-5 service-rates${inView ? ' is-inview' : ''}`}
-      style={{ backgroundColor: '#0f0f0f', color: 'white' }}
+      className={`service-rates${inView ? ' is-inview' : ''}`}
+      aria-labelledby="service-rates-heading"
     >
       <Container>
-        <div className="text-center mb-5">
-          <p className="text-uppercase mb-2" style={{ color: '#eeb012', letterSpacing: 3, fontSize: '0.8rem' }}>
-            {t('rates.kicker')}
-          </p>
-          <h2 className="display-5 mb-3" style={{ fontFamily: 'Georgia, serif' }}>
-            {t('rates.title')}
-          </h2>
-          <p style={{ color: '#888', maxWidth: 560, margin: '0 auto' }}>
-            {t('rates.lead')}
-          </p>
-        </div>
+        <header className="service-rates-heading">
+          <div className="service-rates-kicker">
+            <span className="service-rates-line" aria-hidden="true" />
+            <span>{t('rates.kicker')}</span>
+          </div>
+          <h2 id="service-rates-heading">{t('rates.title')}</h2>
+          <p className="service-rates-tagline">{t('rates.tagline')}</p>
+          <p className="service-rates-note">{t('rates.lead')}</p>
+        </header>
 
-        <div className="row g-4">
+        <div className="service-rates-grid">
           {CARDS.map((card, index) => {
             const fromPrice = summary[card.serviceType]?.fromPrice;
             const fromUsd = summary[card.serviceType]?.fromPriceUsd ?? sarToUsd(fromPrice);
+            const title = card.serviceType === 'intercity_transfer'
+              ? t('rates.intercityCard')
+              : translateService(card.serviceType, t);
+            const Icon = card.Icon;
             return (
-              <div
+              <article
                 key={card.serviceType}
-                className="col-md-6 col-lg-4 service-rate-col"
-                style={{ '--rise-delay': `${index * 90}ms` }}
+                className="service-rate-col"
+                style={{ '--rise-delay': `${140 + index * 120}ms` }}
               >
                 <div className="service-rate-card">
-                  <div className="service-rate-card-media" aria-hidden="true">
-                    <img src={card.image} alt="" />
+                  <div className="service-rate-media">
+                    <img
+                      src={card.image}
+                      alt={t(card.altKey)}
+                      width={720}
+                      height={210}
+                      loading="lazy"
+                      decoding="async"
+                    />
                   </div>
                   <div className="service-rate-card-body">
-                    <div className="service-rate-icon">
-                      <i className={`bi ${card.icon}`} />
+                    <div className="service-rate-name">
+                      <span className="service-rate-icon" aria-hidden="true">
+                        <Icon size={16} />
+                      </span>
+                      <h3 className="service-rate-title">{title}</h3>
                     </div>
-                    <h3 className="service-rate-title">{card.serviceType === 'intercity_transfer' ? t('rates.intercityCard') : translateService(card.serviceType, t)}</h3>
                     <p className="service-rate-sub">{t(SUBTITLE_KEYS[card.serviceType])}</p>
                     <div className="service-rate-price">
                       {fromPrice != null ? (
                         <>
-                          <strong>{t('rates.from')} {formatSar(fromPrice)}</strong>
-                          <span>{formatUsd(fromUsd)}</span>
+                          <span className="service-rate-from">{t('rates.from')}</span>
+                          <strong className="service-rate-amount">{formatSar(fromPrice)}</strong>
+                          <span className="service-rate-usd">{formatUsd(fromUsd)}</span>
                         </>
                       ) : (
                         <span className="service-rate-loading">{t('rates.loading')}</span>
@@ -137,11 +145,12 @@ export default function ServiceRates() {
                       state={{ serviceType: card.serviceType }}
                       className="service-rate-btn"
                     >
-                      {t('rates.book')}
+                      <span>{t('rates.book')}</span>
+                      <ArrowRightIcon size={16} />
                     </Link>
                   </div>
                 </div>
-              </div>
+              </article>
             );
           })}
         </div>

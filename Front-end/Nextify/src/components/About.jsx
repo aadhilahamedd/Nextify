@@ -4,6 +4,7 @@ import Row from 'react-bootstrap/Row'
 import Col from 'react-bootstrap/Col'
 import { COMPANY } from '../utils/company'
 import { useLanguage } from '../i18n/LanguageContext'
+import { CarIcon, ClockIcon, HeadphonesIcon, UsersIcon } from './icons'
 
 function About() {
   const { t, formatNumber } = useLanguage()
@@ -16,29 +17,25 @@ function About() {
             <p className="text-uppercase fw-semibold mb-2" style={{ color: '#eeb012', letterSpacing: '3px', fontSize: '0.8rem' }}>
               {t('about.kicker')}
             </p>
-            <h2 className="h1 fw-normal mb-4" style={{ fontFamily: 'Georgia, serif', color: '#fff' }}>
-              {t('about.title')}
+            <h2 className="h1 fw-normal mb-4 about-title" style={{ fontFamily: 'Georgia, serif', color: '#fff' }}>
+              {t('about.titleLine1')}{' '}
+              <span className="about-title-rest">{t('about.titleLine2')}</span>
             </h2>
             <p className="mb-4" style={{ color: '#bfbfbf', lineHeight: 1.8, maxWidth: '540px' }}>
               {t('about.intro', { year: formatNumber(COMPANY.foundedYear), founder: COMPANY.founder })}
+            </p>
+            <p className="mb-4" style={{ color: '#bfbfbf', lineHeight: 1.8, maxWidth: '540px' }}>
+              {t('about.services')}
             </p>
             <p className="mb-0 small" style={{ color: '#888', maxWidth: '540px' }}>
               {t('about.tgaLine')}
             </p>
           </div>
-          <div className="col-lg-5 d-flex justify-content-lg-end justify-content-center">
+          <div className="col-lg-5 d-flex justify-content-center about-mark-col">
             <img
               src="/images/about-mark.webp"
               alt="Nextify Limo Service"
-              style={{
-                display: 'block',
-                width: 240,
-                height: 240,
-                objectFit: 'contain',
-                flexShrink: 0,
-                background: 'transparent',
-                borderRadius: '50%',
-              }}
+              className="about-mark"
             />
           </div>
         </div>
@@ -48,28 +45,28 @@ function About() {
             {
               title: t('about.fleet'),
               description: t('about.fleetText'),
-              icon: 'bi-car-front-fill'
+              Icon: CarIcon
             },
             {
               title: t('about.drivers'),
               description: t('about.driversText'),
-              icon: 'bi-people-fill'
+              Icon: UsersIcon
             },
             {
               title: t('about.flexible'),
               description: t('about.flexibleText'),
-              icon: 'bi-clock-fill'
+              Icon: ClockIcon
             },
             {
               title: t('about.support'),
               description: t('about.supportText'),
-              icon: 'bi-headset'
+              Icon: HeadphonesIcon
             }
           ].map((item, index) => (
             <Col key={index} md={6} lg={3}>
               <div className="p-4 rounded-4 h-100" style={{ backgroundColor: '#111111', border: '1px solid rgba(255,255,255,0.08)' }}>
                 <div className="mb-4 d-flex align-items-center justify-content-center rounded-circle" style={{ width: '62px', height: '62px', backgroundColor: '#0f0f0f' }}>
-                  <i className={`bi ${item.icon} fs-3`} style={{ color: '#eeb012' }}></i>
+                  <item.Icon size={24} />
                 </div>
                 <h3 className="h5 mb-3" style={{ color: '#fff', fontFamily: 'Georgia, serif' }}>{item.title}</h3>
                 <p className="mb-0" style={{ color: '#bfbfbf', lineHeight: '1.8' }}>{item.description}</p>

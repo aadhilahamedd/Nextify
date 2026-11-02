@@ -4,6 +4,12 @@ body,
 #root {
   width: 100%;
   overflow-x: hidden;
+  font-family: 'Inter Tight', 'Segoe UI', Tahoma, 'Noto Naskh Arabic', sans-serif;
+}
+
+h1, h2, h3, h4, h5, h6,
+.display-1, .display-2, .display-3, .display-4, .display-5, .display-6 {
+  font-family: 'Inter Tight', 'Segoe UI', Tahoma, 'Noto Naskh Arabic', sans-serif !important;
 }
 
 .site-header-bar {
@@ -389,7 +395,7 @@ body,
 }
 
 html[dir="rtl"] body {
-  font-family: "Segoe UI", Tahoma, "Noto Naskh Arabic", Arial, sans-serif;
+  font-family: "Inter Tight", "Segoe UI", Tahoma, "Noto Naskh Arabic", Arial, sans-serif;
   text-align: right;
 }
 

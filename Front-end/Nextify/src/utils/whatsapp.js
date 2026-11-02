@@ -93,6 +93,208 @@ export function buildBookingWhatsAppMessage(data, serviceType) {
   return lines.join('\n');
 }
 
+function hasDisplayValue(value) {
+  if (value == null) return false;
+  const text = String(value).trim();
+  if (!text) return false;
+  const lower = text.toLowerCase();
+  return lower !== 'undefined' && lower !== 'null' && text !== '—';
+}
+
+function pickValue(...values) {
+  return values.find((value) => hasDisplayValue(value));
+}
+
+function formatAmount(amount) {
+  const numeric = Number(amount);
+  if (!Number.isFinite(numeric)) return '';
+  return numeric.toLocaleString('en-US');
+}
+
+function padDatePart(value) {
+  return String(value).padStart(2, '0');
+}
+
+function formatLocalDate(value) {
+  if (!value) return '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return `${date.getFullYear()}-${padDatePart(date.getMonth() + 1)}-${padDatePart(date.getDate())}`;
+}
+
+function formatLocalTime(value) {
+  if (!value) return '';
+  if (/^\d{2}:\d{2}/.test(value)) return String(value).slice(0, 5);
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return `${padDatePart(date.getHours())}:${padDatePart(date.getMinutes())}`;
+}
+
+function durationLabelFromType(durationType) {
+  if (durationType === 'half_day') return 'Half Day (5 Hrs)';
+  if (durationType === 'full_day') return 'Full Day (10 Hrs)';
+  return '';
+}
+
+function pushField(lines, label, value) {
+  const display = pickValue(value);
+  if (!hasDisplayValue(display)) return;
+  lines.push(`${label}: ${String(display).trim()}`);
+}
+
+/**
+ * Pending WhatsApp confirmation message for the temporary Pay Now flow.
+ * Omits empty, null, and placeholder fields. Does not claim payment.
+ */
+export function buildWhatsAppConfirmationMessage({
+  booking = {},
+  form = {},
+  quote = null,
+  serviceLabel,
+  durationLabel,
+} = {}) {
+  const serviceType = form.serviceType || booking.serviceType;
+  const typeLabel = pickValue(serviceLabel, getServiceTypeLabel(serviceType));
+  const customer = form.customer || booking.customer || {};
+  const pickupDateTime = booking.schedule?.pickupDateTime || booking.arrivalDateTime;
+  const pickup = pickValue(
+    form.pickupLocation,
+    form.serviceLocation,
+    form.origin,
+    booking.pickup?.address,
+    booking.origin,
+  );
+  const dropoff = pickValue(
+    form.dropoffLocation,
+    form.destination,
+    booking.destination?.address,
+    booking.destinationText,
+    booking.dropoffLocation,
+  );
+  const airport = pickValue(form.airport, booking.airport);
+  const vehicle = pickValue(
+    form.vehicleName,
+    booking.vehicle?.name,
+    booking.vehicle?.label,
+    booking.vehicleName,
+  );
+  const date = pickValue(form.travelDate, formatLocalDate(pickupDateTime));
+  const time = pickValue(form.travelTime, formatLocalTime(pickupDateTime));
+  const duration = pickValue(
+    durationLabel,
+    durationLabelFromType(form.durationType),
+    durationLabelFromType(booking.durationType),
+  );
+  const flight = pickValue(form.flightNumber, booking.flight?.flightNumber);
+  const distanceKm = pickValue(form.distanceKm, booking.distanceKm);
+  const specialRequests = pickValue(form.specialRequests, booking.specialRequests);
+  const amount = formatAmount(quote?.price ?? booking.quotedPrice ?? booking.pricing?.totalAmount);
+  const currency = pickValue(quote?.currency, booking.pricing?.currency, 'SAR');
+  const customQuote = Boolean(quote?.customQuoteRequired || booking.customQuoteRequired);
+
+  const lines = [
+    'Hello Nextify Team,',
+    '',
+    'I would like to confirm my chauffeur booking.',
+    '',
+    'BOOKING DETAILS',
+  ];
+  pushField(lines, 'Booking Reference', booking.bookingNumber);
+
+  lines.push('', 'CUSTOMER DETAILS');
+  pushField(lines, 'Customer Name', customer.name);
+  pushField(lines, 'Phone Number', customer.mobile);
+  pushField(lines, 'Email', customer.email);
+
+  lines.push('', 'SERVICE DETAILS');
+  pushField(lines, 'Selected Service', typeLabel);
+  pushField(lines, 'Vehicle Category', vehicle);
+  pushField(lines, 'Booking Type', typeLabel);
+
+  lines.push('', 'TRIP DETAILS');
+  if (serviceType === 'airport_transfer') {
+    pushField(lines, 'Airport', airport);
+    pushField(lines, 'Pickup Location', pickup || airport);
+    pushField(lines, 'Drop-off Location', dropoff);
+    pushField(lines, 'Flight Number', flight);
+    pushField(lines, 'Pickup Date', date);
+    pushField(lines, 'Pickup Time', time);
+  } else if (serviceType === 'city_transfer') {
+    pushField(lines, 'Pickup Location', pickup);
+    pushField(lines, 'Drop-off Location', dropoff);
+    pushField(lines, 'Pickup Date', date);
+    pushField(lines, 'Pickup Time', time);
+  } else if (serviceType === 'chauffeur') {
+    pushField(lines, 'Pickup Location', pickup);
+    pushField(lines, 'Service Date', date);
+    pushField(lines, 'Start Time', time);
+    pushField(lines, 'Selected Duration', duration);
+    pushField(lines, 'Vehicle Category', vehicle);
+  } else if (serviceType === 'intercity_transfer') {
+    pushField(lines, 'Departure City', pickValue(form.origin, booking.origin));
+    pushField(lines, 'Destination City', pickValue(form.destination, booking.destinationText, dropoff));
+    pushField(lines, 'Pickup Date', date);
+    pushField(lines, 'Pickup Time', time);
+    pushField(lines, 'Vehicle Category', vehicle);
+  } else if (serviceType === 'gcc_transfer') {
+    pushField(lines, 'Pickup City', pickValue(form.origin, booking.origin));
+    pushField(lines, 'Destination', pickValue(form.gccDestination, dropoff, booking.destinationText));
+    pushField(lines, 'Pickup Date', date);
+    pushField(lines, 'Pickup Time', time);
+    pushField(lines, 'Vehicle Category', vehicle);
+  } else {
+    pushField(lines, 'Pickup Location', pickup);
+    pushField(lines, 'Drop-off Location', dropoff);
+    pushField(lines, 'Pickup Date', date);
+    pushField(lines, 'Pickup Time', time);
+  }
+
+  const additional = [];
+  if (serviceType === 'intercity_transfer') {
+    pushField(additional, 'Route', form.intercityRoute);
+  }
+  if (serviceType !== 'airport_transfer') {
+    pushField(additional, 'Flight Number', flight);
+  }
+  if (serviceType === 'city_transfer' && hasDisplayValue(distanceKm)) {
+    pushField(additional, 'Estimated Distance', `${String(distanceKm).trim()} KM`);
+  }
+  if (Number(form.passengers) > 0) {
+    pushField(additional, 'Passengers', form.passengers);
+  } else if (Number(booking.trip?.passengerCount) > 0) {
+    pushField(additional, 'Passengers', booking.trip.passengerCount);
+  }
+  if (Number(form.luggage) > 0) {
+    pushField(additional, 'Luggage', form.luggage);
+  } else if (Number(booking.trip?.luggageCount) > 0) {
+    pushField(additional, 'Luggage', booking.trip.luggageCount);
+  }
+  pushField(additional, 'Special Instructions', specialRequests);
+
+  if (additional.length) {
+    lines.push('', 'Additional Details:');
+    lines.push(...additional);
+  }
+
+  lines.push('', 'PRICE DETAILS');
+  if (!customQuote && hasDisplayValue(amount)) {
+    pushField(lines, 'Currency', currency);
+    pushField(lines, 'Booking Amount', amount);
+  }
+
+  lines.push(
+    '',
+    'Please confirm my booking.',
+    'Payment can be made by mada, Visa, Mastercard, Apple Pay, Samsung Pay, or Google Pay.',
+    '',
+    'Thank you.',
+    'Nextify Limo',
+  );
+
+  return lines.join('\n');
+}
+
 export function buildConfirmedBookingWhatsAppMessage(booking) {
   const price =
     booking.quotedPrice ??
