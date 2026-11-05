@@ -2,12 +2,21 @@ const mongoose = require('mongoose');
 const PricingRule = require('../models/PricingRule');
 const { APPROVED_RATES } = require('../seed/pricingSeed');
 const {
-  GCC_CATEGORIES,
   normalizeServiceType,
   normalizeRoute,
 } = require('../utils/vehicleCategories');
+const {
+  AIRPORT_BASE_KM,
+  CITY_MAX_KM,
+  CITY_MIN_KM,
+  airportSlabForDistance,
+  citySlabForDistance,
+  ruleCoversCitySlab,
+} = require('../utils/distanceSlabs');
 
 const DEFAULT_CURRENCY = 'SAR';
+const RATE_ON_REQUEST = 'Rate on Request';
+const LONG_DISTANCE_QUOTE = 'Long Distance / Custom Quote';
 
 const CATEGORY_ALIASES = {
   gmc_yukon: 'gmc',
@@ -21,16 +30,26 @@ function normalizeVehicleCat(category) {
   return CATEGORY_ALIASES[cat] || cat;
 }
 
-function customQuote(message) {
+function customQuote(message, extra = {}) {
   return {
     success: true,
     price: null,
     currency: DEFAULT_CURRENCY,
     pricingType: 'custom_quote',
     customQuoteRequired: true,
+    payable: false,
+    quoteStatus: extra.quoteStatus || 'custom_quote',
     message: message || 'This journey requires a custom quotation.',
     totalAmount: null,
+    ...extra,
   };
+}
+
+function rateOnRequest(message, extra = {}) {
+  return customQuote(message || RATE_ON_REQUEST, {
+    quoteStatus: 'rate_on_request',
+    ...extra,
+  });
 }
 
 function fixedQuote(rule, extra = {}) {
@@ -38,13 +57,15 @@ function fixedQuote(rule, extra = {}) {
     success: true,
     price: rule.price,
     currency: rule.currency || DEFAULT_CURRENCY,
-    pricingType: 'fixed',
+    pricingType: extra.pricingType || 'fixed',
     customQuoteRequired: false,
+    payable: true,
+    quoteStatus: extra.quoteStatus || 'priced',
     pricingRuleId: rule._id,
     vehicleCategory: rule.vehicleCategory,
     displayLabel: rule.displayLabel,
-    totalAmount: rule.price,
-    message: null,
+    totalAmount: extra.totalAmount != null ? extra.totalAmount : rule.price,
+    message: extra.message || null,
     ...extra,
   };
 }
@@ -87,132 +108,368 @@ function approvedRules(serviceType, extra = () => true) {
   return APPROVED_RATES.filter((rule) => rule.serviceType === serviceType && extra(rule));
 }
 
-function findAirportRule(airport, vehicleCategory, vehicleName) {
-  return pickRule(
-    approvedRules('airport_transfer'),
-    vehicleCategory,
-    vehicleName,
-    (rule) => airportMatches(rule, airport),
+function findAirportRule(rules, airport, vehicleCategory, vehicleName) {
+  return pickRule(rules, vehicleCategory, vehicleName, (rule) => airportMatches(rule, airport));
+}
+
+function findCityRulesForVehicle(rules, vehicleCategory, vehicleName) {
+  return rules.filter(
+    (rule) => (!rule.origin || rule.origin === 'Riyadh')
+      && matchVehicleCategory(rule, vehicleCategory, vehicleName),
   );
 }
 
-function findCityRule(vehicleCategory, vehicleName) {
+function findCityRuleForSlab(rules, vehicleCategory, vehicleName, slab) {
+  const matches = findCityRulesForVehicle(rules, vehicleCategory, vehicleName)
+    .filter((rule) => ruleCoversCitySlab(rule, slab))
+    .sort((a, b) => {
+      const aMax = a.maxDistanceKm == null ? Number.POSITIVE_INFINITY : a.maxDistanceKm;
+      const bMax = b.maxDistanceKm == null ? Number.POSITIVE_INFINITY : b.maxDistanceKm;
+      return aMax - bMax;
+    });
+  return matches[0] || null;
+}
+
+function findChauffeurRule(rules, vehicleCategory, vehicleName, durationType) {
   return pickRule(
-    approvedRules('city_transfer', (rule) => !rule.origin || rule.origin === 'Riyadh'),
+    rules.filter((rule) => rule.durationType === durationType),
     vehicleCategory,
     vehicleName,
   );
 }
 
-function findChauffeurRule(vehicleCategory, vehicleName, durationType) {
-  return pickRule(
-    approvedRules('chauffeur', (rule) => rule.durationType === durationType),
-    vehicleCategory,
-    vehicleName,
-  );
-}
-
-function findIntercityRule(origin, destination, vehicleCategory, vehicleName) {
+function findIntercityRule(rules, origin, destination, vehicleCategory, vehicleName) {
   const route = normalizeRoute(origin, destination);
-  const rules = approvedRules(
-    'intercity_transfer',
+  const routeRules = rules.filter(
     (rule) => rule.origin === route.origin && rule.destination === route.destination,
   );
-  if (!rules.length) return null;
-  const allRule = rules.find((r) => r.vehicleApplicability === 'all');
+  if (!routeRules.length) return null;
+  const allRule = routeRules.find((r) => r.vehicleApplicability === 'all');
   if (allRule) return allRule;
-  return pickRule(rules, vehicleCategory, vehicleName);
+  return pickRule(routeRules, vehicleCategory, vehicleName);
 }
 
-function findGccRule(destination, vehicleCategory) {
+function findGccRule(rules, destination, vehicleCategory) {
   const destNorm = (destination || '').toLowerCase();
-  const rule = approvedRules('gcc_transfer').find((r) => String(r.destination || '').toLowerCase().includes(destNorm));
+  if (!destNorm) return null;
+  const rule = rules.find((r) => String(r.destination || '').toLowerCase().includes(destNorm)
+    || destNorm.includes(String(r.destination || '').toLowerCase()));
   if (!rule) return null;
-  if (!GCC_CATEGORIES.includes(vehicleCategory)) return 'invalid_vehicle';
-  if (rule.allowedVehicleCategories?.length && !rule.allowedVehicleCategories.includes(vehicleCategory)) {
-    return 'invalid_vehicle';
+  const vCat = normalizeVehicleCat(vehicleCategory);
+  if (rule.allowedVehicleCategories?.length && vCat && !rule.allowedVehicleCategories.includes(vCat)) {
+    return 'unconfigured_vehicle';
+  }
+  if (rule.vehicleCategory && vCat && rule.vehicleCategory !== vCat && !matchVehicleCategory(rule, vCat, '')) {
+    return 'unconfigured_vehicle';
   }
   return rule;
 }
 
-async function calculatePrice(payload) {
-  const serviceType = normalizeServiceType(payload.serviceType);
+function extraKmIncrementFor(rule) {
+  const value = Number(rule?.extraKmIncrement ?? rule?.extraKmCharge);
+  return Number.isFinite(value) && value > 0 ? value : null;
+}
+
+async function calculateAirportPrice(payload = {}) {
   const {
     vehicleCategory,
     vehicle,
     vehicleName,
     airport,
     origin,
-    destination,
-    durationType,
     distanceKm,
   } = payload;
+  const vCat = normalizeVehicleCat(vehicleCategory || vehicle?.category || '');
+  const vName = vehicleName || vehicle?.name || vehicle?.label || '';
+  const airportName = airport || origin;
+  const slab = airportSlabForDistance(distanceKm);
 
+  if (!vCat && !vName) return customQuote('Please select a vehicle.', { serviceType: 'airport_transfer' });
+
+  const rules = await getRulesByService('airport_transfer');
+  const rule = findAirportRule(rules, airportName, vCat, vName);
+  if (!rule) {
+    return customQuote('No fixed airport transfer rate for this vehicle. Custom quote required.', {
+      serviceType: 'airport_transfer',
+      airport: airportName,
+      distanceKm: slab.distanceKm,
+      slabLabel: slab.label,
+      pricingModel: 'airport_transfer',
+    });
+  }
+
+  const increment = extraKmIncrementFor(rule);
+  if (slab.kind === 'extra' && increment != null) {
+    const extraCharge = slab.extraSlabs * increment;
+    const total = rule.price + extraCharge;
+    return fixedQuote(rule, {
+      serviceType: 'airport_transfer',
+      airport: airportName,
+      pricingType: 'airport_distance',
+      quoteStatus: 'priced',
+      baseDistanceKm: AIRPORT_BASE_KM,
+      extraSlabs: slab.extraSlabs,
+      extraKmIncrement: increment,
+      extraCharge,
+      distanceKm: slab.distanceKm,
+      slabLabel: slab.label,
+      pricingModel: 'airport_transfer',
+      totalAmount: total,
+      price: total,
+    });
+  }
+
+  return fixedQuote(rule, {
+    serviceType: 'airport_transfer',
+    airport: airportName,
+    pricingType: 'airport_base',
+    quoteStatus: 'priced',
+    baseDistanceKm: AIRPORT_BASE_KM,
+    extraSlabs: slab.extraSlabs || 0,
+    extraKmUnpriced: slab.kind === 'extra',
+    distanceKm: slab.distanceKm,
+    slabLabel: slab.label,
+    pricingModel: 'airport_transfer',
+  });
+}
+
+async function calculateCityPrice(payload = {}) {
+  const {
+    vehicleCategory,
+    vehicle,
+    vehicleName,
+    distanceKm,
+  } = payload;
   const vCat = normalizeVehicleCat(vehicleCategory || vehicle?.category || '');
   const vName = vehicleName || vehicle?.name || vehicle?.label || '';
 
+  if (!vCat && !vName) return customQuote('Please select a vehicle.', { serviceType: 'city_transfer' });
+
+  const km = Number(distanceKm);
+  const slab = citySlabForDistance(Number.isFinite(km) && km > 0 ? km : CITY_MIN_KM);
+  const rules = await getRulesByService('city_transfer');
+  const vehicleRules = findCityRulesForVehicle(rules, vCat, vName);
+
+  if (slab.kind === 'invalid') {
+    return customQuote('Please enter a valid City Transfer distance.', {
+      serviceType: 'city_transfer',
+      pricingModel: 'city_transfer',
+    });
+  }
+
+  if (slab.kind === 'long_distance') {
+    return customQuote(LONG_DISTANCE_QUOTE, {
+      serviceType: 'city_transfer',
+      quoteStatus: 'long_distance',
+      origin: 'Riyadh',
+      distanceKm: slab.distanceKm,
+      slabLabel: slab.label,
+      maxDistanceKm: CITY_MAX_KM,
+      pricingModel: 'city_transfer',
+    });
+  }
+
+  if (!vehicleRules.length) {
+    return customQuote('City transfer is not available for this vehicle.', {
+      serviceType: 'city_transfer',
+      origin: 'Riyadh',
+      distanceKm: slab.distanceKm,
+      slabLabel: slab.label,
+      pricingModel: 'city_transfer',
+    });
+  }
+
+  const rule = findCityRuleForSlab(rules, vCat, vName, slab);
+  if (!rule) {
+    return rateOnRequest(
+      `No configured City Transfer rate for the ${slab.label} slab. ${RATE_ON_REQUEST}.`,
+      {
+        serviceType: 'city_transfer',
+        origin: 'Riyadh',
+        distanceKm: slab.distanceKm,
+        slabLabel: slab.label,
+        minDistanceKm: slab.minKm,
+        maxDistanceKm: slab.maxKm,
+        pricingModel: 'city_transfer',
+      },
+    );
+  }
+
+  return fixedQuote(rule, {
+    serviceType: 'city_transfer',
+    origin: 'Riyadh',
+    pricingType: 'city_distance',
+    quoteStatus: 'priced',
+    distanceKm: slab.distanceKm,
+    slabLabel: slab.label,
+    minDistanceKm: slab.minKm,
+    maxDistanceKm: rule.maxDistanceKm ?? slab.maxKm,
+    pricingModel: 'city_transfer',
+  });
+}
+
+async function calculateChauffeurPrice(payload = {}) {
+  const {
+    vehicleCategory,
+    vehicle,
+    vehicleName,
+    durationType,
+  } = payload;
+  const vCat = normalizeVehicleCat(vehicleCategory || vehicle?.category || '');
+  const vName = vehicleName || vehicle?.name || vehicle?.label || '';
+
+  if (!durationType || !['half_day', 'full_day'].includes(durationType)) {
+    throw new Error('Duration must be half_day or full_day');
+  }
+  if (!vCat && !vName) return customQuote('Please select a vehicle.', { serviceType: 'chauffeur' });
+
+  const rules = await getRulesByService('chauffeur');
+  const rule = findChauffeurRule(rules, vCat, vName, durationType);
+  if (!rule && durationType === 'half_day') {
+    return customQuote('This vehicle is available for full day service only.', { serviceType: 'chauffeur', durationType });
+  }
+  if (!rule) {
+    return customQuote('No chauffeur rate for this vehicle and duration. Custom quote required.', {
+      serviceType: 'chauffeur',
+      durationType,
+    });
+  }
+  return fixedQuote(rule, { serviceType: 'chauffeur', durationType, pricingModel: 'chauffeur' });
+}
+
+async function calculateIntercityPrice(payload = {}) {
+  const {
+    vehicleCategory,
+    vehicle,
+    vehicleName,
+    origin,
+    destination,
+    returnTrip,
+  } = payload;
+  const vCat = normalizeVehicleCat(vehicleCategory || vehicle?.category || '');
+  const vName = vehicleName || vehicle?.name || vehicle?.label || '';
+  const route = normalizeRoute(origin, destination);
+
+  if (!route.origin || !route.destination) {
+    return rateOnRequest('Please select a supported intercity route.', {
+      serviceType: 'intercity_transfer',
+      pricingModel: 'intercity_fixed',
+    });
+  }
+  if (returnTrip) {
+    return rateOnRequest(RATE_ON_REQUEST, {
+      serviceType: 'intercity_transfer',
+      origin: route.origin,
+      destination: route.destination,
+      pricingModel: 'intercity_fixed',
+    });
+  }
+
+  const rules = await getRulesByService('intercity_transfer');
+  const rule = findIntercityRule(rules, route.origin, route.destination, vCat, vName);
+  if (!rule) {
+    return rateOnRequest(RATE_ON_REQUEST, {
+      serviceType: 'intercity_transfer',
+      origin: route.origin,
+      destination: route.destination,
+      pricingModel: 'intercity_fixed',
+    });
+  }
+  if (rule.vehicleApplicability !== 'all' && !vCat && !vName) {
+    return rateOnRequest('Please select a vehicle for this intercity route.', {
+      serviceType: 'intercity_transfer',
+      origin: route.origin,
+      destination: route.destination,
+      pricingModel: 'intercity_fixed',
+    });
+  }
+  return fixedQuote(rule, {
+    serviceType: 'intercity_transfer',
+    origin: route.origin,
+    destination: route.destination,
+    pricingType: 'intercity_fixed',
+    pricingModel: 'intercity_fixed',
+  });
+}
+
+async function calculateGccPrice(payload = {}) {
+  const {
+    vehicleCategory,
+    vehicle,
+    vehicleName,
+    destination,
+    returnTrip,
+  } = payload;
+  const vCat = normalizeVehicleCat(vehicleCategory || vehicle?.category || '');
+  const vName = vehicleName || vehicle?.name || vehicle?.label || '';
+
+  if (!destination) {
+    return rateOnRequest('Please select a GCC destination.', {
+      serviceType: 'gcc_transfer',
+      pricingModel: 'gcc_fixed',
+    });
+  }
+  if (!vCat && !vName) {
+    return rateOnRequest('Please select a GCC vehicle.', {
+      serviceType: 'gcc_transfer',
+      destination,
+      pricingModel: 'gcc_fixed',
+    });
+  }
+  const originName = payload.origin || 'Riyadh';
+  if (originName && !/riyadh/i.test(String(originName))) {
+    return rateOnRequest(RATE_ON_REQUEST, {
+      serviceType: 'gcc_transfer',
+      origin: originName,
+      destination,
+      pricingModel: 'gcc_fixed',
+    });
+  }
+  if (returnTrip) {
+    return rateOnRequest(RATE_ON_REQUEST, {
+      serviceType: 'gcc_transfer',
+      origin: originName,
+      destination,
+      pricingModel: 'gcc_fixed',
+    });
+  }
+
+  const rules = await getRulesByService('gcc_transfer');
+  const result = findGccRule(rules, destination, vCat);
+  if (result === 'unconfigured_vehicle' || !result) {
+    return rateOnRequest(RATE_ON_REQUEST, {
+      serviceType: 'gcc_transfer',
+      origin: 'Riyadh',
+      destination,
+      pricingModel: 'gcc_fixed',
+    });
+  }
+  return fixedQuote(result, {
+    serviceType: 'gcc_transfer',
+    origin: 'Riyadh',
+    destination: result.destination,
+    pricingType: 'gcc_fixed',
+    pricingModel: 'gcc_fixed',
+  });
+}
+
+async function calculatePrice(payload = {}) {
+  const serviceType = normalizeServiceType(payload.serviceType);
   if (!serviceType) {
     throw new Error('Service type is required');
   }
 
   switch (serviceType) {
-    case 'airport_transfer': {
-      if (!vCat && !vName) return customQuote('Please select a vehicle.');
-      const rule = findAirportRule(airport || origin, vCat, vName);
-      if (!rule) return customQuote('No fixed airport transfer rate for this vehicle. Custom quote required.');
-      return fixedQuote(rule, { serviceType, airport: airport || origin });
-    }
-
-    case 'city_transfer': {
-      const km = Number(distanceKm);
-      if (km > 20) {
-        return customQuote('Trips above 20 KM may require a custom quote.');
-      }
-      if (!vCat && !vName) return customQuote('Please select a vehicle.');
-      const rule = findCityRule(vCat, vName);
-      if (!rule) return customQuote('City transfer is not available for this vehicle.');
-      return fixedQuote(rule, { serviceType, origin: 'Riyadh', maxDistanceKm: 20 });
-    }
-
-    case 'chauffeur': {
-      if (!durationType || !['half_day', 'full_day'].includes(durationType)) {
-        throw new Error('Duration must be half_day or full_day');
-      }
-      if (!vCat && !vName) return customQuote('Please select a vehicle.');
-      const rule = findChauffeurRule(vCat, vName, durationType);
-      if (!rule && durationType === 'half_day') {
-        return customQuote('This vehicle is available for full day service only.');
-      }
-      if (!rule) return customQuote('No chauffeur rate for this vehicle and duration. Custom quote required.');
-      return fixedQuote(rule, { serviceType, durationType });
-    }
-
-    case 'intercity_transfer': {
-      const route = normalizeRoute(origin, destination);
-      if (!route.origin || !route.destination) {
-        return customQuote('Please select a supported intercity route.');
-      }
-      const rule = findIntercityRule(route.origin, route.destination, vCat, vName);
-      if (!rule) {
-        return customQuote('This intercity route is not supported or requires a custom quote.');
-      }
-      if (rule.vehicleApplicability !== 'all' && !vCat && !vName) {
-        return customQuote('Please select a vehicle for this intercity route.');
-      }
-      return fixedQuote(rule, { serviceType, origin: route.origin, destination: route.destination });
-    }
-
-    case 'gcc_transfer': {
-      if (!destination) return customQuote('Please select a GCC destination.');
-      if (!vCat) return customQuote('Please select a GCC vehicle.');
-      const result = findGccRule(destination, vCat);
-      if (result === 'invalid_vehicle') {
-        return customQuote('GCC transfers only support GMC.');
-      }
-      if (!result) return customQuote('This GCC route requires a custom quote.');
-      return fixedQuote(result, { serviceType, origin: 'Riyadh', destination: result.destination });
-    }
-
+    case 'airport_transfer':
+      return calculateAirportPrice(payload);
+    case 'city_transfer':
+      return calculateCityPrice(payload);
+    case 'chauffeur':
+      return calculateChauffeurPrice(payload);
+    case 'intercity_transfer':
+      return calculateIntercityPrice(payload);
+    case 'gcc_transfer':
+      return calculateGccPrice(payload);
     default:
       return customQuote('Unsupported service type.');
   }
@@ -274,6 +531,10 @@ async function getRulesByService(serviceType) {
 
 module.exports = {
   calculatePrice,
+  calculateAirportPrice,
+  calculateCityPrice,
+  calculateIntercityPrice,
+  calculateGccPrice,
   getPublicPricingSummary,
   getRulesByService,
   normalizeServiceType,

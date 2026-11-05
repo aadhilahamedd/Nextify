@@ -72,7 +72,13 @@ async function createOrReuseCheckout(bookingDoc) {
     err.statusCode = 404;
     throw err;
   }
-  if (booking.customQuoteRequired || booking.paymentStatus === 'NOT_REQUIRED') {
+  const quoteStatus = booking.pricing?.breakdown?.quoteStatus;
+  if (
+    booking.customQuoteRequired
+    || booking.paymentStatus === 'NOT_REQUIRED'
+    || quoteStatus === 'rate_on_request'
+    || quoteStatus === 'long_distance'
+  ) {
     const err = new Error('This booking does not require online payment');
     err.statusCode = 400;
     throw err;

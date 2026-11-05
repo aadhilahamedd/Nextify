@@ -16,11 +16,22 @@ const tests = [
   { name: 'Airport Hiace', payload: { serviceType: 'airport_transfer', airport: 'Riyadh', vehicleCategory: 'toyota_hiace' }, expect: 600 },
   { name: 'Airport Coaster', payload: { serviceType: 'airport_transfer', airport: 'Riyadh', vehicleCategory: 'toyota_coaster' }, expect: 600 },
   { name: 'Airport V-Class', payload: { serviceType: 'airport_transfer', airport: 'Riyadh', vehicleCategory: 'mercedes_v_class' }, expect: 1200 },
-  { name: 'City GMC', payload: { serviceType: 'city_transfer', vehicleCategory: 'gmc', distanceKm: 10 }, expect: 140 },
+  { name: 'Client submitted price is ignored', payload: { serviceType: 'city_transfer', vehicleCategory: 'gmc', distanceKm: 10, price: 1, quotedPrice: 1, totalAmount: 1 }, expect: 140 },
+  { name: 'City GMC 10km uses 20km minimum', payload: { serviceType: 'city_transfer', vehicleCategory: 'gmc', distanceKm: 10 }, expect: 140 },
+  { name: 'City GMC 20km', payload: { serviceType: 'city_transfer', vehicleCategory: 'gmc', distanceKm: 20 }, expect: 140 },
   { name: 'City Taurus', payload: { serviceType: 'city_transfer', vehicleCategory: 'ford_taurus', distanceKm: 15 }, expect: 120 },
   { name: 'City S-Class unavailable', payload: { serviceType: 'city_transfer', vehicleCategory: 'mercedes_s', distanceKm: 10 }, expectCustom: true },
   { name: 'City Hiace unavailable', payload: { serviceType: 'city_transfer', vehicleCategory: 'toyota_hiace', distanceKm: 10 }, expectCustom: true },
-  { name: 'City over 20km', payload: { serviceType: 'city_transfer', vehicleCategory: 'gmc', distanceKm: 25 }, expectCustom: true },
+  { name: 'City 21km GMC missing slab', payload: { serviceType: 'city_transfer', vehicleCategory: 'gmc', distanceKm: 21 }, expectCustom: true, expectStatus: 'rate_on_request' },
+  { name: 'City 25km GMC missing slab', payload: { serviceType: 'city_transfer', vehicleCategory: 'gmc', distanceKm: 25 }, expectCustom: true, expectStatus: 'rate_on_request' },
+  { name: 'City 32km GMC missing slab', payload: { serviceType: 'city_transfer', vehicleCategory: 'gmc', distanceKm: 32 }, expectCustom: true, expectStatus: 'rate_on_request' },
+  { name: 'City 45km GMC missing slab', payload: { serviceType: 'city_transfer', vehicleCategory: 'gmc', distanceKm: 45 }, expectCustom: true, expectStatus: 'rate_on_request' },
+  { name: 'City 60km GMC missing slab', payload: { serviceType: 'city_transfer', vehicleCategory: 'gmc', distanceKm: 60 }, expectCustom: true, expectStatus: 'rate_on_request' },
+  { name: 'City 61km GMC long distance', payload: { serviceType: 'city_transfer', vehicleCategory: 'gmc', distanceKm: 61 }, expectCustom: true, expectStatus: 'long_distance' },
+  { name: 'City BMW 7 has no city rate', payload: { serviceType: 'city_transfer', vehicleCategory: 'bmw_7', distanceKm: 45 }, expectCustom: true },
+  { name: 'Airport GMC under 40km stays base', payload: { serviceType: 'airport_transfer', airport: 'Riyadh', vehicleCategory: 'gmc', distanceKm: 10 }, expect: 240 },
+  { name: 'Airport GMC over 40km stays base without increment', payload: { serviceType: 'airport_transfer', airport: 'Riyadh', vehicleCategory: 'gmc', distanceKm: 55 }, expect: 240 },
+  { name: 'Airport never uses city GMC price', payload: { serviceType: 'airport_transfer', airport: 'Riyadh', vehicleCategory: 'gmc', distanceKm: 10 }, expect: 240 },
   { name: 'Chauffeur GMC Half', payload: { serviceType: 'chauffeur', vehicleCategory: 'gmc', durationType: 'half_day' }, expect: 800 },
   { name: 'Chauffeur GMC Full', payload: { serviceType: 'chauffeur', vehicleCategory: 'gmc', durationType: 'full_day' }, expect: 1400 },
   { name: 'Chauffeur Taurus Half', payload: { serviceType: 'chauffeur', vehicleCategory: 'ford_taurus', durationType: 'half_day' }, expect: 700 },
@@ -31,8 +42,11 @@ const tests = [
   { name: 'Intercity Khobar Taurus', payload: { serviceType: 'intercity_transfer', origin: 'Riyadh', destination: 'Khobar', vehicleCategory: 'ford_taurus' }, expect: 1000 },
   { name: 'Intercity Khobar GMC', payload: { serviceType: 'intercity_transfer', origin: 'Riyadh', destination: 'Khobar', vehicleCategory: 'gmc' }, expect: 1400 },
   { name: 'Intercity Jeddah Lexus', payload: { serviceType: 'intercity_transfer', origin: 'Riyadh', destination: 'Jeddah', vehicleCategory: 'lexus_es' }, expect: 2200 },
+  { name: 'Intercity Dammam GMC rate on request', payload: { serviceType: 'intercity_transfer', origin: 'Riyadh', destination: 'Dammam', vehicleCategory: 'gmc' }, expectCustom: true, expectStatus: 'rate_on_request' },
+  { name: 'Intercity BMW 7 Khobar rate on request', payload: { serviceType: 'intercity_transfer', origin: 'Riyadh', destination: 'Khobar', vehicleCategory: 'bmw_7' }, expectCustom: true, expectStatus: 'rate_on_request' },
   { name: 'GCC Dubai GMC', payload: { serviceType: 'gcc_transfer', destination: 'Dubai', vehicleCategory: 'gmc' }, expect: 4800 },
-  { name: 'GCC invalid S-Class', payload: { serviceType: 'gcc_transfer', destination: 'Dubai', vehicleCategory: 'mercedes_s' }, expectCustom: true },
+  { name: 'GCC invalid S-Class', payload: { serviceType: 'gcc_transfer', destination: 'Dubai', vehicleCategory: 'mercedes_s' }, expectCustom: true, expectStatus: 'rate_on_request' },
+  { name: 'GCC Kuwait GMC rate on request', payload: { serviceType: 'gcc_transfer', destination: 'Kuwait', vehicleCategory: 'gmc' }, expectCustom: true, expectStatus: 'rate_on_request' },
 ];
 
 async function run() {
@@ -49,9 +63,10 @@ async function run() {
 
   for (const t of tests) {
     const result = await calculatePrice(t.payload);
+    const statusOk = !t.expectStatus || result.quoteStatus === t.expectStatus;
     const ok = t.expectCustom
-      ? result.customQuoteRequired === true
-      : result.price === t.expect && !result.customQuoteRequired;
+      ? result.customQuoteRequired === true && result.price == null && statusOk
+      : result.price === t.expect && !result.customQuoteRequired && statusOk;
     if (ok) {
       passed += 1;
       console.log(`✅ ${t.name}`);

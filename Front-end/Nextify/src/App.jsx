@@ -27,6 +27,7 @@ import PrivacyPolicy from './pages/legal/PrivacyPolicy'
 import TermsConditions from './pages/legal/TermsConditions'
 import { COMPANY_PHONE, getWhatsAppUrl } from './utils/whatsapp'
 import { useLanguage } from './i18n/LanguageContext'
+import { BookingAssistantProvider } from './components/booking/BookingAssistant'
 
 function App() {
   const { pathname, hash } = useLocation()
@@ -57,7 +58,7 @@ function App() {
   }, [pathname, hash])
 
   return (
-    <>
+    <BookingAssistantProvider>
       {!isAdminRoute && <Header />}
       <Routes>
         <Route path="/" element={<Home />} />
@@ -97,7 +98,7 @@ function App() {
           <i className="bi bi-whatsapp"></i>
         </a>
       )}
-    </>
+    </BookingAssistantProvider>
   )
 }
 

@@ -7,7 +7,6 @@ const {
   SERVICE_VEHICLE_OPTIONS,
   INTERCITY_ROUTES,
   GCC_ROUTES,
-  GCC_CATEGORIES,
 } = require('../utils/vehicleCategories');
 
 const MODEL = 'gpt-5';
@@ -36,7 +35,7 @@ Rules:
 1. Never invent prices, routes, vehicle specifications, availability, or booking numbers.
 2. Never claim a booking is confirmed unless the Nextify backend has actually created it.
 3. Currency is SAR.
-4. If the customer asks for a price, you MUST call calculatePrice and use only that result.
+4. If the customer asks for a price, you MUST call calculatePrice and use only that result. Never invent a fare. If the tool returns customQuoteRequired, Rate on Request, or Long Distance / Custom Quote, do not guess a number.
 5. If the customer asks what services Nextify provides, call getServices.
 6. If the customer asks about vehicles or the fleet, call getFleet.
 7. If the customer asks to speak with a human, WhatsApp, phone, or email, call getContactInformation and use only that data.
@@ -188,6 +187,8 @@ function publicQuote(quote) {
     currency: quote.currency || 'SAR',
     pricingType: quote.pricingType || null,
     customQuoteRequired: Boolean(quote.customQuoteRequired),
+    payable: quote.customQuoteRequired ? false : Boolean(quote.payable ?? quote.price != null),
+    quoteStatus: quote.quoteStatus || null,
     message: quote.message || null,
     vehicleCategory: quote.vehicleCategory || null,
     displayLabel: quote.displayLabel || null,
@@ -197,6 +198,8 @@ function publicQuote(quote) {
     origin: quote.origin || null,
     destination: quote.destination || null,
     durationType: quote.durationType || null,
+    distanceKm: quote.distanceKm ?? null,
+    slabLabel: quote.slabLabel || null,
     maxDistanceKm: quote.maxDistanceKm || null,
   };
 }
@@ -232,6 +235,7 @@ async function handleCalculatePrice(args = {}) {
     airport,
     durationType,
     distanceKm,
+    returnTrip: Boolean(args.returnTrip),
   };
 
   const quote = await calculatePrice(payload);
@@ -245,13 +249,14 @@ async function handleGetServices() {
       {
         serviceType: 'airport_transfer',
         name: 'Airport Transfer',
+        notes: 'Airport Transfer uses a 40 km base rate plus additional 5 km slabs when those increments are configured.',
         airports: ['Riyadh', 'Jeddah', 'Dammam'],
         vehicles: SERVICE_VEHICLE_OPTIONS.airport_transfer,
       },
       {
         serviceType: 'city_transfer',
         name: 'City Transfer',
-        notes: 'Fixed Riyadh rates apply up to 20 KM. Longer trips need a custom quote.',
+        notes: 'Riyadh City Transfer uses a 20 km minimum and 5 km slabs up to 60 km. Distances above 60 km are Long Distance / Custom Quote. Use only configured rates.',
         vehicles: SERVICE_VEHICLE_OPTIONS.city_transfer,
       },
       {
@@ -263,6 +268,7 @@ async function handleGetServices() {
       {
         serviceType: 'intercity_transfer',
         name: 'Intercity Transfer',
+        notes: 'Fixed route prices apply only when a vehicle/route rate is configured. Otherwise Rate on Request.',
         routes: INTERCITY_ROUTES,
         vehicles: SERVICE_VEHICLE_OPTIONS.intercity_transfer,
       },
@@ -270,12 +276,12 @@ async function handleGetServices() {
         serviceType: 'gcc_transfer',
         name: 'GCC Transfer',
         origin: 'Riyadh',
+        notes: 'Fixed route prices apply only when a vehicle/route rate is configured. Otherwise Rate on Request.',
         routes: GCC_ROUTES,
         vehicles: SERVICE_VEHICLE_OPTIONS.gcc_transfer,
-        allowedVehicleCategories: GCC_CATEGORIES,
       },
     ],
-    note: 'Do not invent prices. Call calculatePrice for official SAR quotes.',
+    note: 'Call calculatePrice for every fare. Never invent a missing route or slab price.',
   };
 }
 

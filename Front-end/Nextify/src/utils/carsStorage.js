@@ -43,7 +43,7 @@ export function getCarImageUrl(imgStr) {
   if (isCustomCarImage(imgStr)) return imgStr;
   const mapped = IMAGE_MAP[imgStr] || imgStr;
   if ((mapped.startsWith('/images/car/') || mapped.startsWith('/images/cars/')) && !mapped.includes('?')) {
-    return `${mapped}?v=10`;
+    return `${mapped}?v=11`;
   }
   return mapped;
 }

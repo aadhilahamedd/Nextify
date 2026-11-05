@@ -16,7 +16,9 @@ const emptyRule = {
   vehicleNames: '',
   vehicleApplicability: 'specific',
   durationType: '',
+  minDistanceKm: '',
   maxDistanceKm: '',
+  extraKmIncrement: '',
   price: '',
   priceUsd: '',
   currency: 'SAR',
@@ -68,7 +70,9 @@ export default function AdminPricingPanel() {
       ...emptyRule,
       ...rule,
       vehicleNames: (rule.vehicleNames || []).join(', '),
+      minDistanceKm: rule.minDistanceKm ?? '',
       maxDistanceKm: rule.maxDistanceKm ?? '',
+      extraKmIncrement: rule.extraKmIncrement ?? '',
       price: rule.price ?? '',
       priceUsd: rule.priceUsd ?? '',
     });
@@ -83,7 +87,9 @@ export default function AdminPricingPanel() {
       priceUsd: form.priceUsd !== '' && form.priceUsd != null
         ? Number(form.priceUsd)
         : sarToUsd(sarPrice),
-      maxDistanceKm: form.maxDistanceKm ? Number(form.maxDistanceKm) : null,
+      minDistanceKm: form.minDistanceKm !== '' && form.minDistanceKm != null ? Number(form.minDistanceKm) : null,
+      maxDistanceKm: form.maxDistanceKm !== '' && form.maxDistanceKm != null ? Number(form.maxDistanceKm) : null,
+      extraKmIncrement: form.extraKmIncrement !== '' && form.extraKmIncrement != null ? Number(form.extraKmIncrement) : null,
       vehicleNames: form.vehicleNames
         ? form.vehicleNames.split(',').map((s) => s.trim()).filter(Boolean)
         : [],
@@ -183,6 +189,9 @@ export default function AdminPricingPanel() {
               </select>
             </div>
             <div className="col-md-4"><input placeholder="Display label" value={form.displayLabel} onChange={(e) => setForm({ ...form, displayLabel: e.target.value })} style={inputStyle} /></div>
+            <div className="col-md-4"><input placeholder="Min distance km" type="number" value={form.minDistanceKm} onChange={(e) => setForm({ ...form, minDistanceKm: e.target.value })} style={inputStyle} /></div>
+            <div className="col-md-4"><input placeholder="Max distance km" type="number" value={form.maxDistanceKm} onChange={(e) => setForm({ ...form, maxDistanceKm: e.target.value })} style={inputStyle} /></div>
+            <div className="col-md-4"><input placeholder="Airport extra km increment" type="number" value={form.extraKmIncrement} onChange={(e) => setForm({ ...form, extraKmIncrement: e.target.value })} style={inputStyle} /></div>
             <div className="col-md-4">
               <select value={form.vehicleApplicability} onChange={(e) => setForm({ ...form, vehicleApplicability: e.target.value })} style={inputStyle}>
                 <option value="specific">Specific vehicle</option>

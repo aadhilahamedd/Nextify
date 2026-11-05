@@ -8,13 +8,21 @@ import {
   getVehicleImage,
   INTERCITY_ROUTES,
   GCC_DESTINATIONS,
+  GCC_DESTINATION_OPTIONS,
+  INTERCITY_DESTINATIONS,
+  TRANSFER_ORIGINS,
   DURATION_OPTIONS,
   initialFormState,
+  isInquiryTransfer,
+  isRouteTransferService,
+  quoteRequiresInquiry,
 } from './bookingConstants';
 import PriceSummary from './PriceSummary';
 import PaymentMethods from './PaymentMethods';
 import DestinationAutocomplete from './DestinationAutocomplete';
 import VehiclePicker from './VehiclePicker';
+import InquiryVehicleGrid from './InquiryVehicleGrid';
+import { useBookingAssistant } from './BookingAssistant';
 import { LocaleDateInput, LocaleTimeInput, getLocalDateValue, isTravelDateTimePast } from './ArabicDateTime';
 import { FLEET_CLASS, findFleetVehicle, getOfficialQuote, getVehiclesForService } from '../../data/fleetVehicles';
 import { calculatePriceAPI, createBookingAPI } from '../../Services/allAPI';
@@ -22,13 +30,19 @@ import { useLanguage } from '../../i18n/LanguageContext';
 import { translatePlace, translateService } from '../../i18n/places';
 import { TEMP_WHATSAPP_BOOKING_INSTEAD_OF_MOYASAR } from '../../utils/paymentMode';
 import { buildWhatsAppConfirmationMessage, openCompanyWhatsApp } from '../../utils/whatsapp';
+import {
+  buildTransferChatInquiry,
+  buildTransferInquiryMessage,
+  getInquiryVehicleLabel,
+  resolveInquiryDestination,
+} from '../../utils/inquiryTransfer';
 import './Booking.css';
 import { CheckCircleIcon, CoinsIcon, SERVICE_ICONS, ShieldIcon, UserIcon } from '../icons';
 
 const SERVICE_IMAGES = {
   airport_transfer: '/images/services/service-airport.jpg',
-  city_transfer: '/images/services/service-city.jpg',
-  chauffeur: '/images/services/service-chauffeur.jpg',
+  city_transfer: '/images/services/service-city.jpg?v=2',
+  chauffeur: '/images/services/service-chauffeur.jpg?v=2',
   intercity_transfer: '/images/services/service-intercity.jpg',
   gcc_transfer: '/images/services/service-gcc.jpg',
 };
@@ -45,13 +59,17 @@ function BookingWizard() {
   const location = useLocation();
   const navigate = useNavigate();
   const { t, lang, formatNumber } = useLanguage();
+  const assistant = useBookingAssistant();
   const [step, setStep] = useState(0);
   const [form, setForm] = useState({ ...initialFormState });
   const [quote, setQuote] = useState(null);
   const [quoteLoading, setQuoteLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [inquiryReady, setInquiryReady] = useState(false);
   const [vehicleFilter, setVehicleFilter] = useState('All');
+  const isRouteTransfer = isRouteTransferService(form.serviceType);
+  const isInquiry = quoteRequiresInquiry(quote, form);
   const wizardRef = useRef(null);
   const pageRef = useRef(null);
   const skipWizardScroll = useRef(true);
@@ -89,11 +107,21 @@ function BookingWizard() {
     const pre = location.state?.prefill;
     const car = location.state?.car;
     if (pre?.serviceType) {
-      setForm((f) => ({ ...f, serviceType: pre.serviceType }));
+      setForm((f) => ({
+        ...f,
+        serviceType: pre.serviceType,
+        origin: isInquiryTransfer(pre.serviceType) ? (f.origin || 'Riyadh') : f.origin,
+        pickupLocation: isInquiryTransfer(pre.serviceType) ? (f.pickupLocation || f.origin || 'Riyadh') : f.pickupLocation,
+      }));
       setStep(1);
     }
     if (location.state?.serviceType) {
-      setForm((f) => ({ ...f, serviceType: location.state.serviceType }));
+      setForm((f) => ({
+        ...f,
+        serviceType: location.state.serviceType,
+        origin: isInquiryTransfer(location.state.serviceType) ? (f.origin || 'Riyadh') : f.origin,
+        pickupLocation: isInquiryTransfer(location.state.serviceType) ? (f.pickupLocation || f.origin || 'Riyadh') : f.pickupLocation,
+      }));
       setStep(1);
     }
     if (car) {
@@ -136,13 +164,16 @@ function BookingWizard() {
       vehicleName: selectedVehicle?.label || form.vehicleName,
       airport: form.airport,
       origin: form.origin || form.pickupLocation || 'Riyadh',
-      destination: route
-        ? route.destination
-        : gcc
-          ? gcc.destination
-          : form.destination || form.dropoffLocation,
+      destination: form.destination === 'Other' || form.gccDestination === 'Other'
+        ? form.otherDestination
+        : route
+          ? route.destination
+          : gcc
+            ? gcc.destination
+            : form.destination || form.dropoffLocation,
       durationType: form.durationType,
       distanceKm: form.distanceKm ? Number(form.distanceKm) : undefined,
+      returnTrip: Boolean(form.returnTrip),
     };
   }, [form, selectedVehicle]);
 
@@ -155,7 +186,7 @@ function BookingWizard() {
   useEffect(() => {
     setQuote(localQuote);
     setError('');
-    if (step < 1 || !localQuote || localQuote.customQuoteRequired) {
+    if (step < 1 || !localQuote) {
       setQuoteLoading(false);
       return undefined;
     }
@@ -188,6 +219,10 @@ function BookingWizard() {
     form.distanceKm,
     form.serviceType,
     form.airport,
+    form.origin,
+    form.destination,
+    form.otherDestination,
+    form.returnTrip,
   ]);
 
   useEffect(() => {
@@ -247,12 +282,28 @@ function BookingWizard() {
       setError(t('booking.errChauffeur'));
       return false;
     }
-    if (form.serviceType === 'intercity_transfer' && !form.intercityRoute) {
-      setError(t('booking.errRoute'));
-      return false;
+    if (form.serviceType === 'intercity_transfer') {
+      if (!form.origin?.trim()) {
+        setError(t('booking.errPickupOrigin'));
+        return false;
+      }
+      if (!resolveInquiryDestination(form)) {
+        setError(t('booking.errRoute'));
+        return false;
+      }
     }
-    if (form.serviceType === 'gcc_transfer' && !form.gccDestination) {
-      setError(t('booking.errGcc'));
+    if (form.serviceType === 'gcc_transfer') {
+      if (!form.origin?.trim()) {
+        setError(t('booking.errPickupOrigin'));
+        return false;
+      }
+      if (!resolveInquiryDestination(form)) {
+        setError(t('booking.errGcc'));
+        return false;
+      }
+    }
+    if (isRouteTransfer && form.returnTrip && (!form.returnDate || !form.returnTime)) {
+      setError(t('booking.errReturn'));
       return false;
     }
     setError('');
@@ -261,12 +312,26 @@ function BookingWizard() {
 
   const validate = () => {
     if (!validateTrip()) return false;
-    if (!form.customer.name || !form.customer.email || !form.customer.mobile) {
+    if (isInquiry) {
+      if (!form.customer.name || !form.customer.mobile) {
+        setError(t('booking.errInquiryGuest'));
+        return false;
+      }
+    } else if (!form.customer.name || !form.customer.email || !form.customer.mobile) {
       setError(t('booking.errGuest'));
       return false;
     }
     setError('');
     return true;
+  };
+
+  const inquiryPayload = () => {
+    const vehicleLabel = getInquiryVehicleLabel(selectedVehicle, form.serviceType) || form.vehicleName;
+    return {
+      vehicleLabel,
+      serviceLabel: translateService(form.serviceType, t),
+      slabLabel: quote?.slabLabel || '',
+    };
   };
 
   const handleSubmit = async () => {
@@ -289,6 +354,9 @@ function BookingWizard() {
       luggageCount: form.luggage,
       customer: form.customer,
       specialRequests: form.specialRequests,
+      returnTrip: Boolean(form.returnTrip),
+      returnDate: form.returnDate,
+      returnTime: form.returnTime,
     };
 
     const res = await createBookingAPI(payload);
@@ -327,6 +395,32 @@ function BookingWizard() {
     }
   };
 
+  const handleWhatsAppInquiry = () => {
+    if (!validate()) return;
+    setLoading(true);
+    const message = buildTransferInquiryMessage(form, inquiryPayload());
+    const opened = openCompanyWhatsApp(message);
+    setLoading(false);
+    if (!opened.ok) {
+      setError(opened.error || t('booking.errWhatsApp'));
+      return;
+    }
+    setInquiryReady(true);
+  };
+
+  const handleChatInquiry = async () => {
+    if (!validate()) return;
+    setLoading(true);
+    setError('');
+    const extras = inquiryPayload();
+    await assistant?.openWithInquiry(
+      buildTransferChatInquiry(form, extras),
+      buildTransferInquiryMessage(form, extras),
+    );
+    setLoading(false);
+    setInquiryReady(true);
+  };
+
   const Choice = ({ active, onClick, children }) => (
     <button type="button" className={`book-choice${active ? ' is-active' : ''}`} onClick={onClick}>
       {children}
@@ -354,6 +448,9 @@ function BookingWizard() {
               <label className="book-label">{t('booking.flight')}</label>
               <input className="form-control book-input" value={form.flightNumber} onChange={(e) => update({ flightNumber: e.target.value })} placeholder={t('booking.flightPh')} autoComplete="off" />
             </div>
+            <div className="col-12">
+              <span className="book-hint">{t('booking.airportModel')}</span>
+            </div>
           </>
         );
       case 'city_transfer':
@@ -379,7 +476,7 @@ function BookingWizard() {
             </div>
             <div className="col-12 col-md-6">
               <label className="book-label">{t('booking.distance')}</label>
-              <input type="number" inputMode="numeric" min={0} max={100} className="form-control book-input" value={form.distanceKm} onChange={(e) => update({ distanceKm: e.target.value })} placeholder={t('booking.distancePh')} />
+              <input type="number" inputMode="numeric" min={0} max={999} className="form-control book-input" value={form.distanceKm} onChange={(e) => update({ distanceKm: e.target.value })} placeholder={t('booking.distancePh')} />
               <span className="book-hint">{t('booking.distanceHint')}</span>
             </div>
           </>
@@ -410,37 +507,98 @@ function BookingWizard() {
         );
       case 'intercity_transfer':
         return (
-          <div className="col-12">
-            <span className="book-label">{t('booking.route')}</span>
-            <div className="book-choice-grid">
-              {INTERCITY_ROUTES.map((r) => (
-                <Choice
-                  key={r.label}
-                  active={form.intercityRoute === r.label}
-                  onClick={() => update({ intercityRoute: r.label, origin: r.origin, destination: r.destination })}
-                >
-                  {translatePlace(r.label, t, lang)}
-                </Choice>
-              ))}
+          <>
+            <div className="col-12">
+              <span className="book-label">{t('booking.pickupOrigin')}</span>
+              <div className="book-choice-grid">
+                {TRANSFER_ORIGINS.map((city) => (
+                  <Choice key={city} active={form.origin === city} onClick={() => update({ origin: city, pickupLocation: city })}>
+                    {translatePlace(city, t, lang)}
+                  </Choice>
+                ))}
+              </div>
             </div>
-          </div>
+            <div className="col-12">
+              <span className="book-label">{t('booking.destination')}</span>
+              <div className="book-choice-grid">
+                {INTERCITY_DESTINATIONS.map((city) => (
+                  <Choice
+                    key={city}
+                    active={form.destination === city}
+                    onClick={() => update({
+                      destination: city,
+                      gccDestination: '',
+                      otherDestination: city === 'Other' ? form.otherDestination : '',
+                      intercityRoute: city === 'Other' ? '' : `${form.origin || 'Riyadh'} ↔ ${city}`,
+                    })}
+                  >
+                    {city === 'Other' ? t('booking.otherDestination') : translatePlace(city, t, lang)}
+                  </Choice>
+                ))}
+              </div>
+            </div>
+            {form.destination === 'Other' && (
+              <div className="col-12">
+                <label className="book-label">{t('booking.otherDestination')}</label>
+                <input
+                  className="form-control book-input"
+                  value={form.otherDestination}
+                  onChange={(e) => update({ otherDestination: e.target.value })}
+                  placeholder={t('booking.otherDestPh')}
+                />
+              </div>
+            )}
+            <div className="col-12">
+              <span className="book-hint">{t('booking.intercityModel')}</span>
+            </div>
+          </>
         );
       case 'gcc_transfer':
         return (
-          <div className="col-12">
-            <span className="book-label">{t('booking.gccDest')}</span>
-            <div className="book-choice-grid">
-              {GCC_DESTINATIONS.map((g) => (
-                <Choice
-                  key={g.destination}
-                  active={form.gccDestination === g.destination}
-                  onClick={() => update({ gccDestination: g.destination, destination: g.destination })}
-                >
-                  {translatePlace(g.label, t, lang)}
-                </Choice>
-              ))}
+          <>
+            <div className="col-12">
+              <span className="book-label">{t('booking.pickupOrigin')}</span>
+              <div className="book-choice-grid">
+                {TRANSFER_ORIGINS.map((city) => (
+                  <Choice key={city} active={form.origin === city} onClick={() => update({ origin: city, pickupLocation: city })}>
+                    {translatePlace(city, t, lang)}
+                  </Choice>
+                ))}
+              </div>
             </div>
-          </div>
+            <div className="col-12">
+              <span className="book-label">{t('booking.gccDest')}</span>
+              <div className="book-choice-grid">
+                {GCC_DESTINATION_OPTIONS.map((city) => (
+                  <Choice
+                    key={city}
+                    active={form.gccDestination === city}
+                    onClick={() => update({
+                      gccDestination: city,
+                      destination: city,
+                      otherDestination: city === 'Other' ? form.otherDestination : '',
+                    })}
+                  >
+                    {city === 'Other' ? t('booking.otherDestination') : translatePlace(city, t, lang)}
+                  </Choice>
+                ))}
+              </div>
+            </div>
+            {form.gccDestination === 'Other' && (
+              <div className="col-12">
+                <label className="book-label">{t('booking.otherDestination')}</label>
+                <input
+                  className="form-control book-input"
+                  value={form.otherDestination}
+                  onChange={(e) => update({ otherDestination: e.target.value })}
+                  placeholder={t('booking.otherDestPh')}
+                />
+              </div>
+            )}
+            <div className="col-12">
+              <span className="book-hint">{t('booking.gccModel')}</span>
+            </div>
+          </>
         );
       default:
         return null;
@@ -455,7 +613,15 @@ function BookingWizard() {
 
   const summary = (
     <div className="book-summary-wrap">
-      {!form.vehicleCategory ? (
+      {isInquiry ? (
+        <PriceSummary
+          form={summaryForm}
+          quote={quote}
+          loading={false}
+          compact
+          inquiry
+        />
+      ) : !form.vehicleCategory ? (
         <div className="book-summary">
           <p className="book-kicker mb-2">{t('booking.fare')}</p>
           <p className="book-empty-quote">{t('booking.chooseRate')}</p>
@@ -470,16 +636,49 @@ function BookingWizard() {
       )}
       <div className="book-trust">
         <span><UserIcon size={15} /> {t('booking.included')}</span>
-        <span><CoinsIcon size={15} /> {t('booking.pricesSar')}</span>
-        <span><ShieldIcon size={15} /> {t('booking.backendQuote')}</span>
+        {isInquiry ? (
+          <span><CoinsIcon size={15} /> {t('booking.rateOnRequest')}</span>
+        ) : (
+          <>
+            <span><CoinsIcon size={15} /> {t('booking.pricesSar')}</span>
+            <span><ShieldIcon size={15} /> {t('booking.backendQuote')}</span>
+          </>
+        )}
       </div>
-      {TEMP_WHATSAPP_BOOKING_INSTEAD_OF_MOYASAR && step === 2 && !quote?.customQuoteRequired && (
+      {inquiryReady && (
+        <div className="book-inquiry-ready">
+          <p className="mb-1">{t('booking.inquiryReady')}</p>
+          <p className="mb-0">{t('booking.inquiryReadyLead')}</p>
+        </div>
+      )}
+      {!isInquiry && TEMP_WHATSAPP_BOOKING_INSTEAD_OF_MOYASAR && step === 2 && !quote?.customQuoteRequired && (
         <PaymentMethods />
       )}
       {error && !/timeout|network error|econnaborted/i.test(error) && (
         <div className="book-error">{error}</div>
       )}
-      {step === 2 && (
+      {step === 2 && isInquiry && (
+        <div className="book-inquiry-actions">
+          <button
+            type="button"
+            className="lux-btn w-100"
+            style={{ padding: '14px 24px' }}
+            disabled={loading}
+            onClick={handleChatInquiry}
+          >
+            {loading ? t('booking.processing') : t('booking.continueChat')}
+          </button>
+          <button
+            type="button"
+            className="book-inquiry-wa"
+            disabled={loading}
+            onClick={handleWhatsAppInquiry}
+          >
+            {t('booking.continueWhatsApp')}
+          </button>
+        </div>
+      )}
+      {step === 2 && !isInquiry && (
         <button
           type="button"
           className="lux-btn w-100 mt-4"
@@ -538,8 +737,18 @@ function BookingWizard() {
                   className={`book-service-card${selected ? ' is-active' : ''}`}
                   aria-pressed={selected}
                   onClick={() => {
-                    update({ serviceType: s.value, vehicleCategory: '', vehicleName: '', durationType: '' });
+                    update({
+                      serviceType: s.value,
+                      vehicleCategory: '',
+                      vehicleName: '',
+                      durationType: '',
+                      origin: isInquiryTransfer(s.value) ? (form.origin || 'Riyadh') : form.origin,
+                      pickupLocation: isInquiryTransfer(s.value) ? (form.origin || 'Riyadh') : form.pickupLocation,
+                      returnTrip: false,
+                      otherDestination: '',
+                    });
                     setVehicleFilter('All');
+                    setInquiryReady(false);
                     setError('');
                     setStep(1);
                   }}
@@ -612,6 +821,36 @@ function BookingWizard() {
                         <label className="book-label">{t('booking.luggage')}</label>
                         <input type="number" inputMode="numeric" min={0} className="form-control book-input" value={form.luggage} onChange={(e) => update({ luggage: Number(e.target.value) })} />
                       </div>
+                      {isRouteTransfer && (
+                        <>
+                          <div className="col-12">
+                            <label className="book-check">
+                              <input
+                                type="checkbox"
+                                checked={form.returnTrip}
+                                onChange={(e) => update({ returnTrip: e.target.checked, returnDate: e.target.checked ? form.returnDate : '', returnTime: e.target.checked ? form.returnTime : '' })}
+                              />
+                              <span>{t('booking.returnTrip')}</span>
+                            </label>
+                          </div>
+                          {form.returnTrip && (
+                            <>
+                              <div className="col-12 col-md-6">
+                                <label className="book-label">{t('booking.returnDate')}</label>
+                                <LocaleDateInput min={form.travelDate || today} className="form-control book-input" value={form.returnDate} onChange={(returnDate) => update({ returnDate })} />
+                              </div>
+                              <div className="col-12 col-md-6">
+                                <label className="book-label">{t('booking.returnTime')}</label>
+                                <LocaleTimeInput className="form-control book-input" value={form.returnTime} onChange={(returnTime) => update({ returnTime })} />
+                              </div>
+                            </>
+                          )}
+                          <div className="col-12 col-md-6">
+                            <label className="book-label">{t('booking.flightOptional')}</label>
+                            <input className="form-control book-input" value={form.flightNumber} onChange={(e) => update({ flightNumber: e.target.value })} placeholder={t('booking.flightPh')} autoComplete="off" />
+                          </div>
+                        </>
+                      )}
                     </div>
                     <h3 className="book-section-title mt-4">{t('booking.chooseVehicle')}</h3>
                     <div className="book-vehicle-filters">
@@ -626,15 +865,27 @@ function BookingWizard() {
                         </button>
                       ))}
                     </div>
-                    <VehiclePicker
-                      vehicles={vehicles}
-                      value={form.vehicleCategory}
-                      placeholder={form.serviceType === 'chauffeur' && !form.durationType ? t('booking.pickDurationFirst') : t('booking.pickVehicle')}
-                      onChange={(v) => update({
-                        vehicleCategory: v.category,
-                        vehicleName: v.label,
-                      })}
-                    />
+                    {isRouteTransfer ? (
+                      <InquiryVehicleGrid
+                        vehicles={vehicles}
+                        value={form.vehicleCategory}
+                        serviceType={form.serviceType}
+                        onChange={(v) => update({
+                          vehicleCategory: v.category,
+                          vehicleName: getInquiryVehicleLabel(v, form.serviceType),
+                        })}
+                      />
+                    ) : (
+                      <VehiclePicker
+                        vehicles={vehicles}
+                        value={form.vehicleCategory}
+                        placeholder={form.serviceType === 'chauffeur' && !form.durationType ? t('booking.pickDurationFirst') : t('booking.pickVehicle')}
+                        onChange={(v) => update({
+                          vehicleCategory: v.category,
+                          vehicleName: v.label,
+                        })}
+                      />
+                    )}
                     {form.serviceType === 'chauffeur' && form.durationType === 'half_day' && (
                       <span className="book-hint">{t('booking.halfDayVehicles')}</span>
                     )}
@@ -662,7 +913,7 @@ function BookingWizard() {
                       <input className="form-control book-input" value={form.customer.name} onChange={(e) => update({ customer: { ...form.customer, name: e.target.value } })} placeholder={t('booking.namePh')} autoComplete="name" />
                     </div>
                     <div className="col-12 col-md-6">
-                      <label className="book-label">{t('booking.email')}</label>
+                      <label className="book-label">{isInquiry ? t('booking.emailOptional') : t('booking.email')}</label>
                       <input type="email" inputMode="email" autoComplete="email" className="form-control book-input" value={form.customer.email} onChange={(e) => update({ customer: { ...form.customer, email: e.target.value } })} placeholder={t('booking.emailPh')} />
                     </div>
                     <div className="col-12">

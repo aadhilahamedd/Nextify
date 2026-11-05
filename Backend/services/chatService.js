@@ -144,7 +144,7 @@ async function processMessage(message, context = {}) {
     const rules = await getRulesByService('city_transfer');
     const lines = rules.map(formatRuleLine);
     return {
-      reply: `Riyadh city transfer (up to 20 KM):\n\n${lines.join('\n')}\n\nTrips above 20 KM require a custom quote.`,
+      reply: `Riyadh City Transfer uses a 20 km minimum, then 5 km slabs up to 60 km. Configured 20 km rates:\n\n${lines.join('\n')}\n\nDistances above 60 km are Long Distance / Custom Quote. Unconfigured slabs are Rate on Request.`,
       mode: 'pricing',
     };
   }

@@ -1145,6 +1145,15 @@
   margin-bottom: 24px;
 }
 
+.service-rate-request .service-rate-amount {
+  font-size: 1.2rem;
+}
+
+.service-rate-request .service-rate-usd {
+  max-width: 42ch;
+  line-height: 1.5;
+}
+
 .service-rate-from {
   display: block;
   margin-bottom: 4px;

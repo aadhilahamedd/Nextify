@@ -17,13 +17,13 @@ const CARDS = [
   {
     serviceType: 'city_transfer',
     Icon: SERVICE_ICONS.city_transfer,
-    image: '/images/services/service-city.jpg',
+    image: '/images/services/service-city.jpg?v=2',
     altKey: 'rates.cityAlt',
   },
   {
     serviceType: 'chauffeur',
     Icon: SERVICE_ICONS.chauffeur,
-    image: '/images/services/service-chauffeur.jpg',
+    image: '/images/services/service-chauffeur.jpg?v=2',
     altKey: 'rates.chauffeurAlt',
   },
   {

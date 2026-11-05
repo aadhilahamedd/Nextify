@@ -1,3 +1,5 @@
+import { citySlabForDistance, airportSlabForDistance } from '../utils/distanceSlabs';
+
 export const FLEET_CLASS = {
   FIRST: 'First class',
   BUSINESS: 'Business class',
@@ -13,7 +15,7 @@ export const FLEET_VEHICLES = [
     label: 'GMC',
     names: ['gmc', 'yukon', 'tahoe', 'suburban'],
     fleetClass: FLEET_CLASS.SUV,
-    image: '/images/car/gmc-suv.webp',
+    image: '/images/car/gmc-suv.webp?v=11',
     airport: 240,
     city: 140,
     half: 800,
@@ -173,11 +175,40 @@ export function getFleetClass(car) {
   return findFleetVehicle(car)?.fleetClass || null;
 }
 
+export const INTERCITY_INQUIRY_CATEGORIES = [
+  'gmc',
+  'bmw_5',
+  'bmw_7',
+  'ford_taurus',
+  'lexus_es',
+  'mercedes_e',
+  'mercedes_s',
+  'mercedes_vito',
+  'mercedes_sprinter',
+  'mercedes_v_class',
+  'toyota_hiace',
+  'mercedes_coach',
+  'toyota_coaster',
+];
+
+export const GCC_INQUIRY_CATEGORIES = [...INTERCITY_INQUIRY_CATEGORIES];
+
+function vehiclesInOrder(categories, fleetClass = 'All') {
+  const byCategory = Object.fromEntries(FLEET_VEHICLES.map((v) => [v.category, v]));
+  const list = categories.map((category) => byCategory[category]).filter(Boolean);
+  if (!fleetClass || fleetClass === 'All') return list;
+  return list.filter((v) => v.fleetClass === fleetClass);
+}
+
 export function getVehiclesForService(serviceType, fleetClass = 'All', durationType) {
+  if (serviceType === 'intercity_transfer') {
+    return vehiclesInOrder(INTERCITY_INQUIRY_CATEGORIES, fleetClass);
+  }
+  if (serviceType === 'gcc_transfer') {
+    return vehiclesInOrder(GCC_INQUIRY_CATEGORIES, fleetClass);
+  }
   const list = FLEET_VEHICLES.filter((v) => {
     if (serviceType === 'city_transfer') return v.city != null;
-    if (serviceType === 'gcc_transfer') return v.gcc === true;
-    if (serviceType === 'intercity_transfer') return Boolean(v.intercity);
     if (serviceType === 'chauffeur' && durationType === 'half_day') return v.half != null;
     if (serviceType === 'chauffeur' && durationType === 'full_day') return v.full != null;
     return true;
@@ -190,12 +221,14 @@ export function getVehicleImageByCategory(category) {
   return FLEET_VEHICLES.find((v) => v.category === category)?.image || '';
 }
 
-const INTERCITY_PRICES = {
+/** Official configured intercity rates. Unlisted vehicle/route pairs are Rate on Request. */
+export const INTERCITY_PRICES = {
   sedan: { Khobar: 1000, Jubail: 900, Jeddah: 2200 },
   gmc: { Khobar: 1400, Jubail: 1400, Jeddah: 3500 },
 };
 
-const GCC_PRICES = {
+/** Official configured GCC rates. Unlisted vehicle/route pairs are Rate on Request. */
+export const GCC_PRICES = {
   Dubai: 4800,
   'Abu Dhabi': 4000,
   Bahrain: 1900,
@@ -203,21 +236,24 @@ const GCC_PRICES = {
   Oman: 6800,
 };
 
-function officialQuote(vehicle, price) {
+function officialQuote(vehicle, price, extra = {}) {
   return {
     success: true,
     price,
     totalAmount: price,
     currency: 'SAR',
-    pricingType: 'fixed',
+    pricingType: extra.pricingType || 'fixed',
     customQuoteRequired: false,
+    payable: true,
+    quoteStatus: extra.quoteStatus || 'priced',
     vehicleCategory: vehicle.category,
     displayLabel: vehicle.label,
-    message: null,
+    message: extra.message || null,
+    ...extra,
   };
 }
 
-function customOfficialQuote(message) {
+function customOfficialQuote(message, extra = {}) {
   return {
     success: true,
     price: null,
@@ -225,67 +261,183 @@ function customOfficialQuote(message) {
     currency: 'SAR',
     pricingType: 'custom_quote',
     customQuoteRequired: true,
+    payable: false,
+    quoteStatus: extra.quoteStatus || 'custom_quote',
     message,
+    ...extra,
   };
+}
+
+function lookupIntercityPrice(vehicle, destination) {
+  const table = INTERCITY_PRICES[vehicle.intercity];
+  if (!table) return null;
+  const dest = String(destination || '').toLowerCase();
+  if (dest.includes('khobar')) return table.Khobar;
+  if (dest.includes('jubail')) return table.Jubail;
+  if (dest.includes('jeddah')) return table.Jeddah;
+  return null;
+}
+
+function lookupGccPrice(vehicle, destination) {
+  if (!vehicle.gcc) return null;
+  const dest = String(destination || '').toLowerCase();
+  const match = Object.entries(GCC_PRICES).find(([city]) => dest.includes(city.toLowerCase()));
+  return match ? match[1] : null;
+}
+
+function isRiyadhPlace(value) {
+  return /riyadh/i.test(String(value || ''));
 }
 
 export function getOfficialQuote({
   serviceType,
   vehicleCategory,
   vehicleName,
-  destination,
-  origin,
   durationType,
   distanceKm,
+  origin,
+  destination,
+  airport,
+  returnTrip,
 } = {}) {
   const vehicle = findFleetVehicle({ category: vehicleCategory, name: vehicleName });
   if (!vehicle) return customOfficialQuote('Please select a vehicle.');
 
   switch (serviceType) {
-    case 'airport_transfer':
-      return vehicle.airport != null
-        ? officialQuote(vehicle, vehicle.airport)
-        : customOfficialQuote('No fixed airport transfer rate for this vehicle. Custom quote required.');
-    case 'city_transfer':
-      if (Number(distanceKm) > 20) {
-        return customOfficialQuote('Trips above 20 KM may require a custom quote.');
+    case 'airport_transfer': {
+      const slab = airportSlabForDistance(distanceKm);
+      if (vehicle.airport == null) {
+        return customOfficialQuote('No fixed airport transfer rate for this vehicle. Custom quote required.', {
+          serviceType,
+          airport: airport || origin,
+          slabLabel: slab.label,
+          distanceKm: slab.distanceKm,
+          pricingModel: 'airport_transfer',
+        });
       }
-      return vehicle.city != null
-        ? officialQuote(vehicle, vehicle.city)
-        : customOfficialQuote('City transfer is not available for this vehicle.');
+      return officialQuote(vehicle, vehicle.airport, {
+        serviceType,
+        airport: airport || origin,
+        pricingType: 'airport_base',
+        pricingModel: 'airport_transfer',
+        baseDistanceKm: 40,
+        extraKmUnpriced: slab.kind === 'extra',
+        slabLabel: slab.label,
+        distanceKm: slab.distanceKm,
+      });
+    }
+    case 'city_transfer': {
+      const km = Number(distanceKm);
+      const slab = citySlabForDistance(Number.isFinite(km) && km > 0 ? km : 20);
+      if (slab.kind === 'long_distance') {
+        return customOfficialQuote('Long Distance / Custom Quote', {
+          serviceType,
+          quoteStatus: 'long_distance',
+          origin: 'Riyadh',
+          slabLabel: slab.label,
+          distanceKm: slab.distanceKm,
+          pricingModel: 'city_transfer',
+        });
+      }
+      if (vehicle.city == null) {
+        return customOfficialQuote('City transfer is not available for this vehicle.', {
+          serviceType,
+          origin: 'Riyadh',
+          slabLabel: slab.label,
+          distanceKm: slab.distanceKm,
+          pricingModel: 'city_transfer',
+        });
+      }
+      if (slab.kind === 'slab' && slab.maxKm > 20) {
+        return customOfficialQuote(`No configured City Transfer rate for the ${slab.label} slab. Rate on Request.`, {
+          serviceType,
+          quoteStatus: 'rate_on_request',
+          origin: 'Riyadh',
+          slabLabel: slab.label,
+          distanceKm: slab.distanceKm,
+          pricingModel: 'city_transfer',
+        });
+      }
+      return officialQuote(vehicle, vehicle.city, {
+        serviceType,
+        origin: 'Riyadh',
+        pricingType: 'city_distance',
+        pricingModel: 'city_transfer',
+        slabLabel: slab.label,
+        distanceKm: slab.distanceKm,
+        maxDistanceKm: 20,
+      });
+    }
     case 'chauffeur':
       if (durationType === 'half_day') {
         return vehicle.half != null
-          ? officialQuote(vehicle, vehicle.half)
+          ? officialQuote(vehicle, vehicle.half, { serviceType, durationType, pricingModel: 'chauffeur' })
           : customOfficialQuote('This vehicle is available for full day service only.');
       }
       if (durationType === 'full_day') {
         return vehicle.full != null
-          ? officialQuote(vehicle, vehicle.full)
+          ? officialQuote(vehicle, vehicle.full, { serviceType, durationType, pricingModel: 'chauffeur' })
           : customOfficialQuote('No chauffeur rate for this vehicle and duration. Custom quote required.');
       }
       return customOfficialQuote('Please select a duration.');
     case 'intercity_transfer': {
-      const table = INTERCITY_PRICES[vehicle.intercity];
-      const dest = String(destination || '').trim();
-      const originName = String(origin || '').trim();
-      const matchedDest = Object.keys(table || {}).find((city) => {
-        const both = `${originName} ${dest}`.toLowerCase();
-        return both.includes(city.toLowerCase());
+      if (returnTrip || !destination) {
+        return customOfficialQuote('Rate on Request', {
+          serviceType,
+          quoteStatus: 'rate_on_request',
+          origin,
+          destination,
+          pricingModel: 'intercity_fixed',
+        });
+      }
+      const configured = (isRiyadhPlace(origin) || !origin || isRiyadhPlace(destination))
+        ? lookupIntercityPrice(vehicle, destination)
+        : null;
+      if (configured == null) {
+        return customOfficialQuote('Rate on Request', {
+          serviceType,
+          quoteStatus: 'rate_on_request',
+          origin,
+          destination,
+          pricingModel: 'intercity_fixed',
+        });
+      }
+      return officialQuote(vehicle, configured, {
+        serviceType,
+        origin: origin || 'Riyadh',
+        destination,
+        pricingType: 'intercity_fixed',
+        pricingModel: 'intercity_fixed',
       });
-      const price = matchedDest ? table[matchedDest] : table?.[dest];
-      return price != null
-        ? officialQuote(vehicle, price)
-        : customOfficialQuote('This intercity route is not supported or requires a custom quote.');
     }
-    case 'gcc_transfer':
-      if (!vehicle.gcc) return customOfficialQuote('GCC transfers only support GMC.');
-      const gccKey = Object.keys(GCC_PRICES).find((city) =>
-        String(destination || '').toLowerCase().includes(city.toLowerCase()),
-      );
-      return gccKey
-        ? officialQuote(vehicle, GCC_PRICES[gccKey])
-        : customOfficialQuote('This GCC route requires a custom quote.');
+    case 'gcc_transfer': {
+      if (returnTrip || !destination || (origin && !isRiyadhPlace(origin))) {
+        return customOfficialQuote('Rate on Request', {
+          serviceType,
+          quoteStatus: 'rate_on_request',
+          origin: origin || 'Riyadh',
+          destination,
+          pricingModel: 'gcc_fixed',
+        });
+      }
+      const configured = lookupGccPrice(vehicle, destination);
+      if (configured == null) {
+        return customOfficialQuote('Rate on Request', {
+          serviceType,
+          quoteStatus: 'rate_on_request',
+          origin: origin || 'Riyadh',
+          destination,
+          pricingModel: 'gcc_fixed',
+        });
+      }
+      return officialQuote(vehicle, configured, {
+        serviceType,
+        origin: origin || 'Riyadh',
+        destination,
+        pricingType: 'gcc_fixed',
+        pricingModel: 'gcc_fixed',
+      });
+    }
     default:
       return customOfficialQuote('Unsupported service type.');
   }

@@ -29,7 +29,13 @@ exports.createPayment = async (req, res, next) => {
     const booking = await Booking.findById(bookingId);
     if (!booking) return error(res, 404, 'Booking not found');
 
-    if (booking.customQuoteRequired || booking.paymentStatus === 'NOT_REQUIRED') {
+    const quoteStatus = booking.pricing?.breakdown?.quoteStatus;
+    if (
+      booking.customQuoteRequired
+      || booking.paymentStatus === 'NOT_REQUIRED'
+      || quoteStatus === 'rate_on_request'
+      || quoteStatus === 'long_distance'
+    ) {
       return error(res, 400, 'This booking does not require online payment');
     }
 

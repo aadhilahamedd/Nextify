@@ -32,6 +32,7 @@ async function createBookingFromPayload(body, { userId } = {}) {
     throw httpError(400, 'Travel date and time cannot be in the past');
   }
 
+  // Never trust a client-submitted price. Recalculate on the server.
   const quote = await calculatePrice({
     serviceType,
     vehicleCategory: body.vehicleCategory,
@@ -41,6 +42,7 @@ async function createBookingFromPayload(body, { userId } = {}) {
     destination: body.destination || body.destinationText || body.dropoffLocation,
     durationType: body.durationType,
     distanceKm: body.distanceKm,
+    returnTrip: Boolean(body.returnTrip),
   });
 
   if (body.vehicle?.carId && !quote.customQuoteRequired) {
@@ -110,12 +112,18 @@ async function createBookingFromPayload(body, { userId } = {}) {
       luggageCount: body.luggage || body.trip?.luggageCount || body.luggageCount || 0,
     },
     pricing: {
-      totalAmount: quote.price ?? 0,
+      totalAmount: quote.customQuoteRequired ? 0 : (quote.totalAmount ?? quote.price ?? 0),
+      extraKmCharge: quote.extraCharge || 0,
       currency: quote.currency || 'SAR',
       breakdown: {
         pricingType: quote.pricingType,
+        pricingModel: quote.pricingModel,
+        quoteStatus: quote.quoteStatus,
         message: quote.message,
         displayLabel: quote.displayLabel,
+        distanceKm: quote.distanceKm ?? body.distanceKm ?? null,
+        slabLabel: quote.slabLabel || null,
+        extraKmUnpriced: Boolean(quote.extraKmUnpriced),
       },
     },
     paymentStatus: quote.customQuoteRequired ? 'NOT_REQUIRED' : 'PENDING',

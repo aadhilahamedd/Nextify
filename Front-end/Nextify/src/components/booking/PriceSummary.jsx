@@ -1,4 +1,3 @@
-import React from 'react';
 import { getVehicleImage } from './bookingConstants';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { translatePlace, translateService, translateVehicle } from '../../i18n/places';
@@ -14,43 +13,100 @@ function formatBookingWhen(dateValue, timeValue, lang) {
   return <span dir="ltr" className="book-date-value">{shown.join(' ')}</span>;
 }
 
-export default function PriceSummary({ form, quote, compact = false, loading = false }) {
+function formatDistance(value, lang, t) {
+  if (value == null || value === '') return '';
+  const shown = lang === 'ar' ? toArabicIndic(String(value)) : String(value);
+  return `${shown} ${t('booking.km')}`;
+}
+
+export default function PriceSummary({ form, quote, compact = false, loading = false, inquiry = false }) {
   const { t, lang, formatSar } = useLanguage();
-  const price = quote?.price ?? quote?.totalAmount ?? quote?.quotedPrice ?? null;
-  const customQuoteRequired =
-    quote?.customQuoteRequired ||
-    quote?.pricingType === 'custom_quote' ||
-    quote?.breakdown?.pricingType === 'custom_quote';
+  const price = inquiry ? null : (quote?.price ?? quote?.totalAmount ?? quote?.quotedPrice ?? null);
+  const customQuoteRequired = inquiry
+    ? true
+    : quote?.customQuoteRequired ||
+      quote?.pricingType === 'custom_quote' ||
+      quote?.breakdown?.pricingType === 'custom_quote';
+  const quoteStatus = quote?.quoteStatus || (customQuoteRequired ? 'custom_quote' : 'priced');
   const vehicleImage = form?.vehicleImage || getVehicleImage(form?.vehicleCategory);
   const hasVehicle = Boolean(form?.vehicleCategory || form?.vehicleName || vehicleImage);
+  const distanceValue = quote?.distanceKm ?? form?.distanceKm;
+  const slabLabel = quote?.slabLabel || quote?.breakdown?.slabLabel;
 
   const rows = [
     [t('booking.serviceLabel'), translateService(form?.serviceType, t) || form?.serviceType],
     form?.airport && [t('booking.airport'), translatePlace(form.airport, t, lang)],
     form?.origin && [t('booking.from'), translatePlace(form.origin, t, lang)],
-    form?.destination && [t('booking.to'), translatePlace(form.destination, t, lang)],
+    form?.destination && form.destination !== 'Other' && [t('booking.to'), translatePlace(form.destination, t, lang)],
+    form?.otherDestination && [t('booking.to'), form.otherDestination],
     form?.pickupLocation && [t('booking.pickupLabel'), form.pickupLocation],
     form?.dropoffLocation && [t('booking.dropoffLabel'), form.dropoffLocation],
     form?.intercityRoute && [t('booking.routeLabel'), translatePlace(form.intercityRoute, t, lang)],
-    form?.gccDestination && [t('booking.destLabel'), translatePlace(form.gccDestination, t, lang)],
+    form?.gccDestination && form.gccDestination !== 'Other' && [t('booking.destLabel'), translatePlace(form.gccDestination, t, lang)],
+    distanceValue !== '' && distanceValue != null && [t('booking.distanceLabel'), formatDistance(distanceValue, lang, t)],
+    slabLabel && [t('booking.slabLabel'), slabLabel],
     form?.vehicleName && [t('booking.vehicle'), translateVehicle(form?.vehicleCategory, form.vehicleName, t)],
     form?.durationType && [t('booking.durationLabel'), form.durationType === 'half_day' ? t('booking.halfDay') : t('booking.fullDay')],
     form?.travelDate && [t('booking.date'), formatBookingWhen(form.travelDate, form.travelTime, lang)],
   ].filter(Boolean);
 
+  const wrapClass = compact ? 'book-summary' : 'rounded-4 p-4 border bg-white';
+  const muted = compact ? 'rgba(255,255,255,0.62)' : '#666';
+
+  const renderRows = () => rows.length > 0 && rows.map(([label, value]) => (
+    <div key={label} className={compact ? 'book-summary-row' : 'd-flex justify-content-between py-2'} style={compact ? undefined : { borderBottom: '1px solid #eee', fontSize: '0.95rem' }}>
+      <span>{label}</span>
+      <span className="text-end">{value}</span>
+    </div>
+  ));
+
+  const vehiclePreview = compact && vehicleImage ? (
+    <div className="book-summary-vehicle">
+      <img src={vehicleImage} alt={form?.vehicleName || t('booking.vehicle')} />
+    </div>
+  ) : null;
+
   if (!hasVehicle && price == null && !loading && !customQuoteRequired) return null;
+
+  if (quoteStatus === 'long_distance' || (inquiry && quoteStatus === 'long_distance')) {
+    return (
+      <div className={wrapClass}>
+        {vehiclePreview}
+        {renderRows()}
+        <p className="book-kicker mb-2 mt-3">{t('booking.customQuote')}</p>
+        <h5 style={{ fontFamily: 'Georgia, serif' }}>{t('booking.longDistanceTitle')}</h5>
+        <p className="mb-0" style={{ color: muted, lineHeight: 1.7 }}>
+          {quote?.message || t('booking.longDistanceBody')}
+        </p>
+      </div>
+    );
+  }
+
+  if (inquiry || quoteStatus === 'rate_on_request') {
+    return (
+      <div className={wrapClass}>
+        {vehiclePreview}
+        {renderRows()}
+        <p className="book-kicker mb-2 mt-3">{t('booking.rateOnRequest')}</p>
+        <h5 style={{ fontFamily: 'Georgia, serif' }}>{t('booking.inquiryTitle')}</h5>
+        <p className="mb-0" style={{ color: muted, lineHeight: 1.7 }}>
+          {t('booking.inquiryLead')}
+        </p>
+        <p className="mb-0 mt-2" style={{ color: compact ? 'rgba(255,255,255,0.48)' : '#888', lineHeight: 1.6, fontSize: '0.9rem' }}>
+          {quote?.message && quote.message !== t('booking.rateOnRequest') ? quote.message : t('booking.inquiryQuoteNote')}
+        </p>
+      </div>
+    );
+  }
 
   if (customQuoteRequired) {
     return (
-      <div className={compact ? 'book-summary' : 'rounded-4 p-4 border bg-white'}>
-        {compact && vehicleImage && (
-          <div className="book-summary-vehicle">
-            <img src={vehicleImage} alt={form?.vehicleName || t('booking.vehicle')} />
-          </div>
-        )}
+      <div className={wrapClass}>
+        {vehiclePreview}
+        {renderRows()}
         <p className="book-kicker mb-2">{t('booking.customQuote')}</p>
         <h5 style={{ fontFamily: 'Georgia, serif' }}>{t('booking.customTitle')}</h5>
-        <p className="mb-0" style={{ color: compact ? 'rgba(255,255,255,0.62)' : '#666', lineHeight: 1.7 }}>
+        <p className="mb-0" style={{ color: muted, lineHeight: 1.7 }}>
           {quote.message || t('booking.customBody')}
         </p>
       </div>
