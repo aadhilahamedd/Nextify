@@ -29,8 +29,8 @@ const tests = [
   { name: 'City 60km GMC missing slab', payload: { serviceType: 'city_transfer', vehicleCategory: 'gmc', distanceKm: 60 }, expectCustom: true, expectStatus: 'rate_on_request' },
   { name: 'City 61km GMC long distance', payload: { serviceType: 'city_transfer', vehicleCategory: 'gmc', distanceKm: 61 }, expectCustom: true, expectStatus: 'long_distance' },
   { name: 'City BMW 7 has no city rate', payload: { serviceType: 'city_transfer', vehicleCategory: 'bmw_7', distanceKm: 45 }, expectCustom: true },
-  { name: 'Airport GMC under 40km stays base', payload: { serviceType: 'airport_transfer', airport: 'Riyadh', vehicleCategory: 'gmc', distanceKm: 10 }, expect: 240 },
-  { name: 'Airport GMC over 40km stays base without increment', payload: { serviceType: 'airport_transfer', airport: 'Riyadh', vehicleCategory: 'gmc', distanceKm: 55 }, expect: 240 },
+  { name: 'Airport GMC ignores extra distance', payload: { serviceType: 'airport_transfer', airport: 'Riyadh', vehicleCategory: 'gmc', distanceKm: 46 }, expect: 240 },
+  { name: 'Airport Sedan ignores extra distance', payload: { serviceType: 'airport_transfer', airport: 'Riyadh', vehicleCategory: 'ford_taurus', distanceKm: 60 }, expect: 180 },
   { name: 'Airport never uses city GMC price', payload: { serviceType: 'airport_transfer', airport: 'Riyadh', vehicleCategory: 'gmc', distanceKm: 10 }, expect: 240 },
   { name: 'Chauffeur GMC Half', payload: { serviceType: 'chauffeur', vehicleCategory: 'gmc', durationType: 'half_day' }, expect: 800 },
   { name: 'Chauffeur GMC Full', payload: { serviceType: 'chauffeur', vehicleCategory: 'gmc', durationType: 'full_day' }, expect: 1400 },
@@ -42,9 +42,13 @@ const tests = [
   { name: 'Intercity Khobar Taurus', payload: { serviceType: 'intercity_transfer', origin: 'Riyadh', destination: 'Khobar', vehicleCategory: 'ford_taurus' }, expect: 1000 },
   { name: 'Intercity Khobar GMC', payload: { serviceType: 'intercity_transfer', origin: 'Riyadh', destination: 'Khobar', vehicleCategory: 'gmc' }, expect: 1400 },
   { name: 'Intercity Jeddah Lexus', payload: { serviceType: 'intercity_transfer', origin: 'Riyadh', destination: 'Jeddah', vehicleCategory: 'lexus_es' }, expect: 2200 },
+  { name: 'Intercity Jeddah to Riyadh uses same rate', payload: { serviceType: 'intercity_transfer', origin: 'Jeddah', destination: 'Riyadh', vehicleCategory: 'lexus_es' }, expect: 2200 },
+  { name: 'Intercity Al Khobar to Riyadh GMC uses same rate', payload: { serviceType: 'intercity_transfer', origin: 'Al Khobar', destination: 'Riyadh', vehicleCategory: 'gmc' }, expect: 1400 },
+  { name: 'Airport any Saudi airport uses configured vehicle rate', payload: { serviceType: 'airport_transfer', airport: 'King Khalid International Airport', vehicleCategory: 'gmc' }, expect: 240 },
   { name: 'Intercity Dammam GMC rate on request', payload: { serviceType: 'intercity_transfer', origin: 'Riyadh', destination: 'Dammam', vehicleCategory: 'gmc' }, expectCustom: true, expectStatus: 'rate_on_request' },
   { name: 'Intercity BMW 7 Khobar rate on request', payload: { serviceType: 'intercity_transfer', origin: 'Riyadh', destination: 'Khobar', vehicleCategory: 'bmw_7' }, expectCustom: true, expectStatus: 'rate_on_request' },
   { name: 'GCC Dubai GMC', payload: { serviceType: 'gcc_transfer', destination: 'Dubai', vehicleCategory: 'gmc' }, expect: 4800 },
+  { name: 'GCC Dubai to Riyadh uses same rate', payload: { serviceType: 'gcc_transfer', origin: 'Dubai', destination: 'Riyadh', vehicleCategory: 'gmc' }, expect: 4800 },
   { name: 'GCC invalid S-Class', payload: { serviceType: 'gcc_transfer', destination: 'Dubai', vehicleCategory: 'mercedes_s' }, expectCustom: true, expectStatus: 'rate_on_request' },
   { name: 'GCC Kuwait GMC rate on request', payload: { serviceType: 'gcc_transfer', destination: 'Kuwait', vehicleCategory: 'gmc' }, expectCustom: true, expectStatus: 'rate_on_request' },
 ];
@@ -72,7 +76,7 @@ async function run() {
       console.log(`✅ ${t.name}`);
     } else {
       failed += 1;
-      console.log(`❌ ${t.name} — got price=${result.price} custom=${result.customQuoteRequired}`);
+      console.log(`❌ ${t.name} — got price=${result.price} custom=${result.customQuoteRequired} status=${result.quoteStatus}`);
     }
   }
 

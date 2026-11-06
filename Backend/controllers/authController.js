@@ -2,8 +2,8 @@ const User = require('../models/User');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { success, error } = require('../utils/apiResponse');
+const { JWT_SECRET, REFRESH_WINDOW_MS, signAuthToken, publicUser } = require('../utils/authToken');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'nextify_fallback_secret';
 const DEFAULT_ADMIN_EMAIL = process.env.ADMIN_EMAIL ? process.env.ADMIN_EMAIL.toLowerCase() : 'support@nextify.com';
 const DEFAULT_ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'nextify123';
 const DEFAULT_ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'Nextify Admin';
@@ -56,16 +56,11 @@ exports.register = async (req, res) => {
 
     await newUser.save();
 
-    const token = jwt.sign({ userId: newUser._id, role: newUser.role }, JWT_SECRET, { expiresIn: '24h' });
+    const token = signAuthToken(newUser);
 
     return success(res, 201, 'Registration successful', {
       token,
-      user: {
-        id: newUser._id,
-        username: newUser.username,
-        email: newUser.email,
-        role: newUser.role,
-      },
+      user: publicUser(newUser),
     });
   } catch (err) {
     console.error('Registration error:', err);
@@ -102,16 +97,11 @@ exports.userLogin = async (req, res) => {
       return error(res, 401, 'Invalid email or password');
     }
 
-    const token = jwt.sign({ userId: user._id, role: user.role }, JWT_SECRET, { expiresIn: '24h' });
+    const token = signAuthToken(user);
 
     return success(res, 200, 'Login successful', {
       token,
-      user: {
-        id: user._id,
-        username: user.username,
-        email: user.email,
-        role: user.role,
-      },
+      user: publicUser(user),
     });
   } catch (err) {
     console.error('User login error:', err);
@@ -126,14 +116,43 @@ exports.getMe = async (req, res) => {
     const user = await User.findById(req.user.userId).select('-password');
     if (!user) return error(res, 404, 'User not found');
     return success(res, 200, 'User profile', {
-      user: {
-        id: user._id,
-        username: user.username,
-        email: user.email,
-        role: user.role,
-      },
+      user: publicUser(user),
     });
   } catch (err) {
     return error(res, 500, 'Error fetching profile', [err.message]);
+  }
+};
+
+exports.refresh = async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return error(res, 401, 'Access denied. No token provided.');
+    }
+    const token = authHeader.split(' ')[1];
+
+    let decoded;
+    try {
+      decoded = jwt.verify(token, JWT_SECRET);
+    } catch (err) {
+      if (err.name !== 'TokenExpiredError') {
+        return error(res, 403, 'Invalid token.');
+      }
+      decoded = jwt.verify(token, JWT_SECRET, { ignoreExpiration: true });
+      const expiredAt = Number(decoded.exp) * 1000;
+      if (!expiredAt || Date.now() - expiredAt > REFRESH_WINDOW_MS) {
+        return error(res, 401, 'Token has expired. Please login again.');
+      }
+    }
+
+    const user = await User.findById(decoded.userId);
+    if (!user) return error(res, 401, 'User not found');
+
+    return success(res, 200, 'Session refreshed', {
+      token: signAuthToken(user),
+      user: publicUser(user),
+    });
+  } catch (err) {
+    return error(res, 401, 'Token has expired. Please login again.');
   }
 };

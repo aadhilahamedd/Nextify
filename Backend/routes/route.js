@@ -17,6 +17,7 @@ const optionalJwtMiddleware = require('../middleware/optionalJwtMiddleware');
 const adminMiddleware = require('../middleware/adminMiddleware');
 const Settings = require('../models/Settings');
 const { DEFAULT_CONTACT } = require('../services/seedService');
+const mapsController = require('../controllers/mapsController');
 const { success } = require('../utils/apiResponse');
 const openaiService = require('../services/openaiService');
 
@@ -27,6 +28,7 @@ router.post('/api/user/login', authController.userLogin);
 router.post('/api/auth/login', authController.userLogin);
 router.post('/api/admin/login', authController.adminLogin);
 router.get('/api/auth/me', jwtMiddleware, authController.getMe);
+router.post('/api/auth/refresh', authController.refresh);
 
 router.get('/api/contact', async (req, res) => {
   try {
@@ -45,6 +47,11 @@ router.patch('/api/messages/:id/read', jwtMiddleware, adminMiddleware, messageCo
 router.delete('/api/messages/:id', jwtMiddleware, adminMiddleware, messageController.deleteMessage);
 
 // ====== Pricing ======
+router.post('/api/maps/route', mapsController.calculateRoute);
+router.get('/api/maps/airports', mapsController.listAirports);
+router.get('/api/maps/search', mapsController.searchPlaces);
+router.get('/api/maps/reverse', mapsController.reverseGeocode);
+
 router.post('/api/pricing/calculate', pricingController.calculatePrice);
 router.get('/api/pricing/summary', pricingController.getPricingSummary);
 router.get('/api/pricing', pricingController.getPricing);

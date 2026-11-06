@@ -5,7 +5,7 @@ const PRICING_VERSION = 6;
 const AIRPORTS = ['Riyadh', 'Jeddah', 'Dammam'];
 
 const FLEET = [
-  { category: 'gmc', label: 'GMC', names: ['GMC', 'GMC Yukon', 'GMC Tahoe', 'Chevrolet Suburban'], airport: 240, city: 140, half: 800, full: 1400, intercity: 'gmc', gcc: true },
+  { category: 'gmc', label: 'GMC Yukon', names: ['GMC', 'GMC Yukon', 'GMC Tahoe', 'Chevrolet Suburban'], airport: 240, city: 140, half: 800, full: 1400, intercity: 'gmc', gcc: true },
   { category: 'bmw_5', label: 'BMW 5 Series', names: ['BMW 5 Series'], airport: 800, city: null, half: null, full: 2800 },
   { category: 'bmw_7', label: 'BMW 7 Series', names: ['BMW 7 Series'], airport: 1000, city: null, half: null, full: 3000 },
   { category: 'ford_taurus', label: 'Ford Taurus', names: ['Ford Taurus'], airport: 180, city: 120, half: 700, full: 1200, intercity: 'sedan' },

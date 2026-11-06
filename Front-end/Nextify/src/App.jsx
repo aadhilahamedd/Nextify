@@ -28,11 +28,16 @@ import TermsConditions from './pages/legal/TermsConditions'
 import { COMPANY_PHONE, getWhatsAppUrl } from './utils/whatsapp'
 import { useLanguage } from './i18n/LanguageContext'
 import { BookingAssistantProvider } from './components/booking/BookingAssistant'
+import { ensureAuthToken } from './utils/authSession'
 
 function App() {
   const { pathname, hash } = useLocation()
   const isAdminRoute = pathname.startsWith('/admin')
   const { t } = useLanguage()
+
+  useEffect(() => {
+    ensureAuthToken()
+  }, [])
 
   useEffect(() => {
     if (hash) {

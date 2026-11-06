@@ -1,4 +1,4 @@
-import { citySlabForDistance, airportSlabForDistance } from '../utils/distanceSlabs';
+import { citySlabForDistance } from '../utils/distanceSlabs';
 
 export const FLEET_CLASS = {
   FIRST: 'First class',
@@ -12,10 +12,10 @@ export const FLEET_CLASS = {
 export const FLEET_VEHICLES = [
   {
     category: 'gmc',
-    label: 'GMC',
+    label: 'GMC Yukon',
     names: ['gmc', 'yukon', 'tahoe', 'suburban'],
     fleetClass: FLEET_CLASS.SUV,
-    image: '/images/car/gmc-suv.webp?v=11',
+    image: '/images/car/GMC Yukon.png?v=12',
     airport: 240,
     city: 140,
     half: 800,
@@ -268,25 +268,29 @@ function customOfficialQuote(message, extra = {}) {
   };
 }
 
-function lookupIntercityPrice(vehicle, destination) {
+function hasPlace(value, name) {
+  return String(value || '').toLowerCase().includes(String(name || '').toLowerCase());
+}
+
+function lookupIntercityPrice(vehicle, origin, destination) {
   const table = INTERCITY_PRICES[vehicle.intercity];
   if (!table) return null;
-  const dest = String(destination || '').toLowerCase();
-  if (dest.includes('khobar')) return table.Khobar;
-  if (dest.includes('jubail')) return table.Jubail;
-  if (dest.includes('jeddah')) return table.Jeddah;
+  const ends = [origin, destination];
+  if (!ends.some((end) => hasPlace(end, 'riyadh'))) return null;
+  if (ends.some((end) => hasPlace(end, 'khobar'))) return table.Khobar;
+  if (ends.some((end) => hasPlace(end, 'jubail'))) return table.Jubail;
+  if (ends.some((end) => hasPlace(end, 'jeddah'))) return table.Jeddah;
   return null;
 }
 
-function lookupGccPrice(vehicle, destination) {
+function lookupGccPrice(vehicle, origin, destination) {
   if (!vehicle.gcc) return null;
-  const dest = String(destination || '').toLowerCase();
-  const match = Object.entries(GCC_PRICES).find(([city]) => dest.includes(city.toLowerCase()));
-  return match ? match[1] : null;
-}
-
-function isRiyadhPlace(value) {
-  return /riyadh/i.test(String(value || ''));
+  const ends = [origin, destination];
+  const match = Object.entries(GCC_PRICES).find(([city]) => ends.some((end) => hasPlace(end, city)));
+  if (!match) return null;
+  const other = ends.find((end) => !hasPlace(end, match[0]));
+  if (other && !hasPlace(other, 'riyadh')) return null;
+  return match[1];
 }
 
 export function getOfficialQuote({
@@ -305,13 +309,10 @@ export function getOfficialQuote({
 
   switch (serviceType) {
     case 'airport_transfer': {
-      const slab = airportSlabForDistance(distanceKm);
       if (vehicle.airport == null) {
         return customOfficialQuote('No fixed airport transfer rate for this vehicle. Custom quote required.', {
           serviceType,
           airport: airport || origin,
-          slabLabel: slab.label,
-          distanceKm: slab.distanceKm,
           pricingModel: 'airport_transfer',
         });
       }
@@ -320,10 +321,6 @@ export function getOfficialQuote({
         airport: airport || origin,
         pricingType: 'airport_base',
         pricingModel: 'airport_transfer',
-        baseDistanceKm: 40,
-        extraKmUnpriced: slab.kind === 'extra',
-        slabLabel: slab.label,
-        distanceKm: slab.distanceKm,
       });
     }
     case 'city_transfer': {
@@ -381,7 +378,7 @@ export function getOfficialQuote({
       }
       return customOfficialQuote('Please select a duration.');
     case 'intercity_transfer': {
-      if (returnTrip || !destination) {
+      if (returnTrip || !destination || !origin) {
         return customOfficialQuote('Rate on Request', {
           serviceType,
           quoteStatus: 'rate_on_request',
@@ -390,9 +387,7 @@ export function getOfficialQuote({
           pricingModel: 'intercity_fixed',
         });
       }
-      const configured = (isRiyadhPlace(origin) || !origin || isRiyadhPlace(destination))
-        ? lookupIntercityPrice(vehicle, destination)
-        : null;
+      const configured = lookupIntercityPrice(vehicle, origin, destination);
       if (configured == null) {
         return customOfficialQuote('Rate on Request', {
           serviceType,
@@ -411,7 +406,7 @@ export function getOfficialQuote({
       });
     }
     case 'gcc_transfer': {
-      if (returnTrip || !destination || (origin && !isRiyadhPlace(origin))) {
+      if (returnTrip || !destination) {
         return customOfficialQuote('Rate on Request', {
           serviceType,
           quoteStatus: 'rate_on_request',
@@ -420,7 +415,7 @@ export function getOfficialQuote({
           pricingModel: 'gcc_fixed',
         });
       }
-      const configured = lookupGccPrice(vehicle, destination);
+      const configured = lookupGccPrice(vehicle, origin || 'Riyadh', destination);
       if (configured == null) {
         return customOfficialQuote('Rate on Request', {
           serviceType,

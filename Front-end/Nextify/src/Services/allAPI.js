@@ -157,6 +157,27 @@ export const calculatePriceAPI = async (payload) => {
   }
 };
 
+export const calculateRouteAPI = async (payload) => {
+  try {
+    const response = await commonAPI("POST", `${serverURL}/api/maps/route`, payload, { "Content-Type": "application/json" }, { timeout: 12000 });
+    return unwrap(response);
+  } catch (err) {
+    return handleError(err, "Route calculation failed");
+  }
+};
+
+export const searchPlacesAPI = async (query, lang = 'en') => {
+  try {
+    const q = String(query || '').trim();
+    if (!q) return { status: 200, data: { places: [] } };
+    const params = new URLSearchParams({ q, lang });
+    const response = await commonAPI("GET", `${serverURL}/api/maps/search?${params}`, "", {}, { timeout: 10000 });
+    return unwrap(response);
+  } catch (err) {
+    return handleError(err, "Place search failed");
+  }
+};
+
 export const getPricingSummaryAPI = async () => {
   try {
     const response = await commonAPI("GET", `${serverURL}/api/pricing/summary`, "");

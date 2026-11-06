@@ -1,4 +1,5 @@
 import { displayDestinationName } from '../data/saudiDestinations';
+import { displayAirportName, findAirport } from '../data/saudiAirports';
 
 const ROUTE_KEYS = {
   'Riyadh ↔ Khobar': 'routes.khobar',
@@ -18,6 +19,7 @@ export function translatePlace(value, t, lang = 'en') {
   const cityKey = `cities.${value}`;
   const city = t(cityKey);
   if (city !== cityKey) return city;
+  if (findAirport(value)) return displayAirportName(value, lang);
   return displayDestinationName(value, lang);
 }
 

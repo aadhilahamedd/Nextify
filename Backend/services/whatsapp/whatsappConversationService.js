@@ -14,7 +14,26 @@ const { createOrReuseCheckout } = require('../paymentService');
 const Booking = require('../../models/Booking');
 const { DEFAULT_CONTACT } = require('../seedService');
 
-const AIRPORTS = ['Riyadh', 'Jeddah', 'Dammam'];
+const AIRPORTS = [
+  { id: 'King Khalid International Airport', title: 'Riyadh' },
+  { id: 'King Abdulaziz International Airport', title: 'Jeddah' },
+  { id: 'King Fahd International Airport', title: 'Dammam' },
+  { id: 'Prince Mohammad bin Abdulaziz Airport', title: 'Madinah' },
+  { id: 'Abha International Airport', title: 'Abha' },
+  { id: 'Taif International Airport', title: 'Taif' },
+  { id: 'Prince Sultan bin Abdulaziz Airport', title: 'Tabuk' },
+  { id: 'Prince Naif bin Abdulaziz Airport', title: 'Qassim' },
+  { id: 'King Abdullah bin Abdulaziz Airport', title: 'Jazan' },
+  { id: 'Hail International Airport', title: 'Hail' },
+];
+
+function airportChoices() {
+  return AIRPORTS.map((airport) => ({
+    id: `apt:${airport.id}`,
+    title: airport.title,
+    description: airport.id,
+  }));
+}
 const SERVICES = Object.keys(SERVICE_LABELS);
 
 function emptyDraft() {
@@ -208,14 +227,20 @@ async function replayStep(session) {
   const draft = session.bookingDraft;
   if (step === 'SERVICE_SELECTION' || step === 'WELCOME') return sendWelcome(session.phoneNumber);
   if (step === 'AIRPORT_SELECTION') {
-    return sendButtons(session.phoneNumber, 'Select your airport.', AIRPORTS.map((a) => ({ id: `apt:${a}`, title: a })));
+    return sendList(session.phoneNumber, 'Select a Saudi airport, or type another airport name.', 'View airports', airportChoices(), 'Saudi airports');
   }
   if (step === 'DESTINATION_TEXT') return sendText(session.phoneNumber, 'Type your destination (hotel, home, or area).');
   if (step === 'CITY_ORIGIN') return sendText(session.phoneNumber, 'Type your pickup address in Riyadh.');
   if (step === 'CITY_DESTINATION') return sendText(session.phoneNumber, 'Type your drop-off address.');
   if (step === 'CITY_DISTANCE') return sendText(session.phoneNumber, 'Estimated distance in KM (0–20). Type skip if unknown.');
   if (step === 'ROUTE_SELECTION') {
-    return sendButtons(session.phoneNumber, 'Select an intercity route.', INTERCITY_ROUTES.map((r) => ({ id: `route:${r.id}`, title: r.destination })));
+    return sendList(
+      session.phoneNumber,
+      'Select an intercity destination. Reverse routes use the same configured rate.',
+      'View routes',
+      INTERCITY_ROUTES.map((r) => ({ id: `route:${r.id}`, title: r.destination, description: r.label })),
+      'Intercity',
+    );
   }
   if (step === 'GCC_SELECTION') {
     return sendList(session.phoneNumber, 'Select a GCC destination.', 'View destinations', GCC_ROUTES.map((g) => ({ id: `gcc:${g.id}`, title: g.label })));
@@ -281,7 +306,7 @@ async function handleIncoming({ from, name, text, buttonId }) {
     if (session.bookingDraft.serviceType === 'airport_transfer') {
       pushStep(session, 'AIRPORT_SELECTION');
       await session.save();
-      await sendButtons(session.phoneNumber, 'Select your airport.', AIRPORTS.map((a) => ({ id: `apt:${a}`, title: a })));
+      await sendList(session.phoneNumber, 'Select a Saudi airport, or type another airport name.', 'View airports', airportChoices(), 'Saudi airports');
       return;
     }
     if (session.bookingDraft.serviceType === 'city_transfer') {
@@ -293,7 +318,13 @@ async function handleIncoming({ from, name, text, buttonId }) {
     if (session.bookingDraft.serviceType === 'intercity_transfer') {
       pushStep(session, 'ROUTE_SELECTION');
       await session.save();
-      await sendButtons(session.phoneNumber, 'Select an intercity route.', INTERCITY_ROUTES.map((r) => ({ id: `route:${r.id}`, title: r.destination })));
+      await sendList(
+        session.phoneNumber,
+        'Select an intercity destination. Reverse routes use the same configured rate.',
+        'View routes',
+        INTERCITY_ROUTES.map((r) => ({ id: `route:${r.id}`, title: r.destination, description: r.label })),
+        'Intercity',
+      );
       return;
     }
     if (session.bookingDraft.serviceType === 'gcc_transfer') {
@@ -308,8 +339,8 @@ async function handleIncoming({ from, name, text, buttonId }) {
     return;
   }
 
-  if (incoming.startsWith('apt:')) {
-    session.bookingDraft.airport = incoming.slice(4);
+  if (incoming.startsWith('apt:') || session.currentStep === 'AIRPORT_SELECTION') {
+    session.bookingDraft.airport = incoming.startsWith('apt:') ? incoming.slice(4) : incoming;
     pushStep(session, 'DESTINATION_TEXT');
     await session.save();
     await sendText(session.phoneNumber, 'Type your destination (hotel, home, or area).');

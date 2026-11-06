@@ -250,7 +250,7 @@ async function handleGetServices() {
         serviceType: 'airport_transfer',
         name: 'Airport Transfer',
         notes: 'Airport Transfer uses a 40 km base rate plus additional 5 km slabs when those increments are configured.',
-        airports: ['Riyadh', 'Jeddah', 'Dammam'],
+        airports: 'All airports in Saudi Arabia. Vehicle airport rates apply at every Saudi airport.',
         vehicles: SERVICE_VEHICLE_OPTIONS.airport_transfer,
       },
       {

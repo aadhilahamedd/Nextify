@@ -1,12 +1,18 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { registerAPI, userLoginAPI } from '../Services/allAPI';
 import './Login.css';
 import { useLanguage } from '../i18n/LanguageContext';
 
 function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { t } = useLanguage();
+
+  const nextPath = (() => {
+    const next = new URLSearchParams(location.search).get('next') || '';
+    return next.startsWith('/') && !next.startsWith('//') ? next : '';
+  })();
 
   // State
   const [activeTab, setActiveTab] = useState('user');
@@ -50,7 +56,9 @@ function Login() {
         showAlert('success', `Welcome back, ${user.username}!`);
 
         setTimeout(() => {
-          if (user.role === 'admin') navigate('/admin'); else navigate('/');
+          if (nextPath) navigate(nextPath);
+          else if (user.role === 'admin') navigate('/admin');
+          else navigate('/');
         }, 1000);
       } else {
         showAlert('error', response.error || response.data?.message || t('login.fail'));

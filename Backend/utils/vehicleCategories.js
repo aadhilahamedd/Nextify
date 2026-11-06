@@ -1,15 +1,15 @@
 const GCC_CATEGORIES = ['gmc', 'gmc_yukon', 'gmc_tahoe', 'chevrolet_suburban'];
 
 const GCC_LABELS = {
-  gmc: 'GMC',
-  gmc_yukon: 'GMC',
+  gmc: 'GMC Yukon',
+  gmc_yukon: 'GMC Yukon',
   gmc_tahoe: 'GMC Tahoe',
   chevrolet_suburban: 'Chevrolet Suburban',
 };
 
 const SERVICE_VEHICLE_OPTIONS = {
   airport_transfer: [
-    { category: 'gmc', label: 'GMC' },
+    { category: 'gmc', label: 'GMC Yukon' },
     { category: 'bmw_5', label: 'BMW 5 Series' },
     { category: 'bmw_7', label: 'BMW 7 Series' },
     { category: 'ford_taurus', label: 'Ford Taurus' },
@@ -24,12 +24,12 @@ const SERVICE_VEHICLE_OPTIONS = {
     { category: 'toyota_coaster', label: 'Toyota Coaster' },
   ],
   city_transfer: [
-    { category: 'gmc', label: 'GMC' },
+    { category: 'gmc', label: 'GMC Yukon' },
     { category: 'ford_taurus', label: 'Ford Taurus' },
     { category: 'lexus_es', label: 'Lexus ES 350' },
   ],
   chauffeur: [
-    { category: 'gmc', label: 'GMC' },
+    { category: 'gmc', label: 'GMC Yukon' },
     { category: 'bmw_5', label: 'BMW 5 Series' },
     { category: 'bmw_7', label: 'BMW 7 Series' },
     { category: 'ford_taurus', label: 'Ford Taurus' },
@@ -115,16 +115,52 @@ function normalizeServiceType(type) {
   return map[type] || type;
 }
 
+const PLACE_ALIASES = [
+  { canonical: 'Riyadh', names: ['riyadh'] },
+  { canonical: 'Khobar', names: ['khobar'] },
+  { canonical: 'Jubail', names: ['jubail', 'jubayl'] },
+  { canonical: 'Jeddah', names: ['jeddah', 'jiddah', 'jedda'] },
+  { canonical: 'Dammam', names: ['dammam'] },
+  { canonical: 'Madinah', names: ['madinah', 'medina'] },
+  { canonical: 'Jizan', names: ['jizan', 'jazan', 'gizan'] },
+  { canonical: 'Abha', names: ['abha'] },
+  { canonical: 'Tabuk', names: ['tabuk'] },
+  { canonical: 'Salwa', names: ['salwa'] },
+  { canonical: 'Batha', names: ['batha'] },
+  { canonical: 'Dubai', names: ['dubai'] },
+  { canonical: 'Abu Dhabi', names: ['abu dhabi', 'abudhabi'] },
+  { canonical: 'Bahrain', names: ['bahrain'] },
+  { canonical: 'Qatar', names: ['qatar', 'doha'] },
+  { canonical: 'Kuwait', names: ['kuwait'] },
+  { canonical: 'Oman', names: ['oman', 'muscat'] },
+];
+
+function canonicalPlace(value) {
+  const n = String(value || '').trim().toLowerCase();
+  if (!n) return '';
+  const match = PLACE_ALIASES.find((place) => place.names.some((name) => n.includes(name)));
+  return match ? match.canonical : String(value || '').trim();
+}
+
+function samePlace(a, b) {
+  const left = canonicalPlace(a);
+  const right = canonicalPlace(b);
+  if (!left || !right) return false;
+  return left === right;
+}
+
+function routesMatch(originA, destinationA, originB, destinationB) {
+  return (
+    (samePlace(originA, originB) && samePlace(destinationA, destinationB))
+    || (samePlace(originA, destinationB) && samePlace(destinationA, originB))
+  );
+}
+
 function normalizeRoute(origin, destination) {
-  const o = (origin || '').trim();
-  const d = (destination || '').trim();
-  const swap = (a, b) =>
-    (o.toLowerCase().includes(a) && d.toLowerCase().includes(b)) ||
-    (o.toLowerCase().includes(b) && d.toLowerCase().includes(a));
-  if (swap('riyadh', 'khobar')) return { origin: 'Riyadh', destination: 'Khobar' };
-  if (swap('riyadh', 'jubail')) return { origin: 'Riyadh', destination: 'Jubail' };
-  if (swap('riyadh', 'jeddah')) return { origin: 'Riyadh', destination: 'Jeddah' };
-  return { origin: o, destination: d };
+  return {
+    origin: canonicalPlace(origin) || String(origin || '').trim(),
+    destination: canonicalPlace(destination) || String(destination || '').trim(),
+  };
 }
 
 module.exports = {
@@ -134,4 +170,7 @@ module.exports = {
   GCC_ROUTES,
   normalizeServiceType,
   normalizeRoute,
+  canonicalPlace,
+  samePlace,
+  routesMatch,
 };

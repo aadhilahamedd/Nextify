@@ -29,6 +29,7 @@ export function resolveInquiryDestination(form = {}) {
 }
 
 export function resolveInquiryPickup(form = {}) {
+  if (form.origin === 'Other') return String(form.otherOrigin || form.pickupLocation || '').trim();
   return String(form.origin || form.pickupLocation || 'Riyadh').trim();
 }
 

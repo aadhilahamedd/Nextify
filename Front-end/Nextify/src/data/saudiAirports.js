@@ -1,0 +1,583 @@
+/**
+ * Operational public/commercial passenger airports in Saudi Arabia.
+ * Source: OurAirports country dataset (https://ourairports.com/countries/SA/airports.csv)
+ * retrieved 2026-11-05. Coordinates, IATA codes, and English names are from that file.
+ * Arabic names are the existing Nextify airport labels (not invented).
+ * Excludes military-only airfields, closed airports, private strips, and helipads.
+ */
+function airport(entry) {
+  return entry;
+}
+
+export const SAUDI_AIRPORTS = [
+  airport({
+    id: 'riyadh-airport',
+    ident: 'OERK',
+    iata: 'RUH',
+    nameEn: 'King Khalid International Airport',
+    nameAr: 'مطار الملك خالد الدولي',
+    cityEn: 'Riyadh',
+    cityAr: 'الرياض',
+    regionEn: 'Riyadh',
+    regionAr: 'الرياض',
+    lat: 24.9576,
+    lng: 46.698799,
+    aliases: ['RUH', 'KKIA', 'Riyadh Airport', 'OERK'],
+  }),
+  airport({
+    id: 'jeddah-airport',
+    ident: 'OEJN',
+    iata: 'JED',
+    nameEn: 'King Abdulaziz International Airport',
+    nameAr: 'مطار الملك عبدالعزيز الدولي',
+    cityEn: 'Jeddah',
+    cityAr: 'جدة',
+    regionEn: 'Makkah',
+    regionAr: 'مكة المكرمة',
+    lat: 21.680241,
+    lng: 39.157436,
+    aliases: ['JED', 'KAIA', 'Jeddah Airport', 'OEJN', 'Mecca'],
+  }),
+  airport({
+    id: 'dammam-airport',
+    ident: 'OEDF',
+    iata: 'DMM',
+    nameEn: 'King Fahd International Airport',
+    nameAr: 'مطار الملك فهد الدولي',
+    cityEn: 'Dammam',
+    cityAr: 'الدمام',
+    regionEn: 'Eastern Province',
+    regionAr: 'المنطقة الشرقية',
+    lat: 26.4691,
+    lng: 49.798209,
+    aliases: ['DMM', 'KFIA', 'Dammam Airport', 'Ad Dammam', 'OEDF'],
+  }),
+  airport({
+    id: 'medina-airport',
+    ident: 'OEMA',
+    iata: 'MED',
+    nameEn: 'Prince Mohammad Bin Abdulaziz Airport',
+    nameAr: 'مطار الأمير محمد بن عبدالعزيز',
+    cityEn: 'Medina',
+    cityAr: 'المدينة المنورة',
+    regionEn: 'Madinah',
+    regionAr: 'المدينة المنورة',
+    lat: 24.5534,
+    lng: 39.705101,
+    aliases: ['MED', 'Medina Airport', 'Madinah Airport', 'OEMA'],
+  }),
+  airport({
+    id: 'abha-airport',
+    ident: 'OEAB',
+    iata: 'AHB',
+    nameEn: 'Abha International Airport',
+    nameAr: 'مطار أبها الدولي',
+    cityEn: 'Abha',
+    cityAr: 'أبها',
+    regionEn: 'Asir',
+    regionAr: 'عسير',
+    lat: 18.2404,
+    lng: 42.656601,
+    aliases: ['AHB', 'OEAB'],
+  }),
+  airport({
+    id: 'taif-airport',
+    ident: 'OETF',
+    iata: 'TIF',
+    nameEn: 'Taif International Airport',
+    nameAr: 'مطار الطائف الدولي',
+    cityEn: 'Taif',
+    cityAr: 'الطائف',
+    regionEn: 'Makkah',
+    regionAr: 'مكة المكرمة',
+    lat: 21.484739,
+    lng: 40.544074,
+    aliases: ['TIF', 'Taif Airport', "Ta'if Airport", 'OETF'],
+  }),
+  airport({
+    id: 'tabuk-airport',
+    ident: 'OETB',
+    iata: 'TUU',
+    nameEn: 'Prince Sultan bin Abdulaziz International Airport',
+    nameAr: 'مطار الأمير سلطان بن عبدالعزيز',
+    cityEn: 'Tabuk',
+    cityAr: 'تبوك',
+    regionEn: 'Tabuk',
+    regionAr: 'تبوك',
+    lat: 28.3711,
+    lng: 36.624865,
+    aliases: ['TUU', 'Tabuk Airport', 'Prince Sultan bin Abdulaziz Airport', 'OETB'],
+  }),
+  airport({
+    id: 'gassim-airport',
+    ident: 'OEGS',
+    iata: 'ELQ',
+    nameEn: 'Prince Naif bin Abdulaziz International Airport',
+    nameAr: 'مطار الأمير نايف بن عبدالعزيز',
+    cityEn: 'Qassim',
+    cityAr: 'القصيم',
+    regionEn: 'Qassim',
+    regionAr: 'القصيم',
+    lat: 26.302799,
+    lng: 43.774399,
+    aliases: ['ELQ', 'Gassim Airport', 'Qassim Airport', 'Prince Naif bin Abdulaziz Airport', 'OEGS'],
+  }),
+  airport({
+    id: 'hail-airport',
+    ident: 'OEHL',
+    iata: 'HAS',
+    nameEn: 'Hail International Airport',
+    nameAr: 'مطار حائل الدولي',
+    cityEn: 'Hail',
+    cityAr: 'حائل',
+    regionEn: 'Hail',
+    regionAr: 'حائل',
+    lat: 27.437901,
+    lng: 41.686298,
+    aliases: ['HAS', 'Hail Airport', 'OEHL'],
+  }),
+  airport({
+    id: 'jazan-airport',
+    ident: 'OEGN',
+    iata: 'GIZ',
+    nameEn: 'Jizan Regional Airport / King Abdullah bin Abdulaziz Airport',
+    nameAr: 'مطار الملك عبدالله بن عبدالعزيز',
+    cityEn: 'Jizan',
+    cityAr: 'جازان',
+    regionEn: 'Jazan',
+    regionAr: 'جازان',
+    lat: 16.9011,
+    lng: 42.5858,
+    aliases: ['GIZ', 'Jazan Airport', 'Jizan Airport', 'Gizan', 'King Abdullah bin Abdulaziz Airport', 'OEGN'],
+  }),
+  airport({
+    id: 'alula-airport',
+    ident: 'OEAO',
+    iata: 'ULH',
+    nameEn: 'Al-Ula International Airport',
+    nameAr: 'مطار العلا الدولي',
+    cityEn: 'Al-Ula',
+    cityAr: 'العلا',
+    regionEn: 'Madinah',
+    regionAr: 'المدينة المنورة',
+    lat: 26.483634,
+    lng: 38.117048,
+    aliases: ['ULH', 'AlUla Airport', 'Al Ula Airport', 'OEAO'],
+  }),
+  airport({
+    id: 'yanbu-airport',
+    ident: 'OEYN',
+    iata: 'YNB',
+    nameEn: 'Prince Abdulmohsen Bin Abdulaziz International Airport',
+    nameAr: 'مطار الأمير عبدالمحسن بن عبدالعزيز',
+    cityEn: 'Yanbu',
+    cityAr: 'ينبع',
+    regionEn: 'Madinah',
+    regionAr: 'المدينة المنورة',
+    lat: 24.144199,
+    lng: 38.0634,
+    aliases: ['YNB', 'Yanbu Airport', 'Yenbo', 'Prince Abdulmohsin bin Abdulaziz Airport', 'OEYN'],
+  }),
+  airport({
+    id: 'neom-airport',
+    ident: 'OENN',
+    iata: 'NUM',
+    nameEn: 'Neom Bay Airport',
+    nameAr: 'مطار خليج نيوم',
+    cityEn: 'Sharma',
+    cityAr: 'شرما',
+    regionEn: 'Tabuk',
+    regionAr: 'تبوك',
+    lat: 27.924261,
+    lng: 35.29358,
+    aliases: ['NUM', 'NEOM Airport', 'Neom Airport', 'OENN'],
+  }),
+  airport({
+    id: 'al-baha-airport',
+    ident: 'OEBA',
+    iata: 'ABT',
+    nameEn: 'King Saud Bin Abdulaziz (Al Baha) Airport',
+    nameAr: 'مطار الملك سعود بن عبدالعزيز',
+    cityEn: 'Al-Baha',
+    cityAr: 'الباحة',
+    regionEn: 'Al Bahah',
+    regionAr: 'الباحة',
+    lat: 20.298506,
+    lng: 41.636153,
+    aliases: ['ABT', 'Al Baha Airport', 'King Saud bin Abdulaziz Airport', 'Al-Aqiq', 'OEBA'],
+  }),
+  airport({
+    id: 'najran-airport',
+    ident: 'OENG',
+    iata: 'EAM',
+    nameEn: 'Najran Domestic Airport',
+    nameAr: 'مطار نجران',
+    cityEn: 'Najran',
+    cityAr: 'نجران',
+    regionEn: 'Najran',
+    regionAr: 'نجران',
+    lat: 17.611401,
+    lng: 44.419201,
+    aliases: ['EAM', 'Najran Airport', 'OENG'],
+  }),
+  airport({
+    id: 'gurayat-airport',
+    ident: 'OEGT',
+    iata: 'URY',
+    nameEn: 'Gurayat Domestic Airport',
+    nameAr: 'مطار القريات',
+    cityEn: 'Gurayat',
+    cityAr: 'القريات',
+    regionEn: 'Al Jouf',
+    regionAr: 'الجوف',
+    lat: 31.412413,
+    lng: 37.278898,
+    aliases: ['URY', 'Gurayat Airport', 'Qurayyat Airport', 'OEGT'],
+  }),
+  airport({
+    id: 'jouf-airport',
+    ident: 'OESK',
+    iata: 'AJF',
+    nameEn: 'Al-Jawf International Airport',
+    nameAr: 'مطار الجوف',
+    cityEn: 'Al-Jawf',
+    cityAr: 'الجوف',
+    regionEn: 'Al Jouf',
+    regionAr: 'الجوف',
+    lat: 29.783301,
+    lng: 40.100905,
+    aliases: ['AJF', 'Al Jouf Airport', 'Al Jawf Airport', 'Sakaka', 'OESK'],
+  }),
+  airport({
+    id: 'arar-airport',
+    ident: 'OERR',
+    iata: 'RAE',
+    nameEn: 'Arar Domestic Airport',
+    nameAr: 'مطار عرعر',
+    cityEn: 'Arar',
+    cityAr: 'عرعر',
+    regionEn: 'Northern Borders',
+    regionAr: 'الحدود الشمالية',
+    lat: 30.906601,
+    lng: 41.138199,
+    aliases: ['RAE', 'Arar Airport', 'OERR'],
+  }),
+  airport({
+    id: 'rafha-airport',
+    ident: 'OERF',
+    iata: 'RAH',
+    nameEn: 'Rafha Domestic Airport',
+    nameAr: 'مطار رفحاء',
+    cityEn: 'Rafha',
+    cityAr: 'رفحاء',
+    regionEn: 'Northern Borders',
+    regionAr: 'الحدود الشمالية',
+    lat: 29.6264,
+    lng: 43.490601,
+    aliases: ['RAH', 'Rafha Airport', 'OERF'],
+  }),
+  airport({
+    id: 'qaisumah-airport',
+    ident: 'OEPA',
+    iata: 'AQI',
+    nameEn: 'Qaisumah–Hafar Al-Batin International Airport',
+    nameAr: 'مطار القيصومة',
+    cityEn: 'Qaisumah',
+    cityAr: 'القيصومة',
+    regionEn: 'Eastern Province',
+    regionAr: 'المنطقة الشرقية',
+    lat: 28.335726,
+    lng: 46.127108,
+    aliases: ['AQI', 'Hafar Al Batin Airport', 'Qaisumah Airport', 'HBT', 'OEPA'],
+  }),
+  airport({
+    id: 'al-wajh-airport',
+    ident: 'OEWJ',
+    iata: 'EJH',
+    nameEn: 'Al Wajh Domestic Airport',
+    nameAr: 'مطار الوجه',
+    cityEn: 'Al Wajh',
+    cityAr: 'الوجه',
+    regionEn: 'Tabuk',
+    regionAr: 'تبوك',
+    lat: 26.198601,
+    lng: 36.476398,
+    aliases: ['EJH', 'Al Wajh Airport', 'Wedjh', 'Wejh', 'OEWJ'],
+  }),
+  airport({
+    id: 'al-ahsa-airport',
+    ident: 'OEAH',
+    iata: 'HOF',
+    nameEn: 'Al-Ahsa International Airport',
+    nameAr: 'مطار الأحساء الدولي',
+    cityEn: 'Hofuf',
+    cityAr: 'الهفوف',
+    regionEn: 'Eastern Province',
+    regionAr: 'المنطقة الشرقية',
+    lat: 25.285299,
+    lng: 49.485199,
+    aliases: ['HOF', 'Al Ahsa Airport', 'Hofuf Airport', 'OEAH'],
+  }),
+  airport({
+    id: 'bisha-airport',
+    ident: 'OEBH',
+    iata: 'BHH',
+    nameEn: 'Bisha Airport',
+    nameAr: 'مطار بيشة',
+    cityEn: 'Bisha',
+    cityAr: 'بيشة',
+    regionEn: 'Asir',
+    regionAr: 'عسير',
+    lat: 19.9844,
+    lng: 42.620899,
+    aliases: ['BHH', 'OEBH'],
+  }),
+  airport({
+    id: 'sharurah-airport',
+    ident: 'OESH',
+    iata: 'SHW',
+    nameEn: 'Sharurah Domestic Airport',
+    nameAr: 'مطار شرورة',
+    cityEn: 'Sharurah',
+    cityAr: 'شرورة',
+    regionEn: 'Najran',
+    regionAr: 'نجران',
+    lat: 17.4669,
+    lng: 47.121399,
+    aliases: ['SHW', 'Sharurah Airport', 'OESH'],
+  }),
+  airport({
+    id: 'wadi-ad-dawasir-airport',
+    ident: 'OEWD',
+    iata: 'WAE',
+    nameEn: 'Wadi Al Dawasir Domestic Airport',
+    nameAr: 'مطار وادي الدواسر',
+    cityEn: 'Wadi Al Dawasir',
+    cityAr: 'وادي الدواسر',
+    regionEn: 'Riyadh',
+    regionAr: 'الرياض',
+    lat: 20.504299,
+    lng: 45.1996,
+    aliases: ['WAE', 'Wadi ad-Dawasir Airport', 'OEWD'],
+  }),
+  airport({
+    id: 'dawadmi-airport',
+    ident: 'OEDM',
+    iata: 'DWD',
+    nameEn: 'Dawadmi Domestic Airport',
+    nameAr: 'مطار الدوادمي',
+    cityEn: 'Dawadmi',
+    cityAr: 'الدوادمي',
+    regionEn: 'Riyadh',
+    regionAr: 'الرياض',
+    lat: 24.4499,
+    lng: 44.121201,
+    aliases: ['DWD', 'Dawadmi Airport', 'Prince Salman bin Abdulaziz Airport', 'OEDM'],
+  }),
+  airport({
+    id: 'turaif-airport',
+    ident: 'OETR',
+    iata: 'TUI',
+    nameEn: 'Turaif Domestic Airport',
+    nameAr: 'مطار طريف',
+    cityEn: 'Turaif',
+    cityAr: 'طريف',
+    regionEn: 'Northern Borders',
+    regionAr: 'الحدود الشمالية',
+    lat: 31.692188,
+    lng: 38.731544,
+    aliases: ['TUI', 'Turaif Airport', 'OETR'],
+  }),
+  airport({
+    id: 'red-sea-airport',
+    ident: 'OERS',
+    iata: 'RSI',
+    nameEn: 'Red Sea International Airport',
+    nameAr: 'مطار البحر الأحمر الدولي',
+    cityEn: 'Hanak',
+    cityAr: 'حنك',
+    regionEn: 'Tabuk',
+    regionAr: 'تبوك',
+    lat: 25.627975,
+    lng: 37.088914,
+    aliases: ['RSI', 'Red Sea Airport', 'OERS'],
+  }),
+];
+
+export function normalizeAirportText(value) {
+  return String(value || '')
+    .toLowerCase()
+    .normalize('NFKC')
+    .replace(/[\u064B-\u065F\u0670]/g, '')
+    .replace(/أ|إ|آ/g, 'ا')
+    .replace(/ى/g, 'ي')
+    .replace(/ة/g, 'ه')
+    .replace(/^ال/, '')
+    .replace(/[^a-z0-9\u0600-\u06ff]+/g, ' ')
+    .trim();
+}
+
+function airportIdentityFields(item) {
+  return [
+    item.id,
+    item.ident,
+    item.iata,
+    item.nameEn,
+    item.nameAr,
+    ...(item.aliases || []),
+  ];
+}
+
+export function findAirport(value) {
+  if (!value) return null;
+  if (typeof value === 'object') {
+    if (value.iata) {
+      const byIata = SAUDI_AIRPORTS.find((item) => item.iata === String(value.iata).toUpperCase());
+      if (byIata) return byIata;
+    }
+    if (value.id) {
+      const byId = SAUDI_AIRPORTS.find((item) => item.id === value.id);
+      if (byId) return byId;
+    }
+    return findAirport(value.nameEn || value.name || value.address || value.label);
+  }
+  const q = normalizeAirportText(value);
+  if (!q) return null;
+  return SAUDI_AIRPORTS.find((item) => airportIdentityFields(item).some((field) => normalizeAirportText(field) === q)) || null;
+}
+
+export function airportToCoords(value) {
+  const match = findAirport(value);
+  if (!match) return null;
+  return {
+    ...match,
+    latitude: match.lat,
+    longitude: match.lng,
+    address: match.nameEn,
+  };
+}
+
+const POPULAR_AIRPORTS = [
+  'riyadh-airport',
+  'jeddah-airport',
+  'dammam-airport',
+  'medina-airport',
+  'abha-airport',
+  'taif-airport',
+  'tabuk-airport',
+  'gassim-airport',
+  'jazan-airport',
+  'hail-airport',
+];
+
+function scoreField(normalized, query, weight) {
+  if (!normalized || !query) return 0;
+  if (normalized === query) return 100 * weight;
+  if (normalized.startsWith(query)) return (80 - Math.min(normalized.length, 25)) * weight;
+  const parts = normalized.split(/[\s/-]+/);
+  if (parts.some((part) => part.startsWith(query))) return 55 * weight;
+  if (query.length >= 3 && normalized.includes(query)) return 30 * weight;
+  return 0;
+}
+
+export function searchSaudiAirports(query, limit = 12) {
+  const q = normalizeAirportText(query);
+  const scored = SAUDI_AIRPORTS.map((item) => {
+    if (!q) {
+      const popular = POPULAR_AIRPORTS.indexOf(item.id);
+      return { item, score: popular === -1 ? 1 : 40 - popular };
+    }
+    const nameScore = Math.max(
+      scoreField(normalizeAirportText(item.nameEn), q, 1),
+      scoreField(normalizeAirportText(item.nameAr), q, 1),
+      scoreField(normalizeAirportText(item.iata), q, 1.15),
+      scoreField(normalizeAirportText(item.ident), q, 0.8),
+      ...(item.aliases || []).map((alias) => scoreField(normalizeAirportText(alias), q, 0.95)),
+    );
+    const cityScore = Math.max(
+      scoreField(normalizeAirportText(item.cityEn), q, 0.9),
+      scoreField(normalizeAirportText(item.cityAr), q, 0.9),
+    );
+    const regionScore = Math.max(
+      scoreField(normalizeAirportText(item.regionEn), q, 0.35),
+      scoreField(normalizeAirportText(item.regionAr), q, 0.35),
+    );
+    const popularBoost = (nameScore > 50 || cityScore > 50) && POPULAR_AIRPORTS.includes(item.id) ? 18 : 0;
+    return { item, score: Math.max(nameScore, cityScore, regionScore) + popularBoost };
+  })
+    .filter((row) => row.score > 0)
+    .sort((a, b) => b.score - a.score || a.item.nameEn.localeCompare(b.item.nameEn));
+
+  return scored.slice(0, limit).map((row) => row.item);
+}
+
+export function displayAirportName(value, lang = 'en') {
+  const match = findAirport(value);
+  if (!match) return typeof value === 'string' ? value : value?.nameEn || '';
+  return lang === 'ar' ? match.nameAr : match.nameEn;
+}
+
+export function sameAirportLocation(left, right) {
+  const a = findAirport(left);
+  const b = findAirport(right);
+  if (a && b) return a.id === b.id;
+  const leftText = normalizeAirportText(typeof left === 'object' ? (left?.nameEn || left?.address || left?.label) : left);
+  const rightText = normalizeAirportText(typeof right === 'object' ? (right?.nameEn || right?.address || right?.label) : right);
+  return Boolean(leftText && rightText && leftText === rightText);
+}
+
+export function toLocationPlace(item, typedValue = '') {
+  if (item?.iata || item?.ident || item?.kind === 'airport') {
+    const airport = item?.iata || item?.ident ? item : findAirport(item);
+    if (airport?.iata || airport?.ident) {
+      return {
+        kind: 'airport',
+        id: airport.id,
+        iata: airport.iata,
+        ident: airport.ident,
+        nameEn: airport.nameEn,
+        nameAr: airport.nameAr,
+        cityEn: airport.cityEn,
+        cityAr: airport.cityAr,
+        regionEn: airport.regionEn,
+        regionAr: airport.regionAr,
+        lat: airport.lat,
+        lng: airport.lng,
+        latitude: airport.lat,
+        longitude: airport.lng,
+        address: airport.nameEn,
+        label: airport.nameEn,
+      };
+    }
+  }
+  const lat = Number(item?.latitude ?? item?.lat);
+  const lng = Number(item?.longitude ?? item?.lng);
+  const hasCoords = Number.isFinite(lat) && Number.isFinite(lng);
+  if (item?.id || hasCoords) {
+    const address = String(item.address || item.label || item.nameEn || item.name || typedValue || '').trim();
+    return {
+      kind: item.kind || (hasCoords ? 'coords' : 'place'),
+      id: item.id || null,
+      source: item.source || null,
+      nameEn: item.nameEn || item.name || address,
+      nameAr: item.nameAr || '',
+      cityEn: item.cityEn || item.city || '',
+      regionEn: item.regionEn || item.region || '',
+      address,
+      label: item.label || address,
+      lat: hasCoords ? lat : undefined,
+      lng: hasCoords ? lng : undefined,
+      latitude: hasCoords ? lat : undefined,
+      longitude: hasCoords ? lng : undefined,
+    };
+  }
+  const address = String(typedValue || item?.address || item?.nameEn || '').trim();
+  if (!address) return null;
+  const airport = findAirport(address);
+  if (airport) return toLocationPlace(airport, address);
+  return {
+    kind: 'address',
+    address,
+    label: address,
+  };
+}

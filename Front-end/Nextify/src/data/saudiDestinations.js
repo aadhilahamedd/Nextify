@@ -115,7 +115,16 @@ export const SAUDI_DESTINATIONS = [
   dest('rafha-airport', 'Rafha Airport', 'مطار رفحاء', 'Northern Borders', 'الحدود الشمالية', ['RAH']),
   dest('qaisumah-airport', 'Qaisumah Airport', 'مطار القيصومة', 'Eastern Province', 'المنطقة الشرقية', ['AQI']),
   dest('al-wajh-airport', 'Al Wajh Airport', 'مطار الوجه', 'Tabuk', 'تبوك', ['EJH']),
+  dest('al-ahsa-airport', 'Al Ahsa International Airport', 'مطار الأحساء الدولي', 'Eastern Province', 'المنطقة الشرقية', ['HOF', 'Al Ahsa Airport', 'Hofuf Airport']),
+  dest('bisha-airport', 'Bisha Airport', 'مطار بيشة', 'Asir', 'عسير', ['BHH']),
+  dest('sharurah-airport', 'Sharurah Airport', 'مطار شرورة', 'Najran', 'نجران', ['SHW']),
+  dest('wadi-ad-dawasir-airport', 'Wadi ad-Dawasir Airport', 'مطار وادي الدواسر', 'Riyadh', 'الرياض', ['WAE']),
+  dest('dawadmi-airport', 'Dawadmi Airport', 'مطار الدوادمي', 'Riyadh', 'الرياض', ['DWD', 'Prince Salman bin Abdulaziz Airport']),
+  dest('turaif-airport', 'Turaif Airport', 'مطار طريف', 'Northern Borders', 'الحدود الشمالية', ['TUI']),
+  dest('red-sea-airport', 'Red Sea International Airport', 'مطار البحر الأحمر الدولي', 'Tabuk', 'تبوك', ['RSI', 'Red Sea Airport']),
 ];
+
+export { SAUDI_AIRPORTS, searchSaudiAirports, findAirport } from './saudiAirports';
 
 function normalize(value) {
   return String(value || '')
@@ -157,12 +166,12 @@ function scoreField(normalized, query, weight) {
   return 0;
 }
 
-export function searchSaudiDestinations(query, limit = 12) {
+function searchItems(items, query, limit, popularIds) {
   const q = normalize(query);
-  const scored = SAUDI_DESTINATIONS.map((item) => {
+  const scored = items.map((item) => {
     if (!q) {
-      const popular = POPULAR.indexOf(item.id);
-      return { item, score: popular === -1 ? 1 : 20 - popular };
+      const popular = popularIds.indexOf(item.id);
+      return { item, score: popular === -1 ? 1 : 40 - popular };
     }
     const nameScore = Math.max(
       scoreField(normalize(item.nameEn), q, 1),
@@ -173,13 +182,17 @@ export function searchSaudiDestinations(query, limit = 12) {
       scoreField(normalize(item.regionEn), q, 0.35),
       scoreField(normalize(item.regionAr), q, 0.35),
     );
-    const popularBoost = nameScore > 50 && POPULAR.includes(item.id) ? 18 : 0;
+    const popularBoost = nameScore > 50 && popularIds.includes(item.id) ? 18 : 0;
     return { item, score: Math.max(nameScore, regionScore) + popularBoost };
   })
     .filter((row) => row.score > 0)
     .sort((a, b) => b.score - a.score || a.item.nameEn.localeCompare(b.item.nameEn));
 
   return scored.slice(0, limit).map((row) => row.item);
+}
+
+export function searchSaudiDestinations(query, limit = 12) {
+  return searchItems(SAUDI_DESTINATIONS, query, limit, POPULAR);
 }
 
 export function resolveDestinationValue(value) {

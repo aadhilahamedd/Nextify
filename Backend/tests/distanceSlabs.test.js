@@ -19,13 +19,26 @@ for (const [km, kind, label, billedKm] of cityCases) {
   assert.strictEqual(slab.billedKm, billedKm, `${km} km billed`);
 }
 
-const airportBase = airportSlabForDistance(32);
-assert.strictEqual(airportBase.kind, 'base');
-assert.strictEqual(airportBase.extraSlabs, 0);
+const airportCases = [
+  [0, 'base', 0],
+  [32, 'base', 0],
+  [40, 'base', 0],
+  [41, 'extra', 1],
+  [45, 'extra', 1],
+  [46, 'extra', 2],
+  [47, 'extra', 2],
+  [50, 'extra', 2],
+  [51, 'extra', 3],
+  [55, 'extra', 3],
+  [56, 'extra', 4],
+  [60, 'extra', 4],
+  [61, 'extra', 5],
+];
 
-const airportExtra = airportSlabForDistance(47);
-assert.strictEqual(airportExtra.kind, 'extra');
-assert.strictEqual(airportExtra.extraSlabs, 2);
-assert.strictEqual(airportExtra.extraKmBilled, 10);
+for (const [km, kind, extraSlabs] of airportCases) {
+  const slab = airportSlabForDistance(km);
+  assert.strictEqual(slab.kind, kind, `${km} km airport kind`);
+  assert.strictEqual(slab.extraSlabs, extraSlabs, `${km} km airport slabs`);
+}
 
 console.log('distanceSlabs tests passed');

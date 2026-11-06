@@ -4,13 +4,9 @@ import Container from 'react-bootstrap/Container';
 import {
   SERVICE_TYPES,
   SERVICE_DESCRIPTIONS,
-  AIRPORTS,
   getVehicleImage,
-  INTERCITY_ROUTES,
-  GCC_DESTINATIONS,
-  GCC_DESTINATION_OPTIONS,
-  INTERCITY_DESTINATIONS,
-  TRANSFER_ORIGINS,
+  GCC_LOCATION_OPTIONS,
+  INTERCITY_CITIES,
   DURATION_OPTIONS,
   initialFormState,
   isInquiryTransfer,
@@ -26,6 +22,7 @@ import { useBookingAssistant } from './BookingAssistant';
 import { LocaleDateInput, LocaleTimeInput, getLocalDateValue, isTravelDateTimePast } from './ArabicDateTime';
 import { FLEET_CLASS, findFleetVehicle, getOfficialQuote, getVehiclesForService } from '../../data/fleetVehicles';
 import { calculatePriceAPI, createBookingAPI } from '../../Services/allAPI';
+import { findAirport, toLocationPlace } from '../../data/saudiAirports';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { translatePlace, translateService } from '../../i18n/places';
 import { TEMP_WHATSAPP_BOOKING_INSTEAD_OF_MOYASAR } from '../../utils/paymentMode';
@@ -156,23 +153,25 @@ function BookingWizard() {
   };
 
   const buildPricingPayload = useCallback(() => {
-    const route = INTERCITY_ROUTES.find((r) => r.label === form.intercityRoute);
-    const gcc = GCC_DESTINATIONS.find((g) => g.destination === form.gccDestination || g.label === form.gccDestination);
+    const airportPlace = findAirport(form.pickupPlace || form.airport);
+    const origin = form.serviceType === 'airport_transfer'
+      ? (airportPlace?.nameEn || form.airport)
+      : form.origin === 'Other'
+        ? form.otherOrigin
+        : (form.origin || form.pickupLocation || 'Riyadh');
+    const destination = form.destination === 'Other' || form.gccDestination === 'Other'
+      ? form.otherDestination
+      : (form.destination || form.gccDestination || form.dropoffLocation);
     return {
       serviceType: form.serviceType,
       vehicleCategory: form.vehicleCategory,
       vehicleName: selectedVehicle?.label || form.vehicleName,
-      airport: form.airport,
-      origin: form.origin || form.pickupLocation || 'Riyadh',
-      destination: form.destination === 'Other' || form.gccDestination === 'Other'
-        ? form.otherDestination
-        : route
-          ? route.destination
-          : gcc
-            ? gcc.destination
-            : form.destination || form.dropoffLocation,
+      airport: airportPlace?.nameEn || form.airport,
+      origin,
+      destination,
+      pickupPlace: form.pickupPlace || toLocationPlace(airportPlace, form.airport),
       durationType: form.durationType,
-      distanceKm: form.distanceKm ? Number(form.distanceKm) : undefined,
+      distanceKm: form.distanceKm !== '' && form.distanceKm != null ? Number(form.distanceKm) : undefined,
       returnTrip: Boolean(form.returnTrip),
     };
   }, [form, selectedVehicle]);
@@ -270,9 +269,15 @@ function BookingWizard() {
       setError(t('booking.errVehicle'));
       return false;
     }
-    if (form.serviceType === 'airport_transfer' && !form.destination?.trim()) {
-      setError(t('booking.errDest'));
-      return false;
+    if (form.serviceType === 'airport_transfer') {
+      if (!findAirport(form.pickupPlace || form.airport)) {
+        setError(t('booking.errAirport'));
+        return false;
+      }
+      if (!form.destination?.trim()) {
+        setError(t('booking.errDest'));
+        return false;
+      }
     }
     if (form.serviceType === 'city_transfer' && (!form.pickupLocation?.trim() || !form.dropoffLocation?.trim())) {
       setError(t('booking.errCity'));
@@ -283,7 +288,7 @@ function BookingWizard() {
       return false;
     }
     if (form.serviceType === 'intercity_transfer') {
-      if (!form.origin?.trim()) {
+      if (!form.origin?.trim() || (form.origin === 'Other' && !form.otherOrigin?.trim())) {
         setError(t('booking.errPickupOrigin'));
         return false;
       }
@@ -293,7 +298,7 @@ function BookingWizard() {
       }
     }
     if (form.serviceType === 'gcc_transfer') {
-      if (!form.origin?.trim()) {
+      if (!form.origin?.trim() || (form.origin === 'Other' && !form.otherOrigin?.trim())) {
         setError(t('booking.errPickupOrigin'));
         return false;
       }
@@ -346,8 +351,10 @@ function BookingWizard() {
       travelTime: form.travelTime,
       schedule: { pickupDateTime: `${form.travelDate}T${form.travelTime}` },
       flightNumber: form.flightNumber,
-      pickupLocation: form.pickupLocation || form.origin || form.serviceLocation,
+      pickupLocation: form.pickupLocation || form.origin || form.serviceLocation || form.airport,
       dropoffLocation: form.dropoffLocation || form.destination,
+      pickupPlace: form.pickupPlace,
+      dropoffPlace: form.dropoffPlace,
       passengers: form.passengers,
       luggage: form.luggage,
       passengerCount: form.passengers,
@@ -433,16 +440,29 @@ function BookingWizard() {
         return (
           <>
             <div className="col-12">
-              <span className="book-label">{t('booking.airport')}</span>
-              <div className="book-choice-grid">
-                {AIRPORTS.map((a) => (
-                  <Choice key={a} active={form.airport === a} onClick={() => update({ airport: a })}>{translatePlace(a, t, lang)}</Choice>
-                ))}
-              </div>
+              <label className="book-label">{t('booking.airportPickup')}</label>
+              <DestinationAutocomplete
+                id="booking-airport-pickup"
+                variant="airports"
+                value={form.airport}
+                onChange={(pickupLocation, pickupPlace) => {
+                  const airport = pickupPlace?.kind === 'airport' ? pickupPlace : findAirport(pickupLocation);
+                  setError('');
+                  update({
+                    airport: airport?.nameEn || pickupLocation,
+                    pickupPlace: airport ? toLocationPlace(airport, airport.nameEn) : pickupPlace,
+                  });
+                }}
+                placeholder={t('booking.airportPickupPh')}
+              />
             </div>
             <div className="col-12 col-md-6">
               <label className="book-label">{t('booking.destination')}</label>
-              <DestinationAutocomplete value={form.destination} onChange={(destination) => update({ destination })} placeholder={t('booking.destPh')} />
+              <DestinationAutocomplete
+                value={form.destination}
+                onChange={(destination) => update({ destination })}
+                placeholder={t('booking.destPh')}
+              />
             </div>
             <div className="col-12 col-md-6">
               <label className="book-label">{t('booking.flight')}</label>
@@ -511,25 +531,48 @@ function BookingWizard() {
             <div className="col-12">
               <span className="book-label">{t('booking.pickupOrigin')}</span>
               <div className="book-choice-grid">
-                {TRANSFER_ORIGINS.map((city) => (
-                  <Choice key={city} active={form.origin === city} onClick={() => update({ origin: city, pickupLocation: city })}>
-                    {translatePlace(city, t, lang)}
+                {INTERCITY_CITIES.map((city) => (
+                  <Choice
+                    key={`origin-${city}`}
+                    active={form.origin === city}
+                    onClick={() => update({
+                      origin: city,
+                      pickupLocation: city === 'Other' ? form.pickupLocation : city,
+                      otherOrigin: city === 'Other' ? form.otherOrigin : '',
+                      destination: form.destination === city ? '' : form.destination,
+                      intercityRoute: form.destination && form.destination !== 'Other' && city !== 'Other'
+                        ? `${city} ↔ ${form.destination}`
+                        : '',
+                    })}
+                  >
+                    {city === 'Other' ? t('booking.otherDestination') : translatePlace(city, t, lang)}
                   </Choice>
                 ))}
               </div>
             </div>
+            {form.origin === 'Other' && (
+              <div className="col-12">
+                <label className="book-label">{t('booking.otherOrigin')}</label>
+                <input
+                  className="form-control book-input"
+                  value={form.otherOrigin}
+                  onChange={(e) => update({ otherOrigin: e.target.value, pickupLocation: e.target.value })}
+                  placeholder={t('booking.otherOriginPh')}
+                />
+              </div>
+            )}
             <div className="col-12">
               <span className="book-label">{t('booking.destination')}</span>
               <div className="book-choice-grid">
-                {INTERCITY_DESTINATIONS.map((city) => (
+                {INTERCITY_CITIES.filter((city) => city === 'Other' || city !== form.origin).map((city) => (
                   <Choice
-                    key={city}
+                    key={`dest-${city}`}
                     active={form.destination === city}
                     onClick={() => update({
                       destination: city,
                       gccDestination: '',
                       otherDestination: city === 'Other' ? form.otherDestination : '',
-                      intercityRoute: city === 'Other' ? '' : `${form.origin || 'Riyadh'} ↔ ${city}`,
+                      intercityRoute: city === 'Other' || form.origin === 'Other' ? '' : `${form.origin || 'Riyadh'} ↔ ${city}`,
                     })}
                   >
                     {city === 'Other' ? t('booking.otherDestination') : translatePlace(city, t, lang)}
@@ -559,19 +602,40 @@ function BookingWizard() {
             <div className="col-12">
               <span className="book-label">{t('booking.pickupOrigin')}</span>
               <div className="book-choice-grid">
-                {TRANSFER_ORIGINS.map((city) => (
-                  <Choice key={city} active={form.origin === city} onClick={() => update({ origin: city, pickupLocation: city })}>
-                    {translatePlace(city, t, lang)}
+                {GCC_LOCATION_OPTIONS.map((city) => (
+                  <Choice
+                    key={`gcc-origin-${city}`}
+                    active={form.origin === city}
+                    onClick={() => update({
+                      origin: city,
+                      pickupLocation: city === 'Other' ? form.pickupLocation : city,
+                      otherOrigin: city === 'Other' ? form.otherOrigin : '',
+                      gccDestination: form.gccDestination === city ? '' : form.gccDestination,
+                      destination: form.destination === city ? '' : form.destination,
+                    })}
+                  >
+                    {city === 'Other' ? t('booking.otherDestination') : translatePlace(city, t, lang)}
                   </Choice>
                 ))}
               </div>
             </div>
+            {form.origin === 'Other' && (
+              <div className="col-12">
+                <label className="book-label">{t('booking.otherOrigin')}</label>
+                <input
+                  className="form-control book-input"
+                  value={form.otherOrigin}
+                  onChange={(e) => update({ otherOrigin: e.target.value, pickupLocation: e.target.value })}
+                  placeholder={t('booking.otherOriginPh')}
+                />
+              </div>
+            )}
             <div className="col-12">
               <span className="book-label">{t('booking.gccDest')}</span>
               <div className="book-choice-grid">
-                {GCC_DESTINATION_OPTIONS.map((city) => (
+                {GCC_LOCATION_OPTIONS.filter((city) => city === 'Other' || city !== form.origin).map((city) => (
                   <Choice
-                    key={city}
+                    key={`gcc-dest-${city}`}
                     active={form.gccDestination === city}
                     onClick={() => update({
                       gccDestination: city,

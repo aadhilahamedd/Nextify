@@ -18,12 +18,13 @@ const LOCAL_IMAGES_BY_NAME = {
   'Mercedes-Benz S-Class': '/images/car/mercedes-s-class.webp',
   'BMW 7 Series': '/images/car/bmw-7-series.webp',
   'Ford Taurus': '/images/car/ford-taurus.webp',
-  'GMC': '/images/car/gmc-suv.webp',
-  'GMC Yukon XL AT4': '/images/car/gmc-suv.webp',
+  'GMC': '/images/car/GMC Yukon.png',
+  'GMC Yukon': '/images/car/GMC Yukon.png',
+  'GMC Yukon XL AT4': '/images/car/GMC Yukon.png',
   'BMW 5 Series': '/images/car/bmw-5-series.webp',
   'Mercedes-Benz E-Class': '/images/car/mercedes-e-class.webp',
-  'GMC Tahoe': '/images/car/gmc-suv.webp',
-  'Chevrolet Suburban': '/images/car/gmc-suv.webp',
+  'GMC Tahoe': '/images/car/GMC Yukon.png',
+  'Chevrolet Suburban': '/images/car/GMC Yukon.png',
   'Mercedes-Benz eVito Tourer': '/images/car/mercedes-evito-tourer.webp',
   'Mercedes-Benz Vito': '/images/car/mercedes-evito-tourer.webp',
 };
@@ -42,10 +43,11 @@ export function getCarImageUrl(imgStr) {
   if (!imgStr) return '';
   if (isCustomCarImage(imgStr)) return imgStr;
   const mapped = IMAGE_MAP[imgStr] || imgStr;
-  if ((mapped.startsWith('/images/car/') || mapped.startsWith('/images/cars/')) && !mapped.includes('?')) {
-    return `${mapped}?v=11`;
+  const encoded = mapped.replace(/ /g, '%20');
+  if ((encoded.startsWith('/images/car/') || encoded.startsWith('/images/cars/')) && !encoded.includes('?')) {
+    return `${encoded}?v=12`;
   }
-  return mapped;
+  return encoded;
 }
 
 export function resolveCarImage(car) {
@@ -77,16 +79,17 @@ export function collapseGmcFleet(cars = []) {
   return [
     {
       ...preferred,
-      name: 'GMC',
+      name: 'GMC Yukon',
       type: preferred.type || 'Full-Size SUV',
-      img: isCustomCarImage(preferred.img) ? preferred.img : LOCAL_IMAGES_BY_NAME.GMC,
+      img: isCustomCarImage(preferred.img) ? preferred.img : LOCAL_IMAGES_BY_NAME['GMC Yukon'],
     },
     ...otherCars,
   ];
 }
 
-export function applyLocalCarImages(cars = []) {
-  return collapseGmcFleet(cars).map((car) => ({ ...car, img: resolveCarImage(car) }));
+export function applyLocalCarImages(cars = [], { collapseGmc = true } = {}) {
+  const list = collapseGmc ? collapseGmcFleet(cars) : [...cars];
+  return list.map((car) => ({ ...car, img: resolveCarImage(car) }));
 }
 
 export function getEliteCollectionCars(cars = []) {
@@ -212,8 +215,8 @@ export const initialCars = [
   },
   {
     id: 10,
-    name: 'GMC',
-    img: '/images/car/gmc-suv.webp',
+    name: 'GMC Yukon',
+    img: '/images/car/GMC Yukon.png',
     price: 'SAR 1125',
     priceUsd: '300',
     type: 'Full-Size SUV',

@@ -84,8 +84,8 @@ const initialCars = [
   },
   {
     id: 10,
-    name: 'GMC',
-    img: '/images/car/gmc-suv.webp',
+    name: 'GMC Yukon',
+    img: '/images/car/GMC Yukon.png',
     price: 'SAR 1125',
     priceUsd: '300',
     type: 'Full-Size SUV',
@@ -138,11 +138,12 @@ const IMAGE_REMAP = {
   local_benz_s: '/images/car/mercedes-s-class.webp',
   local_bmw_7: '/images/car/bmw-7-series.webp',
   'https://images.unsplash.com/photo-1555215695-3004980ad54e?auto=format&fit=crop&q=80&w=800': '/images/car/ford-taurus.webp',
-  'https://images.unsplash.com/photo-1519688410065-2766324d45fc?auto=format&fit=crop&q=80&w=800': '/images/car/gmc-suv.webp',
+  'https://images.unsplash.com/photo-1519688410065-2766324d45fc?auto=format&fit=crop&q=80&w=800': '/images/car/GMC Yukon.png',
   'https://images.unsplash.com/photo-1617531653332-bd46c24f2068?auto=format&fit=crop&q=80&w=800': '/images/car/bmw-5-series.webp',
   'https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?auto=format&fit=crop&q=80&w=800': '/images/car/mercedes-e-class.webp',
-  'https://images.unsplash.com/photo-1519641471654-76ce0107ad1b?auto=format&fit=crop&q=80&w=1200': '/images/car/gmc-suv.webp',
-  'https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?auto=format&fit=crop&q=80&w=1200': '/images/car/gmc-suv.webp',
+  'https://images.unsplash.com/photo-1519641471654-76ce0107ad1b?auto=format&fit=crop&q=80&w=1200': '/images/car/GMC Yukon.png',
+  'https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?auto=format&fit=crop&q=80&w=1200': '/images/car/GMC Yukon.png',
+  '/images/car/gmc-suv.webp': '/images/car/GMC Yukon.png',
   'https://images.unsplash.com/photo-1605892558667-d86b9f2913e1?auto=format&fit=crop&q=80&w=800': '/images/car/mercedes-evito-tourer.webp',
 };
 
@@ -157,12 +158,13 @@ const IMAGE_BY_NAME = {
   'Mercedes-Benz S-Class': '/images/car/mercedes-s-class.webp',
   'BMW 7 Series': '/images/car/bmw-7-series.webp',
   'Ford Taurus': '/images/car/ford-taurus.webp',
-  'GMC': '/images/car/gmc-suv.webp',
-  'GMC Yukon XL AT4': '/images/car/gmc-suv.webp',
+  'GMC': '/images/car/GMC Yukon.png',
+  'GMC Yukon': '/images/car/GMC Yukon.png',
+  'GMC Yukon XL AT4': '/images/car/GMC Yukon.png',
   'BMW 5 Series': '/images/car/bmw-5-series.webp',
   'Mercedes-Benz E-Class': '/images/car/mercedes-e-class.webp',
-  'GMC Tahoe': '/images/car/gmc-suv.webp',
-  'Chevrolet Suburban': '/images/car/gmc-suv.webp',
+  'GMC Tahoe': '/images/car/GMC Yukon.png',
+  'Chevrolet Suburban': '/images/car/GMC Yukon.png',
   'Mercedes-Benz eVito Tourer': '/images/car/mercedes-evito-tourer.webp',
 };
 
@@ -180,18 +182,23 @@ function isLegacyImage(img) {
 async function remapLegacyCarImages() {
   const cars = await Car.find();
   for (const car of cars) {
+    let changed = false;
+    if (/^gmc$/i.test(String(car.name || '').trim())) {
+      car.name = 'GMC Yukon';
+      changed = true;
+    }
     const remapped = IMAGE_REMAP[car.img] || IMAGE_REMAP[String(car.img || '').split('?')[0]];
     if (remapped && car.img !== remapped) {
       car.img = remapped;
-      await car.save();
-      continue;
+      changed = true;
+    } else if (isLegacyImage(car.img)) {
+      const named = IMAGE_BY_NAME[car.name];
+      if (named && car.img !== named) {
+        car.img = named;
+        changed = true;
+      }
     }
-    if (!isLegacyImage(car.img)) continue;
-    const named = IMAGE_BY_NAME[car.name];
-    if (named && car.img !== named) {
-      car.img = named;
-      await car.save();
-    }
+    if (changed) await car.save();
   }
 }
 

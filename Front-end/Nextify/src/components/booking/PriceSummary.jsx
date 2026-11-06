@@ -1,6 +1,7 @@
 import { getVehicleImage } from './bookingConstants';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { translatePlace, translateService, translateVehicle } from '../../i18n/places';
+import { displayAirportName } from '../../data/saudiAirports';
 import { toArabicIndic } from '../../i18n/format';
 
 function formatBookingWhen(dateValue, timeValue, lang) {
@@ -35,12 +36,12 @@ export default function PriceSummary({ form, quote, compact = false, loading = f
 
   const rows = [
     [t('booking.serviceLabel'), translateService(form?.serviceType, t) || form?.serviceType],
-    form?.airport && [t('booking.airport'), translatePlace(form.airport, t, lang)],
+    form?.airport && [t('booking.airport'), displayAirportName(form.airport, lang) || translatePlace(form.airport, t, lang)],
     form?.origin && [t('booking.from'), translatePlace(form.origin, t, lang)],
     form?.destination && form.destination !== 'Other' && [t('booking.to'), translatePlace(form.destination, t, lang)],
     form?.otherDestination && [t('booking.to'), form.otherDestination],
-    form?.pickupLocation && [t('booking.pickupLabel'), form.pickupLocation],
-    form?.dropoffLocation && [t('booking.dropoffLabel'), form.dropoffLocation],
+    form?.pickupLocation && [t('booking.pickupLabel'), translatePlace(form.pickupLocation, t, lang) || form.pickupLocation],
+    form?.dropoffLocation && [t('booking.dropoffLabel'), translatePlace(form.dropoffLocation, t, lang) || form.dropoffLocation],
     form?.intercityRoute && [t('booking.routeLabel'), translatePlace(form.intercityRoute, t, lang)],
     form?.gccDestination && form.gccDestination !== 'Other' && [t('booking.destLabel'), translatePlace(form.gccDestination, t, lang)],
     distanceValue !== '' && distanceValue != null && [t('booking.distanceLabel'), formatDistance(distanceValue, lang, t)],

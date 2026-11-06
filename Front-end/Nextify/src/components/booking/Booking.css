@@ -760,6 +760,21 @@
   cursor: pointer;
 }
 
+.dest-ac-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.dest-ac-iata {
+  flex-shrink: 0;
+  color: #c8a261;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
 .dest-ac-item.is-active,
 .dest-ac-item:hover {
   background: rgba(200, 162, 97, 0.14);
@@ -1173,4 +1188,8 @@ html[dir="rtl"] .book-assistant {
   .book-service-card:hover .book-service-media img {
     transform: none;
   }
+}
+
+.book-hint.is-error {
+  color: #e8b4b4;
 }

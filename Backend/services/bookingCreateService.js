@@ -1,6 +1,7 @@
 const Booking = require('../models/Booking');
 const { generateBookingNumber } = require('../utils/bookingNumber');
 const { calculatePrice, normalizeServiceType } = require('./pricingService');
+const { findAirport } = require('../data/saudiAirports');
 const { isVehicleAvailable } = require('./availabilityService');
 
 function httpError(statusCode, message, details) {
@@ -32,14 +33,27 @@ async function createBookingFromPayload(body, { userId } = {}) {
     throw httpError(400, 'Travel date and time cannot be in the past');
   }
 
+  const origin = body.origin || body.pickup?.address || body.pickupLocation;
+  const destination = typeof body.destination === 'string'
+    ? body.destination
+    : (body.destination?.address || body.destinationText || body.dropoffLocation);
+  let airportMatch = null;
+
+  if (serviceType === 'airport_transfer') {
+    airportMatch = findAirport(body.pickupPlace || body.pickup || origin || body.airport);
+    if (!airportMatch) {
+      throw httpError(400, 'Please select a Saudi airport for pickup');
+    }
+  }
+
   // Never trust a client-submitted price. Recalculate on the server.
   const quote = await calculatePrice({
     serviceType,
     vehicleCategory: body.vehicleCategory,
     vehicleName: body.vehicleName || body.vehicle?.label || body.vehicle?.name,
-    airport: body.airport,
-    origin: body.origin || body.pickup?.address || body.pickupLocation,
-    destination: body.destination || body.destinationText || body.dropoffLocation,
+    airport: airportMatch?.nameEn || body.airport,
+    origin: airportMatch?.nameEn || origin,
+    destination,
     durationType: body.durationType,
     distanceKm: body.distanceKm,
     returnTrip: Boolean(body.returnTrip),
@@ -81,9 +95,9 @@ async function createBookingFromPayload(body, { userId } = {}) {
     },
     user: userId || null,
     serviceType,
-    airport: body.airport || '',
+    airport: airportMatch?.nameEn || body.airport || '',
     routeType: quote.pricingType || 'fixed',
-    origin: body.origin || body.pickup?.address || body.pickupLocation || '',
+    origin: airportMatch?.nameEn || body.origin || body.pickup?.address || body.pickupLocation || '',
     destinationText: body.destination || body.destinationText || body.dropoffLocation || '',
     vehicleCategory: body.vehicleCategory || quote.vehicleCategory || '',
     durationType: body.durationType || '',
@@ -92,7 +106,14 @@ async function createBookingFromPayload(body, { userId } = {}) {
     pricingType: quote.pricingType,
     customQuoteRequired: quote.customQuoteRequired,
     pricingRuleId: quote.pricingRuleId || null,
-    pickup: body.pickup || { address: body.pickupLocation || body.origin || '' },
+    pickup: serviceType === 'airport_transfer'
+      ? {
+          address: airportMatch.nameEn,
+          latitude: airportMatch.lat,
+          longitude: airportMatch.lng,
+          placeId: airportMatch.id || '',
+        }
+      : (body.pickup || { address: body.pickupLocation || body.origin || '' }),
     destination: body.destination
       ? { address: typeof body.destination === 'string' ? body.destination : body.destination.address }
       : { address: body.dropoffLocation || body.destinationText || '' },

@@ -52,7 +52,7 @@ export function isInquiryTransfer(serviceType) {
 }
 
 export function quoteRequiresInquiry(quote, form = {}) {
-  if (form.destination === 'Other' || form.gccDestination === 'Other') return true;
+  if (form.origin === 'Other' || form.destination === 'Other' || form.gccDestination === 'Other') return true;
   if (form.returnTrip && isRouteTransferService(form.serviceType)) return true;
   if (!quote) return false;
   return Boolean(
@@ -63,15 +63,14 @@ export function quoteRequiresInquiry(quote, form = {}) {
   );
 }
 
-export const TRANSFER_ORIGINS = ['Riyadh', 'Jeddah', 'Dammam'];
-
-export const INTERCITY_DESTINATIONS = [
+export const INTERCITY_CITIES = [
+  'Riyadh',
+  'Jeddah',
   'Dammam',
   'Al Khobar',
   'Jubail',
   'Salwa',
   'Batha',
-  'Jeddah',
   'Madinah',
   'Abha',
   'Jizan',
@@ -79,7 +78,13 @@ export const INTERCITY_DESTINATIONS = [
   'Other',
 ];
 
-export const GCC_DESTINATION_OPTIONS = [
+export const TRANSFER_ORIGINS = INTERCITY_CITIES;
+export const INTERCITY_DESTINATIONS = INTERCITY_CITIES;
+
+export const GCC_LOCATION_OPTIONS = [
+  'Riyadh',
+  'Jeddah',
+  'Dammam',
   'Bahrain',
   'Qatar',
   'Abu Dhabi',
@@ -88,8 +93,10 @@ export const GCC_DESTINATION_OPTIONS = [
   'Other',
 ];
 
+export const GCC_DESTINATION_OPTIONS = GCC_LOCATION_OPTIONS;
+
 export const INTERCITY_ROUTES = INTERCITY_DESTINATIONS
-  .filter((destination) => destination !== 'Other')
+  .filter((destination) => destination !== 'Other' && destination !== 'Riyadh')
   .map((destination) => ({
     origin: 'Riyadh',
     destination,
@@ -110,14 +117,17 @@ export const DURATION_OPTIONS = [
 
 export const initialFormState = {
   serviceType: 'airport_transfer',
-  airport: 'Riyadh',
+  airport: 'King Khalid International Airport',
   origin: '',
   destination: '',
   pickupLocation: '',
   dropoffLocation: '',
+  pickupPlace: null,
+  dropoffPlace: null,
   serviceLocation: '',
   intercityRoute: '',
   gccDestination: '',
+  otherOrigin: '',
   otherDestination: '',
   returnTrip: false,
   returnDate: '',

@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import Container from 'react-bootstrap/Container'
 import { useNavigate } from 'react-router-dom'
+import { ensureAuthToken, isAuthExpiredMessage } from '../utils/authSession'
 import { applyLocalCarImages, getCarImageUrl, initialCars, sortCarsForShowcase } from '../utils/carsStorage'
 import { FLEET_CLASS, getFleetClass } from '../data/fleetVehicles'
 import { getCarsAPI, addCarAPI, updateCarAPI, deleteCarAPI, getPricingRulesAPI } from '../Services/allAPI'
@@ -11,9 +12,15 @@ import { useLanguage } from '../i18n/LanguageContext'
 import { BriefcaseIcon, CloseIcon, PencilIcon, PlusIcon, TrashIcon, UsersIcon } from './icons'
 
 const getCarListId = (car) => {
+  if (car?._id) return String(car._id)
   const numeric = Number(car?.id)
   if (Number.isInteger(numeric) && numeric > 0 && String(car.id).length < 16) return numeric
-  return car?._id || car?.id
+  return car?.id
+}
+
+const stopCardClick = (event) => {
+  event.preventDefault()
+  event.stopPropagation()
 }
 
 const getApiMessage = (res, fallback) =>
@@ -32,6 +39,9 @@ function Carlist() {
   const [actionError, setActionError] = useState('')
   const [actionSuccess, setActionSuccess] = useState('')
   const [saving, setSaving] = useState(false)
+  const [pendingDelete, setPendingDelete] = useState(null)
+  const [deleting, setDeleting] = useState(false)
+  const retriedExpiredDelete = useRef(false)
 
   const user = useMemo(() => {
     try {
@@ -120,7 +130,7 @@ function Carlist() {
   const fetchCars = async () => {
     const response = await getCarsAPI()
     if (response && Array.isArray(response.data)) {
-      setCars(applyLocalCarImages(response.data))
+      setCars(applyLocalCarImages(response.data, { collapseGmc: !isAdmin }))
     }
   }
 
@@ -209,15 +219,27 @@ function Carlist() {
     }
   }
 
+  const requestDeleteCar = (event, car) => {
+    stopCardClick(event)
+    retriedExpiredDelete.current = false
+    setActionError('')
+    setActionSuccess('')
+    setPendingDelete(car)
+  }
+
   const deleteCar = async (car) => {
-    if (!window.confirm(`Delete ${car.name} from the fleet?`)) return
     const carId = getCarListId(car)
     if (!carId) {
+      setPendingDelete(null)
       setActionError('This car has no valid ID, so it cannot be deleted.')
       return
     }
+    setDeleting(true)
+    await ensureAuthToken()
     const response = await deleteCarAPI(carId)
+    setDeleting(false)
     if (response.status === 200) {
+      setPendingDelete(null)
       setActionError('')
       setActionSuccess(`${car.name} was removed from the fleet.`)
       setCars((prev) => prev.filter((item) => getCarListId(item) !== carId))
@@ -226,6 +248,13 @@ function Carlist() {
       setActionError(getApiMessage(response, 'Failed to delete car. Sign in as admin and try again.'))
     }
   }
+
+  useEffect(() => {
+    if (!pendingDelete || deleting || !isAuthExpiredMessage(actionError) || retriedExpiredDelete.current) return undefined
+    retriedExpiredDelete.current = true
+    deleteCar(pendingDelete)
+    return undefined
+  }, [pendingDelete, actionError, deleting])
 
   const getCarCategory = (car) => {
     const fleetClass = getFleetClass(car)
@@ -339,11 +368,21 @@ function Carlist() {
                     />
                   )}
                   {isAdmin && (
-                    <div style={{ position: 'absolute', top: 12, right: 12, display: 'flex', gap: '10px' }}>
-                      <button type="button" onClick={(e) => { e.stopPropagation(); openEditModal(car) }} style={actionIconStyle} title="Edit car">
+                    <div className="fleet-card-admin-actions" onClick={stopCardClick} onMouseDown={stopCardClick}>
+                      <button
+                        type="button"
+                        onClick={(e) => { stopCardClick(e); openEditModal(car) }}
+                        style={actionIconStyle}
+                        title="Edit car"
+                      >
                         <PencilIcon size={16} />
                       </button>
-                      <button type="button" onClick={(e) => { e.stopPropagation(); deleteCar(car) }} style={deleteIconStyle} title="Delete car">
+                      <button
+                        type="button"
+                        onClick={(e) => requestDeleteCar(e, car)}
+                        style={deleteIconStyle}
+                        title="Delete car"
+                      >
                         <TrashIcon size={16} />
                       </button>
                     </div>
@@ -397,6 +436,48 @@ function Carlist() {
           ))}
         </div>
       </Container>
+
+      {pendingDelete && (
+        <div style={modalOverlayStyle} onClick={() => !deleting && setPendingDelete(null)}>
+          <div style={modalStyle} onClick={stopCardClick}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
+              <div>
+                <h4 style={{ margin: 0 }}>Delete car</h4>
+                <p style={{ margin: '6px 0 0', color: '#c4c4c4', fontSize: '0.9rem' }}>
+                  Remove {pendingDelete.name} from the fleet? This cannot be undone.
+                </p>
+              </div>
+              <button type="button" onClick={() => setPendingDelete(null)} style={closeButtonStyle} title="Close modal" disabled={deleting}>
+                <CloseIcon size={18} />
+              </button>
+            </div>
+            {actionError && <div className="alert alert-danger py-2">{actionError}</div>}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '6px' }}>
+              <button type="button" onClick={() => setPendingDelete(null)} style={secondaryModalButtonStyle} disabled={deleting}>
+                Cancel
+              </button>
+              {isAuthExpiredMessage(actionError) ? (
+                <button
+                  type="button"
+                  onClick={() => navigate('/login?next=/carlist')}
+                  style={primaryModalButtonStyle}
+                >
+                  Log in again
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => deleteCar(pendingDelete)}
+                  style={{ ...primaryModalButtonStyle, background: 'linear-gradient(135deg, #3a1212, #b33b3b)', color: '#fff' }}
+                  disabled={deleting}
+                >
+                  {deleting ? 'Deleting...' : 'Delete car'}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {showModal && (
         <div style={modalOverlayStyle} onClick={closeModal}>
