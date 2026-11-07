@@ -200,6 +200,19 @@ function BookingWizard() {
         if (cancelled) return;
         const nextQuote = res?.data?.quote || (res?.data?.price != null ? res.data : null);
         if (res?.status === 200 && nextQuote) {
+          const quotedVehicle = String(nextQuote.vehicleCategory || '').trim();
+          if (quotedVehicle && form.vehicleCategory && quotedVehicle !== form.vehicleCategory) {
+            return;
+          }
+          const localCityPrice = selectedVehicle?.city ?? selectedVehicle?.airport;
+          if (
+            form.serviceType === 'city_transfer'
+            && localCityPrice != null
+            && nextQuote.price != null
+            && nextQuote.price !== localCityPrice
+          ) {
+            return;
+          }
           setQuote(nextQuote);
         }
       });
@@ -471,9 +484,10 @@ function BookingWizard() {
                 variant="transfer"
                 value={form.pickupPlace || form.airport}
                 onChange={(pickupLocation, pickupPlace) => {
+                  const isGroundPlace = pickupPlace?.kind === 'place' || pickupPlace?.kind === 'neighbourhood';
                   const selectedAirport = pickupPlace?.kind === 'airport' || pickupPlace?.iata
                     ? pickupPlace
-                    : pickupPlace?.kind === 'place'
+                    : isGroundPlace
                       ? null
                       : findAirport(pickupLocation);
                   setError('');
@@ -494,9 +508,10 @@ function BookingWizard() {
                 variant="transfer"
                 value={form.dropoffPlace || form.destination}
                 onChange={(destination, dropoffPlace) => {
+                  const isGroundPlace = dropoffPlace?.kind === 'place' || dropoffPlace?.kind === 'neighbourhood';
                   const selectedAirport = dropoffPlace?.kind === 'airport' || dropoffPlace?.iata
                     ? dropoffPlace
-                    : dropoffPlace?.kind === 'place'
+                    : isGroundPlace
                       ? null
                       : findAirport(destination);
                   update({
@@ -993,10 +1008,18 @@ function BookingWizard() {
                         durationType={form.durationType}
                         quotePayload={buildPricingPayload()}
                         placeholder={form.serviceType === 'chauffeur' && !form.durationType ? t('booking.pickDurationFirst') : t('booking.pickVehicle')}
-                        onChange={(v) => update({
-                          vehicleCategory: v.category,
-                          vehicleName: v.label,
-                        })}
+                        onChange={(v) => {
+                          update({
+                            vehicleCategory: v.category,
+                            vehicleName: v.label,
+                          });
+                          const nextQuote = getOfficialQuote({
+                            ...buildPricingPayload(),
+                            vehicleCategory: v.category,
+                            vehicleName: v.label,
+                          });
+                          if (nextQuote) setQuote(nextQuote);
+                        }}
                       />
                     )}
                     {form.serviceType === 'chauffeur' && form.durationType === 'half_day' && (

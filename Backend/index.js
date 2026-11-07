@@ -9,7 +9,16 @@ const NextifyServer = express();
 console.log("🔥 INDEX.JS IS RUNNING FROM:", __dirname);
 const port = process.env.PORT || 5000;
 
-NextifyServer.use(cors());
+const corsOptions = {
+  origin: true,
+  credentials: true,
+  methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  optionsSuccessStatus: 204,
+};
+
+NextifyServer.use(cors(corsOptions));
+NextifyServer.options('/{*splat}', cors(corsOptions));
 NextifyServer.use(express.json({ limit: '200mb' }));
 NextifyServer.use(express.urlencoded({ limit: '200mb', extended: true }));
 NextifyServer.use(route);
@@ -19,6 +28,15 @@ NextifyServer.get('/', (req, res) => {
   res.status(200).send(`<h1>NextifyServer running at PORT=${port} and waiting for client request</h1>`);
 });
 
-NextifyServer.listen(port, () => {
+const server = NextifyServer.listen(port, () => {
   console.log(`NextifyServer running at PORT=${port} and waiting for client request`);
+});
+
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`Port ${port} is already in use. Set PORT in Backend/.env to a free port.`);
+  } else {
+    console.error(err);
+  }
+  process.exit(1);
 });

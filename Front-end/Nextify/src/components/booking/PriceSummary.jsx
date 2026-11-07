@@ -38,12 +38,12 @@ export default function PriceSummary({ form, quote, compact = false, loading = f
   const isFixedAirportRoute = quote?.pricingType === 'airport_fixed_route'
     || quote?.pricingModel === 'airport_fixed_route'
     || quote?.breakdown?.pricingType === 'airport_fixed_route';
-  const pickupLabel = quote?.originLabel
-    || quote?.breakdown?.originLabel
-    || formatTransferLocation(form?.pickupPlace || form?.airport || form?.pickupLocation, lang);
-  const dropoffLabel = quote?.destinationLabel
-    || quote?.breakdown?.destinationLabel
-    || formatTransferLocation(form?.dropoffPlace || form?.destination || form?.dropoffLocation, lang);
+  const pickupLabel = formatTransferLocation(form?.pickupPlace || form?.airport || form?.pickupLocation, lang)
+    || quote?.originLabel
+    || quote?.breakdown?.originLabel;
+  const dropoffLabel = formatTransferLocation(form?.dropoffPlace || form?.destination || form?.dropoffLocation, lang)
+    || quote?.destinationLabel
+    || quote?.breakdown?.destinationLabel;
   const isAirportTransfer = form?.serviceType === 'airport_transfer';
 
   const rows = isAirportTransfer ? [

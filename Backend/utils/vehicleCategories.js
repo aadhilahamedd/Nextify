@@ -25,8 +25,18 @@ const SERVICE_VEHICLE_OPTIONS = {
   ],
   city_transfer: [
     { category: 'gmc', label: 'GMC Yukon' },
+    { category: 'bmw_5', label: 'BMW 5 Series' },
+    { category: 'bmw_7', label: 'BMW 7 Series' },
     { category: 'ford_taurus', label: 'Ford Taurus' },
     { category: 'lexus_es', label: 'Lexus ES 350' },
+    { category: 'mercedes_e', label: 'Mercedes-Benz E-Class' },
+    { category: 'mercedes_s', label: 'Mercedes-Benz S-Class' },
+    { category: 'mercedes_vito', label: 'Mercedes-Benz Vito' },
+    { category: 'mercedes_sprinter', label: 'Mercedes-Benz Sprinter' },
+    { category: 'mercedes_v_class', label: 'Mercedes-Benz V-Class' },
+    { category: 'toyota_hiace', label: 'Toyota Hiace' },
+    { category: 'mercedes_coach', label: 'Mercedes-Benz Coach Bus' },
+    { category: 'toyota_coaster', label: 'Toyota Coaster' },
   ],
   chauffeur: [
     { category: 'gmc', label: 'GMC Yukon' },

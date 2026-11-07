@@ -18,7 +18,7 @@ export const SERVICE_LABELS = {
 
 export const SERVICE_DESCRIPTIONS = {
   airport_transfer: 'Airport pickup and drop-off with professional chauffeur.',
-  city_transfer: 'Comfortable transfers within Riyadh. 20 km minimum, then 5 km slabs up to 60 km.',
+  city_transfer: 'Comfortable transfers within Riyadh. Vehicle base fare matches Airport Transfer.',
   chauffeur: 'Professional chauffeur by half day or full day.',
   intercity_transfer: 'Luxury travel between major Saudi cities.',
   gcc_transfer: 'Private luxury transfers from Riyadh to GCC destinations.',
@@ -117,7 +117,7 @@ export const DURATION_OPTIONS = [
 
 export const initialFormState = {
   serviceType: 'airport_transfer',
-  airport: 'King Khalid International Airport',
+  airport: '',
   origin: '',
   destination: '',
   pickupLocation: '',

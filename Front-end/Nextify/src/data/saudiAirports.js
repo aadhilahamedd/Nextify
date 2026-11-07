@@ -474,6 +474,7 @@ function scoreField(normalized, query, weight) {
   if (!normalized || !query) return 0;
   if (normalized === query) return 100 * weight;
   if (normalized.startsWith(query)) return (80 - Math.min(normalized.length, 25)) * weight;
+  if (query.length < 2) return 0;
   const parts = normalized.split(/[\s/-]+/);
   if (parts.some((part) => part.startsWith(query))) return 55 * weight;
   if (query.length >= 3 && normalized.includes(query)) return 30 * weight;
@@ -487,23 +488,29 @@ export function searchSaudiAirports(query, limit = 12) {
       const popular = POPULAR_AIRPORTS.indexOf(item.id);
       return { item, score: popular === -1 ? 1 : 40 - popular };
     }
+    const shortQuery = q.length < 3;
     const nameScore = Math.max(
       scoreField(normalizeAirportText(item.nameEn), q, 1),
       scoreField(normalizeAirportText(item.nameAr), q, 1),
+    );
+    const codeScore = shortQuery ? 0 : Math.max(
       scoreField(normalizeAirportText(item.iata), q, 1.15),
       scoreField(normalizeAirportText(item.ident), q, 0.8),
+    );
+    const aliasScore = shortQuery ? 0 : Math.max(
+      0,
       ...(item.aliases || []).map((alias) => scoreField(normalizeAirportText(alias), q, 0.95)),
     );
-    const cityScore = Math.max(
-      scoreField(normalizeAirportText(item.cityEn), q, 0.9),
-      scoreField(normalizeAirportText(item.cityAr), q, 0.9),
+    const cityScore = shortQuery ? 0 : Math.max(
+      scoreField(normalizeAirportText(item.cityEn), q, 0.45),
+      scoreField(normalizeAirportText(item.cityAr), q, 0.45),
     );
-    const regionScore = Math.max(
-      scoreField(normalizeAirportText(item.regionEn), q, 0.35),
-      scoreField(normalizeAirportText(item.regionAr), q, 0.35),
+    const regionScore = shortQuery ? 0 : Math.max(
+      scoreField(normalizeAirportText(item.regionEn), q, 0.2),
+      scoreField(normalizeAirportText(item.regionAr), q, 0.2),
     );
-    const popularBoost = (nameScore > 50 || cityScore > 50) && POPULAR_AIRPORTS.includes(item.id) ? 18 : 0;
-    return { item, score: Math.max(nameScore, cityScore, regionScore) + popularBoost };
+    const popularBoost = nameScore > 50 && POPULAR_AIRPORTS.includes(item.id) ? 18 : 0;
+    return { item, score: Math.max(nameScore, codeScore, aliasScore, cityScore, regionScore) + popularBoost };
   })
     .filter((row) => row.score > 0)
     .sort((a, b) => b.score - a.score || a.item.nameEn.localeCompare(b.item.nameEn));
@@ -513,7 +520,10 @@ export function searchSaudiAirports(query, limit = 12) {
 
 export function displayAirportName(value, lang = 'en') {
   const match = findAirport(value);
-  if (!match) return typeof value === 'string' ? value : value?.nameEn || '';
+  if (!match) {
+    if (typeof value === 'object') return String(value?.nameEn || value?.address || value?.label || '');
+    return value || '';
+  }
   const name = lang === 'ar' ? (match.nameAr || match.nameEn) : match.nameEn;
   const city = lang === 'ar' ? (match.cityAr || match.cityEn) : match.cityEn;
   if (city && name && !name.includes(city)) return `${name} – ${city}`;
@@ -553,18 +563,27 @@ export function toLocationPlace(item, typedValue = '') {
       };
     }
   }
+  const typed = typeof typedValue === 'object'
+    ? (typedValue?.nameEn || typedValue?.address || typedValue?.label || '')
+    : typedValue;
   const lat = Number(item?.latitude ?? item?.lat);
   const lng = Number(item?.longitude ?? item?.lng);
   const hasCoords = Number.isFinite(lat) && Number.isFinite(lng);
   if (item?.id || hasCoords) {
-    const address = String(item.address || item.label || item.nameEn || item.name || typedValue || '').trim();
+    const address = String(item.address || item.label || item.nameEn || item.name || typed || '').trim();
+    if (!address || address === '[object Object]') return null;
     return {
       kind: item.kind || (hasCoords ? 'coords' : 'place'),
       id: item.id || null,
       source: item.source || null,
       nameEn: item.nameEn || item.name || address,
       nameAr: item.nameAr || '',
-      cityEn: item.cityEn || item.city || '',
+      city: item.city || item.cityEn || item.pricingCity || '',
+      cityEn: item.cityEn || item.city || item.pricingCity || '',
+      cityAr: item.cityAr || '',
+      pricingCity: item.pricingCity || item.cityEn || item.city || '',
+      pricingCityId: item.pricingCityId || '',
+      locationType: item.locationType || item.type || '',
       regionEn: item.regionEn || item.region || '',
       address,
       label: item.label || address,
@@ -574,8 +593,8 @@ export function toLocationPlace(item, typedValue = '') {
       longitude: hasCoords ? lng : undefined,
     };
   }
-  const address = String(typedValue || item?.address || item?.nameEn || '').trim();
-  if (!address) return null;
+  const address = String(typed || item?.address || item?.nameEn || '').trim();
+  if (!address || address === '[object Object]') return null;
   const airport = findAirport(address);
   if (airport) return toLocationPlace(airport, address);
   return {

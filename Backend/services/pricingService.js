@@ -9,12 +9,6 @@ const {
   canonicalPlace,
 } = require('../utils/vehicleCategories');
 const {
-  CITY_MAX_KM,
-  CITY_MIN_KM,
-  citySlabForDistance,
-  ruleCoversCitySlab,
-} = require('../utils/distanceSlabs');
-const {
   matchAirportFixedRoute,
   quoteAirportFixedRoute,
 } = require('../data/airportFixedRoutes');
@@ -22,7 +16,6 @@ const { findAirport } = require('../data/saudiAirports');
 
 const DEFAULT_CURRENCY = 'SAR';
 const RATE_ON_REQUEST = 'Rate on Request';
-const LONG_DISTANCE_QUOTE = 'Long Distance / Custom Quote';
 
 const CATEGORY_ALIASES = {
   gmc_yukon: 'gmc',
@@ -79,19 +72,12 @@ function fixedQuote(rule, extra = {}) {
 function matchVehicleCategory(rule, vehicleCategory, vehicleName) {
   if (rule.vehicleApplicability === 'all') return true;
   const vCat = normalizeVehicleCat(vehicleCategory);
-  if (vCat && rule.vehicleCategory === vCat) return true;
-  if (vehicleCategory && rule.vehicleCategory === vehicleCategory) return true;
-  if (vehicleCategory && rule.vehicleNames?.length) {
-    const catNorm = vehicleCategory.replace(/_/g, ' ').toLowerCase();
-    const matchesName = rule.vehicleNames.some((n) => {
-      const nn = n.toLowerCase();
-      return nn.includes(catNorm) || catNorm.includes(nn) || (vehicleCategory === 'mini_suv' && nn.includes('mini suv'));
-    });
-    if (matchesName) return true;
+  if (vCat) {
+    return rule.vehicleCategory === vCat || rule.vehicleCategory === vehicleCategory;
   }
   if (vehicleName && rule.vehicleNames?.length) {
     const vn = vehicleName.toLowerCase();
-    return rule.vehicleNames.some((n) => vn.includes(n.toLowerCase()) || n.toLowerCase().includes(vn));
+    return rule.vehicleNames.some((n) => vn === n.toLowerCase() || vn.includes(n.toLowerCase()) || n.toLowerCase().includes(vn));
   }
   return false;
 }
@@ -120,24 +106,6 @@ function approvedRules(serviceType, extra = () => true) {
 
 function findAirportRule(rules, airport, vehicleCategory, vehicleName) {
   return pickRule(rules, vehicleCategory, vehicleName, (rule) => airportMatches(rule, airport));
-}
-
-function findCityRulesForVehicle(rules, vehicleCategory, vehicleName) {
-  return rules.filter(
-    (rule) => (!rule.origin || rule.origin === 'Riyadh')
-      && matchVehicleCategory(rule, vehicleCategory, vehicleName),
-  );
-}
-
-function findCityRuleForSlab(rules, vehicleCategory, vehicleName, slab) {
-  const matches = findCityRulesForVehicle(rules, vehicleCategory, vehicleName)
-    .filter((rule) => ruleCoversCitySlab(rule, slab))
-    .sort((a, b) => {
-      const aMax = a.maxDistanceKm == null ? Number.POSITIVE_INFINITY : a.maxDistanceKm;
-      const bMax = b.maxDistanceKm == null ? Number.POSITIVE_INFINITY : b.maxDistanceKm;
-      return aMax - bMax;
-    });
-  return matches[0] || null;
 }
 
 function findChauffeurRule(rules, vehicleCategory, vehicleName, durationType) {
@@ -255,65 +223,29 @@ async function calculateCityPrice(payload = {}) {
 
   if (!vCat && !vName) return customQuote('Please select a vehicle.', { serviceType: 'city_transfer' });
 
-  const km = Number(distanceKm);
-  const slab = citySlabForDistance(Number.isFinite(km) && km > 0 ? km : CITY_MIN_KM);
   const rules = await getRulesByService('city_transfer');
-  const vehicleRules = findCityRulesForVehicle(rules, vCat, vName);
+  const rule = pickRule(
+    rules,
+    vCat,
+    vName,
+    (item) => !item.origin || item.origin === 'Riyadh',
+  );
+  const km = Number(distanceKm);
 
-  if (slab.kind === 'invalid') {
-    return customQuote('Please enter a valid City Transfer distance.', {
-      serviceType: 'city_transfer',
-      pricingModel: 'city_transfer',
-    });
-  }
-
-  if (slab.kind === 'long_distance') {
-    return customQuote(LONG_DISTANCE_QUOTE, {
-      serviceType: 'city_transfer',
-      quoteStatus: 'long_distance',
-      origin: 'Riyadh',
-      distanceKm: slab.distanceKm,
-      slabLabel: slab.label,
-      maxDistanceKm: CITY_MAX_KM,
-      pricingModel: 'city_transfer',
-    });
-  }
-
-  if (!vehicleRules.length) {
+  if (!rule) {
     return customQuote('City transfer is not available for this vehicle.', {
       serviceType: 'city_transfer',
       origin: 'Riyadh',
-      distanceKm: slab.distanceKm,
-      slabLabel: slab.label,
       pricingModel: 'city_transfer',
     });
-  }
-
-  const rule = findCityRuleForSlab(rules, vCat, vName, slab);
-  if (!rule) {
-    return rateOnRequest(
-      `No configured City Transfer rate for the ${slab.label} slab. ${RATE_ON_REQUEST}.`,
-      {
-        serviceType: 'city_transfer',
-        origin: 'Riyadh',
-        distanceKm: slab.distanceKm,
-        slabLabel: slab.label,
-        minDistanceKm: slab.minKm,
-        maxDistanceKm: slab.maxKm,
-        pricingModel: 'city_transfer',
-      },
-    );
   }
 
   return fixedQuote(rule, {
     serviceType: 'city_transfer',
     origin: 'Riyadh',
-    pricingType: 'city_distance',
+    pricingType: 'city_base',
     quoteStatus: 'priced',
-    distanceKm: slab.distanceKm,
-    slabLabel: slab.label,
-    minDistanceKm: slab.minKm,
-    maxDistanceKm: rule.maxDistanceKm ?? slab.maxKm,
+    distanceKm: Number.isFinite(km) && km > 0 ? km : undefined,
     pricingModel: 'city_transfer',
   });
 }

@@ -3,6 +3,18 @@ const { generateBookingNumber } = require('../utils/bookingNumber');
 const { calculatePrice, normalizeServiceType } = require('./pricingService');
 const { findAirport } = require('../data/saudiAirports');
 const { resolveFixedRouteLocation } = require('../data/airportFixedRoutes');
+const { findNeighbourhood, formatNeighbourhoodLabel } = require('../data/cityNeighbourhoods');
+
+function bookingLocationAddress(place, fallback = '') {
+  const neighbourhood = findNeighbourhood(place);
+  if (neighbourhood) return formatNeighbourhoodLabel(neighbourhood);
+  const loc = resolveFixedRouteLocation(place);
+  if (loc?.displayLabel) return loc.displayLabel;
+  if (place?.nameEn && (place.cityEn || place.pricingCity)) {
+    return `${place.nameEn}, ${place.cityEn || place.pricingCity}`;
+  }
+  return place?.nameEn || place?.address || fallback || '';
+}
 const { isVehicleAvailable } = require('./availabilityService');
 
 function httpError(statusCode, message, details) {
@@ -48,7 +60,7 @@ async function createBookingFromPayload(body, { userId } = {}) {
   if (serviceType === 'airport_transfer') {
     const pickupValue = pickupPlace || origin || body.airport;
     const pickupLocation = resolveFixedRouteLocation(pickupValue);
-    if (pickupLocation?.kind !== 'city') {
+    if (pickupLocation?.kind !== 'city' && pickupLocation?.kind !== 'neighbourhood') {
       airportMatch = findAirport(pickupValue);
     }
   }
@@ -116,8 +128,14 @@ async function createBookingFromPayload(body, { userId } = {}) {
     serviceType,
     airport: airportMatch?.nameEn || body.airport || '',
     routeType: quote.routeType || quote.pricingType || 'fixed',
-    origin: quote.originLabel || airportMatch?.nameEn || body.origin || body.pickup?.address || body.pickupLocation || '',
-    destinationText: quote.destinationLabel || destination || body.destinationText || body.dropoffLocation || '',
+    origin: bookingLocationAddress(
+      pickupPlace,
+      quote.originLabel || airportMatch?.nameEn || body.origin || body.pickup?.address || body.pickupLocation || '',
+    ),
+    destinationText: bookingLocationAddress(
+      dropoffPlace,
+      quote.destinationLabel || destination || body.destinationText || body.dropoffLocation || '',
+    ),
     vehicleCategory: body.vehicleCategory || quote.vehicleCategory || '',
     durationType: body.durationType || '',
     distanceKm: quote.distanceKm ?? body.distanceKm ?? null,
@@ -133,18 +151,24 @@ async function createBookingFromPayload(body, { userId } = {}) {
           placeId: airportMatch.id || '',
         }
       : (body.pickup || {
-          address: quote.originLabel || body.pickupLocation || body.origin || pickupPlace?.nameEn || body.airport || '',
+          address: bookingLocationAddress(
+            pickupPlace,
+            quote.originLabel || body.pickupLocation || body.origin || body.airport || '',
+          ),
           placeId: pickupPlace?.id || '',
           latitude: pickupPlace?.lat ?? pickupPlace?.latitude ?? null,
           longitude: pickupPlace?.lng ?? pickupPlace?.longitude ?? null,
         }),
     destination: {
-      address: quote.destinationLabel
-        || (typeof body.destination === 'string' ? body.destination : body.destination?.address)
-        || destination
-        || body.dropoffLocation
-        || body.destinationText
-        || '',
+      address: bookingLocationAddress(
+        dropoffPlace,
+        quote.destinationLabel
+          || (typeof body.destination === 'string' ? body.destination : body.destination?.address)
+          || destination
+          || body.dropoffLocation
+          || body.destinationText
+          || '',
+      ),
       placeId: dropoffPlace?.id || '',
       latitude: dropoffPlace?.lat ?? dropoffPlace?.latitude ?? null,
       longitude: dropoffPlace?.lng ?? dropoffPlace?.longitude ?? null,

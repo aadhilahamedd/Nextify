@@ -39,12 +39,24 @@ export default function VehiclePicker({
     if (serviceType === 'chauffeur' && !durationType) {
       return { note: item.fleetClass, priceLabel: '' };
     }
+    if (serviceType === 'city_transfer') {
+      const cityPrice = item.city ?? item.airport;
+      if (cityPrice != null) {
+        return { note: item.fleetClass, priceLabel: formatSar(cityPrice) };
+      }
+    }
     const quote = getOfficialQuote({
-      ...quotePayload,
       serviceType,
       durationType,
       vehicleCategory: item.category,
       vehicleName: item.label,
+      airport: quotePayload.airport,
+      origin: quotePayload.origin,
+      destination: quotePayload.destination,
+      pickupPlace: quotePayload.pickupPlace,
+      dropoffPlace: quotePayload.dropoffPlace,
+      returnTrip: quotePayload.returnTrip,
+      distanceKm: quotePayload.distanceKm,
     });
     if (quote?.customQuoteRequired || quote?.price == null) {
       return { note: item.fleetClass, priceLabel: t('booking.rateOnRequest') };

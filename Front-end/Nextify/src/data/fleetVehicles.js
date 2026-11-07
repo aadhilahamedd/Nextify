@@ -1,4 +1,3 @@
-import { citySlabForDistance } from '../utils/distanceSlabs';
 import { matchAirportFixedRoute, quoteAirportFixedRoute } from './airportFixedRoutes';
 import { findAirport } from './saudiAirports';
 
@@ -19,7 +18,7 @@ export const FLEET_VEHICLES = [
     fleetClass: FLEET_CLASS.SUV,
     image: '/images/car/GMC Yukon.png?v=12',
     airport: 240,
-    city: 140,
+    city: 240,
     half: 800,
     full: 1400,
     intercity: 'gmc',
@@ -32,7 +31,7 @@ export const FLEET_VEHICLES = [
     fleetClass: FLEET_CLASS.BUSINESS,
     image: '/images/car/bmw-5-series.webp',
     airport: 800,
-    city: null,
+    city: 800,
     half: null,
     full: 2800,
   },
@@ -43,7 +42,7 @@ export const FLEET_VEHICLES = [
     fleetClass: FLEET_CLASS.FIRST,
     image: '/images/car/bmw-7-series.webp',
     airport: 1000,
-    city: null,
+    city: 1000,
     half: null,
     full: 3000,
   },
@@ -54,7 +53,7 @@ export const FLEET_VEHICLES = [
     fleetClass: FLEET_CLASS.SEDAN,
     image: '/images/car/ford-taurus.webp',
     airport: 180,
-    city: 120,
+    city: 180,
     half: 700,
     full: 1200,
     intercity: 'sedan',
@@ -66,7 +65,7 @@ export const FLEET_VEHICLES = [
     fleetClass: FLEET_CLASS.SEDAN,
     image: '/images/car/lexus-es-350.webp',
     airport: 180,
-    city: 120,
+    city: 180,
     half: 700,
     full: 1200,
     intercity: 'sedan',
@@ -78,7 +77,7 @@ export const FLEET_VEHICLES = [
     fleetClass: FLEET_CLASS.BUSINESS,
     image: '/images/car/mercedes-e-class.webp',
     airport: 1000,
-    city: null,
+    city: 1000,
     half: null,
     full: 3000,
   },
@@ -89,7 +88,7 @@ export const FLEET_VEHICLES = [
     fleetClass: FLEET_CLASS.FIRST,
     image: '/images/car/mercedes-s-class.webp',
     airport: 1000,
-    city: null,
+    city: 1000,
     half: null,
     full: 3000,
   },
@@ -100,7 +99,7 @@ export const FLEET_VEHICLES = [
     fleetClass: FLEET_CLASS.VAN,
     image: '/images/car/mercedes-evito-tourer.webp',
     airport: 900,
-    city: null,
+    city: 900,
     half: null,
     full: 2200,
   },
@@ -111,7 +110,7 @@ export const FLEET_VEHICLES = [
     fleetClass: FLEET_CLASS.VAN,
     image: '/images/car/mercedes-sprinter.webp',
     airport: 1200,
-    city: null,
+    city: 1200,
     half: null,
     full: 2800,
   },
@@ -122,7 +121,7 @@ export const FLEET_VEHICLES = [
     fleetClass: FLEET_CLASS.VAN,
     image: '/images/car/mercedes-v-class.webp',
     airport: 1200,
-    city: null,
+    city: 1200,
     half: null,
     full: 2500,
   },
@@ -133,7 +132,7 @@ export const FLEET_VEHICLES = [
     fleetClass: FLEET_CLASS.VAN,
     image: '/images/car/toyota-hiace.webp',
     airport: 600,
-    city: null,
+    city: 600,
     half: 700,
     full: 1200,
   },
@@ -144,7 +143,7 @@ export const FLEET_VEHICLES = [
     fleetClass: FLEET_CLASS.COACHES,
     image: '/images/car/mercedes-coach-bus.webp',
     airport: 1500,
-    city: null,
+    city: 1500,
     half: null,
     full: 3000,
     fullDayNote: true,
@@ -156,7 +155,7 @@ export const FLEET_VEHICLES = [
     fleetClass: FLEET_CLASS.COACHES,
     image: '/images/car/toyota-coaster.webp',
     airport: 600,
-    city: null,
+    city: 600,
     half: 800,
     full: 1500,
   },
@@ -210,7 +209,6 @@ export function getVehiclesForService(serviceType, fleetClass = 'All', durationT
     return vehiclesInOrder(GCC_INQUIRY_CATEGORIES, fleetClass);
   }
   const list = FLEET_VEHICLES.filter((v) => {
-    if (serviceType === 'city_transfer') return v.city != null;
     if (serviceType === 'chauffeur' && durationType === 'half_day') return v.half != null;
     if (serviceType === 'chauffeur' && durationType === 'full_day') return v.full != null;
     return true;
@@ -237,6 +235,27 @@ export const GCC_PRICES = {
   Qatar: 3500,
   Oman: 6800,
 };
+
+export function getServiceFromPrice(serviceType) {
+  const nums = (values) => {
+    const list = values.filter((value) => value != null && Number.isFinite(Number(value))).map(Number);
+    return list.length ? Math.min(...list) : null;
+  };
+  switch (serviceType) {
+    case 'airport_transfer':
+      return nums(FLEET_VEHICLES.map((vehicle) => vehicle.airport));
+    case 'city_transfer':
+      return nums(FLEET_VEHICLES.map((vehicle) => vehicle.city ?? vehicle.airport));
+    case 'chauffeur':
+      return nums(FLEET_VEHICLES.flatMap((vehicle) => [vehicle.half, vehicle.full]));
+    case 'intercity_transfer':
+      return nums(Object.values(INTERCITY_PRICES).flatMap((table) => Object.values(table)));
+    case 'gcc_transfer':
+      return nums(Object.values(GCC_PRICES));
+    default:
+      return null;
+  }
+}
 
 function officialQuote(vehicle, price, extra = {}) {
   return {
@@ -352,45 +371,19 @@ export function getOfficialQuote({
       });
     }
     case 'city_transfer': {
-      const km = Number(distanceKm);
-      const slab = citySlabForDistance(Number.isFinite(km) && km > 0 ? km : 20);
-      if (slab.kind === 'long_distance') {
-        return customOfficialQuote('Long Distance / Custom Quote', {
-          serviceType,
-          quoteStatus: 'long_distance',
-          origin: 'Riyadh',
-          slabLabel: slab.label,
-          distanceKm: slab.distanceKm,
-          pricingModel: 'city_transfer',
-        });
-      }
-      if (vehicle.city == null) {
+      const cityPrice = vehicle.city ?? vehicle.airport;
+      if (cityPrice == null) {
         return customOfficialQuote('City transfer is not available for this vehicle.', {
           serviceType,
           origin: 'Riyadh',
-          slabLabel: slab.label,
-          distanceKm: slab.distanceKm,
           pricingModel: 'city_transfer',
         });
       }
-      if (slab.kind === 'slab' && slab.maxKm > 20) {
-        return customOfficialQuote(`No configured City Transfer rate for the ${slab.label} slab. Rate on Request.`, {
-          serviceType,
-          quoteStatus: 'rate_on_request',
-          origin: 'Riyadh',
-          slabLabel: slab.label,
-          distanceKm: slab.distanceKm,
-          pricingModel: 'city_transfer',
-        });
-      }
-      return officialQuote(vehicle, vehicle.city, {
+      return officialQuote(vehicle, cityPrice, {
         serviceType,
         origin: 'Riyadh',
-        pricingType: 'city_distance',
+        pricingType: 'city_base',
         pricingModel: 'city_transfer',
-        slabLabel: slab.label,
-        distanceKm: slab.distanceKm,
-        maxDistanceKm: 20,
       });
     }
     case 'chauffeur':

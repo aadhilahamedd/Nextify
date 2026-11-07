@@ -1,3 +1,5 @@
+import { CITY_NEIGHBOURHOODS, findNeighbourhood, neighbourhoodToDestination } from './cityNeighbourhoods';
+
 function dest(id, nameEn, nameAr, regionEn, regionAr, aliases = []) {
   return { id, nameEn, nameAr, regionEn, regionAr, aliases };
 }
@@ -25,7 +27,6 @@ export const SAUDI_DESTINATIONS = [
   dest('al-ahsa', 'Al Ahsa', 'الأحساء', 'Eastern Province', 'المنطقة الشرقية', ['Al-Ahsa', 'Ahsa', 'Al Hasa']),
   dest('hofuf', 'Hofuf', 'الهفوف', 'Eastern Province', 'المنطقة الشرقية', ['Al Hofuf', 'Al-Hofuf']),
   dest('qatif', 'Qatif', 'القطيف', 'Eastern Province', 'المنطقة الشرقية', ['Al Qatif']),
-  dest('diriyah', 'Diriyah', 'الدرعية', 'Riyadh', 'الرياض', ['Ad Diriyah', 'Addiriyah', 'Diriyah Gate']),
   dest('buraidah', 'Buraidah', 'بريدة', 'Qassim', 'القصيم', ['Buraydah']),
   dest('unaizah', 'Unaizah', 'عنيزة', 'Qassim', 'القصيم', ['Unayzah', 'Onaizah']),
   dest('ar-rass', 'Ar Rass', 'الرس', 'Qassim', 'القصيم', ['Al Rass', 'Rass']),
@@ -82,17 +83,11 @@ export const SAUDI_DESTINATIONS = [
   dest('trojena', 'Trojena', 'تروجينا', 'Tabuk', 'تبوك'),
   dest('red-sea', 'The Red Sea', 'البحر الأحمر', 'Tabuk', 'تبوك', ['Red Sea Project', 'Red Sea Global']),
   dest('qiddiya', 'Qiddiya', 'القدية', 'Riyadh', 'الرياض'),
-  dest('kafd', 'King Abdullah Financial District', 'مركز الملك عبدالله المالي', 'Riyadh', 'الرياض', ['KAFD', 'KAED']),
-  dest('diplomatic-quarter', 'Diplomatic Quarter', 'الحي الدبلوماسي', 'Riyadh', 'الرياض', ['DQ', 'Al Safarat']),
-  dest('olaya', 'Olaya', 'العليا', 'Riyadh', 'الرياض', ['Al Olaya']),
-  dest('al-malqa', 'Al Malqa', 'الملقا', 'Riyadh', 'الرياض'),
   dest('al-nakheel', 'Al Nakheel', 'النخيل', 'Riyadh', 'الرياض'),
-  dest('hittin', 'Hittin', 'حطين', 'Riyadh', 'الرياض'),
   dest('al-yasmin', 'Al Yasmin', 'الياسمين', 'Riyadh', 'الرياض'),
   dest('king-salman-park', 'King Salman Park', 'حديقة الملك سلمان', 'Riyadh', 'الرياض'),
-  dest('jeddah-corniche', 'Jeddah Corniche', 'كورنيش جدة', 'Makkah', 'مكة المكرمة'),
-  dest('al-balad', 'Al Balad', 'البلد', 'Makkah', 'مكة المكرمة', ['Historic Jeddah']),
   dest('king-abdullah-sports-city', 'King Abdullah Sports City', 'مدينة الملك عبدالله الرياضية', 'Makkah', 'مكة المكرمة', ['KASC']),
+  ...CITY_NEIGHBOURHOODS.map(neighbourhoodToDestination),
   dest('sudair', 'Sudair', 'سدير', 'Riyadh', 'الرياض', ['Sudair Industrial City']),
   dest('unaizah-qassim', 'Al Bukayriyah', 'البكيرية', 'Qassim', 'القصيم', ['Bukayriyah']),
   dest('al-mithnab', 'Al Mithnab', 'المذنب', 'Qassim', 'القصيم'),
@@ -150,6 +145,8 @@ function identityFields(item) {
 
 export function findDestination(value) {
   if (value == null || value === '') return null;
+  const neighbourhood = findNeighbourhood(value);
+  if (neighbourhood) return neighbourhoodToDestination(neighbourhood);
   if (typeof value === 'object') {
     if (value.id) {
       const byId = SAUDI_DESTINATIONS.find((item) => item.id === value.id && !isAirportDestination(item));
@@ -164,9 +161,14 @@ export function findDestination(value) {
   )) || null;
 }
 
+function objectLabel(value) {
+  if (value == null || typeof value !== 'object') return String(value || '');
+  return String(value.nameEn || value.address || value.label || value.name || '').trim();
+}
+
 export function displayDestinationName(value, lang = 'en') {
   const match = findDestination(value);
-  if (!match) return value || '';
+  if (!match) return typeof value === 'object' ? objectLabel(value) : (value || '');
   return lang === 'ar' ? match.nameAr : match.nameEn;
 }
 
@@ -176,6 +178,7 @@ function scoreField(normalized, query, weight) {
   if (!normalized || !query) return 0;
   if (normalized === query) return 100 * weight;
   if (normalized.startsWith(query)) return (80 - Math.min(normalized.length, 25)) * weight;
+  if (query.length < 2) return 0;
   const parts = normalized.split(/[\s/-]+/);
   if (parts.some((part) => part.startsWith(query))) return 55 * weight;
   if (query.length >= 3 && normalized.includes(query)) return 30 * weight;
@@ -192,12 +195,12 @@ function searchItems(items, query, limit, popularIds) {
     const nameScore = Math.max(
       scoreField(normalize(item.nameEn), q, 1),
       scoreField(normalize(item.nameAr), q, 1),
-      ...(item.aliases || []).map((alias) => scoreField(normalize(alias), q, 0.95)),
+      ...(q.length >= 2 ? (item.aliases || []).map((alias) => scoreField(normalize(alias), q, 0.95)) : []),
     );
-    const regionScore = Math.max(
+    const regionScore = q.length >= 3 ? Math.max(
       scoreField(normalize(item.regionEn), q, 0.35),
       scoreField(normalize(item.regionAr), q, 0.35),
-    );
+    ) : 0;
     const popularBoost = nameScore > 50 && popularIds.includes(item.id) ? 18 : 0;
     return { item, score: Math.max(nameScore, regionScore) + popularBoost };
   })
@@ -213,5 +216,6 @@ export function searchSaudiDestinations(query, limit = 12) {
 
 export function resolveDestinationValue(value) {
   const match = findDestination(value);
-  return match ? match.nameEn : String(value || '').trim();
+  if (match) return match.nameEn;
+  return objectLabel(value).trim();
 }

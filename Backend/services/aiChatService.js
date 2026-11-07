@@ -88,7 +88,7 @@ const TOOL_DEFINITIONS = [
         },
         distanceKm: {
           type: ['number', 'null'],
-          description: 'Distance in KM for city_transfer. Fixed rates apply up to 20 KM.',
+          description: 'Distance in KM for city_transfer. Vehicle base fare matches Airport Transfer and extra km is not added.',
         },
       },
       required: [
@@ -256,7 +256,7 @@ async function handleGetServices() {
       {
         serviceType: 'city_transfer',
         name: 'City Transfer',
-        notes: 'Riyadh City Transfer uses a 20 km minimum and 5 km slabs up to 60 km. Distances above 60 km are Long Distance / Custom Quote. Use only configured rates.',
+        notes: 'Riyadh City Transfer uses the same vehicle base fare as Airport Transfer. Extra distance is not added.',
         vehicles: SERVICE_VEHICLE_OPTIONS.city_transfer,
       },
       {

@@ -285,6 +285,7 @@
   line-height: 1.6;
 }
 
+
 .book-panel {
   background: #111111;
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -738,6 +739,10 @@
 
 .dest-ac {
   position: relative;
+}
+
+.dest-ac-item.is-selected {
+  box-shadow: inset 2px 0 0 #c8a261;
 }
 
 .dest-ac-group {

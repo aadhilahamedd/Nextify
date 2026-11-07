@@ -14,6 +14,9 @@ const ROUTE_KEYS = {
 
 export function translatePlace(value, t, lang = 'en') {
   if (!value) return '';
+  if (typeof value === 'object') {
+    return displayAirportName(value, lang) || displayDestinationName(value, lang) || '';
+  }
   const routeKey = ROUTE_KEYS[value];
   if (routeKey) return t(routeKey);
   const cityKey = `cities.${value}`;

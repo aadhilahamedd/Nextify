@@ -58,6 +58,33 @@ assert.strictEqual(matchAirportFixedRoute('King Khalid International Airport', '
 assert.strictEqual(matchAirportFixedRoute('King Khalid International Airport', 'Olaya'), null);
 assert.strictEqual(matchAirportFixedRoute('Jeddah Airport', 'Makkah')?.gmc, 800);
 
+assert.strictEqual(resolveFixedRouteLocation('Al Olaya').id, 'olaya');
+assert.strictEqual(resolveFixedRouteLocation('Al Olaya').cityHubId, 'riyadh');
+assert.strictEqual(resolveFixedRouteLocation('KAFD').id, 'kafd');
+assert.strictEqual(resolveFixedRouteLocation('Hittin').id, 'hittin');
+assert.strictEqual(resolveFixedRouteLocation('Jeddah Corniche').id, 'jeddah-corniche');
+assert.strictEqual(resolveFixedRouteLocation('Al Hamra').cityHubId, 'jeddah');
+assert.strictEqual(resolveFixedRouteLocation('Ash Shati').id, 'ash-shati');
+assert.strictEqual(resolveFixedRouteLocation('Obhur').id, 'obhur');
+assert.strictEqual(resolveFixedRouteLocation({ kind: 'neighbourhood', id: 'olaya', nameEn: 'Al Olaya', pricingCity: 'Riyadh' }).id, 'olaya');
+
+assert.strictEqual(matchAirportFixedRoute('Al Olaya', 'Jeddah Airport')?.gmc, 3200);
+assert.strictEqual(matchAirportFixedRoute('Al Olaya', 'Jeddah Airport')?.sedan, 2500);
+assert.strictEqual(matchAirportFixedRoute('Jeddah Airport', 'Al Olaya')?.gmc, 3200);
+assert.strictEqual(matchAirportFixedRoute('KAFD', 'Jeddah Airport')?.gmc, 3200);
+assert.strictEqual(matchAirportFixedRoute('Hittin', 'Jeddah Airport')?.gmc, 3200);
+assert.strictEqual(matchAirportFixedRoute('Al Sahafa', 'Makkah')?.gmc, 3000);
+assert.strictEqual(matchAirportFixedRoute('King Khalid International Airport', 'Al Malqa'), null);
+assert.strictEqual(matchAirportFixedRoute('Jeddah Corniche', 'Makkah')?.gmc, 800);
+assert.strictEqual(matchAirportFixedRoute('Al Hamra', 'Makkah')?.gmc, 800);
+assert.strictEqual(matchAirportFixedRoute('Al Hamra', 'Makkah')?.sedan, 600);
+assert.strictEqual(matchAirportFixedRoute('Makkah', 'Ash Shati')?.gmc, 800);
+assert.strictEqual(matchAirportFixedRoute('Al Rawdah', 'Madinah')?.gmc, 1000);
+assert.strictEqual(matchAirportFixedRoute('Al Zahra', 'Madinah')?.sedan, 800);
+assert.strictEqual(matchAirportFixedRoute('Al Olaya', 'Al Hamra')?.gmc, 3200);
+assert.strictEqual(matchAirportFixedRoute('Al Hamra', 'Al Olaya')?.gmc, 3200);
+assert.strictEqual(matchAirportFixedRoute('Al Olaya', 'Al Malqa'), null);
+
 const expected = [
   ['Jeddah Airport', 'Makkah', 800, 600, 90],
   ['Jeddah Airport', 'Madinah', 1000, 800, 394],

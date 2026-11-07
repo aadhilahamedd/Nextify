@@ -5,6 +5,8 @@
  * Add a new route by appending one object to AIRPORT_FIXED_ROUTES.
  */
 
+const { neighbourhoodLocationsForRoutes } = require('./cityNeighbourhoods');
+
 const GMC_CATEGORIES = ['gmc', 'gmc_yukon', 'gmc_tahoe', 'chevrolet_suburban'];
 const SEDAN_CATEGORIES = ['ford_taurus', 'lexus_es'];
 
@@ -63,6 +65,7 @@ const LOCATIONS = [
     label: 'Riyadh',
     displayLabel: 'Riyadh',
     destIds: ['riyadh'],
+    airportHubId: 'riyadh_airport',
     aliases: ['riyadh', 'ar riyadh', 'riad', 'الرياض'],
   },
   {
@@ -145,6 +148,7 @@ const LOCATIONS = [
     label: 'Madinah',
     displayLabel: 'Madinah',
     destIds: ['medina'],
+    airportHubId: 'madinah_airport',
     aliases: ['madinah', 'medina', 'al madinah', 'المدينة', 'المدينة المنورة'],
   },
   {
@@ -153,6 +157,7 @@ const LOCATIONS = [
     label: 'Dammam',
     displayLabel: 'Dammam',
     destIds: ['dammam'],
+    airportHubId: 'dammam_airport',
     aliases: ['dammam', 'ad dammam', 'الدمام'],
   },
   {
@@ -169,6 +174,7 @@ const LOCATIONS = [
     label: 'Jeddah',
     displayLabel: 'Jeddah',
     destIds: ['jeddah'],
+    airportHubId: 'jeddah_airport',
     aliases: ['jeddah', 'jiddah', 'jedda', 'jeda', 'جدة', 'جده'],
   },
   {
@@ -179,6 +185,7 @@ const LOCATIONS = [
     destIds: ['bahrain'],
     aliases: ['bahrain', 'manama', 'kingdom of bahrain', 'البحرين'],
   },
+  ...neighbourhoodLocationsForRoutes(),
 ];
 
 const AIRPORT_FIXED_ROUTES = [
@@ -296,6 +303,11 @@ function resolveFixedRouteLocation(value) {
 
   if (texts.some(looksLikeAirportText)) return null;
 
+  const neighbourhoods = LOCATIONS.filter((location) => location.kind === 'neighbourhood');
+  for (const location of neighbourhoods) {
+    if (texts.some((text) => cityTextMatches(text, location))) return location;
+  }
+
   const cities = LOCATIONS.filter((location) => location.kind === 'city');
   for (const location of cities) {
     if (texts.some((text) => cityTextMatches(text, location))) return location;
@@ -320,9 +332,17 @@ function locationCandidates(value) {
   const loc = resolveFixedRouteLocation(value);
   if (!loc) return [];
   const list = [loc];
-  if (loc.cityHubId && LOCATION_BY_ID[loc.cityHubId]) {
-    list.push(LOCATION_BY_ID[loc.cityHubId]);
-  }
+  const seen = new Set([loc.id]);
+  const add = (id) => {
+    const next = LOCATION_BY_ID[id];
+    if (!next || seen.has(next.id)) return;
+    seen.add(next.id);
+    list.push(next);
+  };
+  if (loc.cityHubId) add(loc.cityHubId);
+  if (loc.airportHubId) add(loc.airportHubId);
+  const city = loc.cityHubId ? LOCATION_BY_ID[loc.cityHubId] : (loc.kind === 'city' ? loc : null);
+  if (city?.airportHubId) add(city.airportHubId);
   return list;
 }
 
