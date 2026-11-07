@@ -20,15 +20,6 @@ const initialCars = [
     luggage: '3-4 Bags'
   },
   {
-    id: 3,
-    name: 'Chevrolet Impala',
-    img: '/images/car/chevrolet-impala.webp',
-    price: '$150/day',
-    type: 'Full-Size Sedan',
-    seats: '3 passengers',
-    luggage: '3-4 Bags'
-  },
-  {
     id: 4,
     name: 'Toyota Hiace',
     img: '/images/car/toyota-hiace.webp',
@@ -133,7 +124,6 @@ const initialCars = [
 const IMAGE_REMAP = {
   local_sprinter: '/images/car/mercedes-sprinter.webp',
   local_lexus_es: '/images/car/lexus-es-350.webp',
-  local_impala: '/images/car/chevrolet-impala.webp',
   local_hiace: '/images/car/toyota-hiace.webp',
   local_benz_s: '/images/car/mercedes-s-class.webp',
   local_bmw_7: '/images/car/bmw-7-series.webp',
@@ -150,7 +140,6 @@ const IMAGE_REMAP = {
 const IMAGE_BY_NAME = {
   'Mercedes-Benz Sprinter': '/images/car/mercedes-sprinter.webp',
   'Lexus ES 350': '/images/car/lexus-es-350.webp',
-  'Chevrolet Impala': '/images/car/chevrolet-impala.webp',
   'Toyota Hiace': '/images/car/toyota-hiace.webp',
   'Toyota Coaster': '/images/car/toyota-coaster.webp',
   'Mercedes-Benz Coach Bus': '/images/car/mercedes-coach-bus.webp',
@@ -222,6 +211,7 @@ exports.getCars = async (req, res) => {
       console.log('No cars found in database. Seeding initial cars...');
       await Car.insertMany(initialCars);
     }
+    await Car.deleteMany({ name: { $in: ['Chevrolet Impala', 'Chevrolet Impala Limited'] } });
     await remapLegacyCarImages();
     cars = await Car.find().sort({ id: 1 });
     return res.status(200).json(cars);

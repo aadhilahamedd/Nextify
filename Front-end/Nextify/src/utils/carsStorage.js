@@ -1,7 +1,6 @@
 const IMAGE_MAP = {
   local_sprinter: '/images/car/mercedes-sprinter.webp',
   local_lexus_es: '/images/car/lexus-es-350.webp',
-  local_impala: '/images/car/chevrolet-impala.webp',
   local_hiace: '/images/car/toyota-hiace.webp',
   local_benz_s: '/images/car/mercedes-s-class.webp',
   local_bmw_7: '/images/car/bmw-7-series.webp',
@@ -10,7 +9,6 @@ const IMAGE_MAP = {
 const LOCAL_IMAGES_BY_NAME = {
   'Mercedes-Benz Sprinter': '/images/car/mercedes-sprinter.webp',
   'Lexus ES 350': '/images/car/lexus-es-350.webp',
-  'Chevrolet Impala': '/images/car/chevrolet-impala.webp',
   'Toyota Hiace': '/images/car/toyota-hiace.webp',
   'Toyota Coaster': '/images/car/toyota-coaster.webp',
   'Mercedes-Benz Coach Bus': '/images/car/mercedes-coach-bus.webp',
@@ -87,8 +85,11 @@ export function collapseGmcFleet(cars = []) {
   ];
 }
 
+const RETIRED_CAR_NAMES = new Set(['chevrolet impala']);
+
 export function applyLocalCarImages(cars = [], { collapseGmc = true } = {}) {
-  const list = collapseGmc ? collapseGmcFleet(cars) : [...cars];
+  const list = (collapseGmc ? collapseGmcFleet(cars) : [...cars])
+    .filter((car) => !RETIRED_CAR_NAMES.has(String(car?.name || '').toLowerCase()));
   return list.map((car) => ({ ...car, img: resolveCarImage(car) }));
 }
 
@@ -147,15 +148,6 @@ export const initialCars = [
     img: '/images/car/lexus-es-350.webp',
     price: '$200/day',
     type: 'Luxury Sedan',
-    seats: '3 passengers',
-    luggage: '3-4 Bags'
-  },
-  {
-    id: 3,
-    name: 'Chevrolet Impala',
-    img: '/images/car/chevrolet-impala.webp',
-    price: '$150/day',
-    type: 'Full-Size Sedan',
     seats: '3 passengers',
     luggage: '3-4 Bags'
   },
