@@ -2,6 +2,7 @@ const Booking = require('../models/Booking');
 const { generateBookingNumber } = require('../utils/bookingNumber');
 const { calculatePrice, normalizeServiceType } = require('./pricingService');
 const { findAirport } = require('../data/saudiAirports');
+const { resolveFixedRouteLocation } = require('../data/airportFixedRoutes');
 const { isVehicleAvailable } = require('./availabilityService');
 
 function httpError(statusCode, message, details) {
@@ -37,12 +38,18 @@ async function createBookingFromPayload(body, { userId } = {}) {
   const destination = typeof body.destination === 'string'
     ? body.destination
     : (body.destination?.address || body.destinationText || body.dropoffLocation);
+  const pickupPlace = body.pickupPlace || body.pickup || null;
+  const dropoffPlace = body.dropoffPlace || (typeof body.destination === 'object' ? body.destination : null);
   let airportMatch = null;
 
+  const dropoffAirport = serviceType === 'airport_transfer'
+    ? findAirport(dropoffPlace || destination)
+    : null;
   if (serviceType === 'airport_transfer') {
-    airportMatch = findAirport(body.pickupPlace || body.pickup || origin || body.airport);
-    if (!airportMatch) {
-      throw httpError(400, 'Please select a Saudi airport for pickup');
+    const pickupValue = pickupPlace || origin || body.airport;
+    const pickupLocation = resolveFixedRouteLocation(pickupValue);
+    if (pickupLocation?.kind !== 'city') {
+      airportMatch = findAirport(pickupValue);
     }
   }
 
@@ -52,12 +59,24 @@ async function createBookingFromPayload(body, { userId } = {}) {
     vehicleCategory: body.vehicleCategory,
     vehicleName: body.vehicleName || body.vehicle?.label || body.vehicle?.name,
     airport: airportMatch?.nameEn || body.airport,
-    origin: airportMatch?.nameEn || origin,
+    origin: airportMatch?.nameEn || origin || pickupPlace?.nameEn || pickupPlace?.address || body.airport,
     destination,
+    pickupPlace: pickupPlace || airportMatch,
+    dropoffPlace,
     durationType: body.durationType,
     distanceKm: body.distanceKm,
     returnTrip: Boolean(body.returnTrip),
   });
+
+  if (
+    serviceType === 'airport_transfer'
+    && !airportMatch
+    && !dropoffAirport
+    && quote.pricingType !== 'airport_fixed_route'
+    && !quote.customQuoteRequired
+  ) {
+    throw httpError(400, 'Please select a pickup and drop-off location');
+  }
 
   if (body.vehicle?.carId && !quote.customQuoteRequired) {
     const availability = await isVehicleAvailable(
@@ -96,27 +115,40 @@ async function createBookingFromPayload(body, { userId } = {}) {
     user: userId || null,
     serviceType,
     airport: airportMatch?.nameEn || body.airport || '',
-    routeType: quote.pricingType || 'fixed',
-    origin: airportMatch?.nameEn || body.origin || body.pickup?.address || body.pickupLocation || '',
-    destinationText: body.destination || body.destinationText || body.dropoffLocation || '',
+    routeType: quote.routeType || quote.pricingType || 'fixed',
+    origin: quote.originLabel || airportMatch?.nameEn || body.origin || body.pickup?.address || body.pickupLocation || '',
+    destinationText: quote.destinationLabel || destination || body.destinationText || body.dropoffLocation || '',
     vehicleCategory: body.vehicleCategory || quote.vehicleCategory || '',
     durationType: body.durationType || '',
-    distanceKm: body.distanceKm ?? null,
+    distanceKm: quote.distanceKm ?? body.distanceKm ?? null,
     quotedPrice: quote.price,
-    pricingType: quote.pricingType,
+    pricingType: quote.customQuoteRequired ? 'custom_quote' : 'fixed',
     customQuoteRequired: quote.customQuoteRequired,
     pricingRuleId: quote.pricingRuleId || null,
-    pickup: serviceType === 'airport_transfer'
+    pickup: airportMatch
       ? {
           address: airportMatch.nameEn,
           latitude: airportMatch.lat,
           longitude: airportMatch.lng,
           placeId: airportMatch.id || '',
         }
-      : (body.pickup || { address: body.pickupLocation || body.origin || '' }),
-    destination: body.destination
-      ? { address: typeof body.destination === 'string' ? body.destination : body.destination.address }
-      : { address: body.dropoffLocation || body.destinationText || '' },
+      : (body.pickup || {
+          address: quote.originLabel || body.pickupLocation || body.origin || pickupPlace?.nameEn || body.airport || '',
+          placeId: pickupPlace?.id || '',
+          latitude: pickupPlace?.lat ?? pickupPlace?.latitude ?? null,
+          longitude: pickupPlace?.lng ?? pickupPlace?.longitude ?? null,
+        }),
+    destination: {
+      address: quote.destinationLabel
+        || (typeof body.destination === 'string' ? body.destination : body.destination?.address)
+        || destination
+        || body.dropoffLocation
+        || body.destinationText
+        || '',
+      placeId: dropoffPlace?.id || '',
+      latitude: dropoffPlace?.lat ?? dropoffPlace?.latitude ?? null,
+      longitude: dropoffPlace?.lng ?? dropoffPlace?.longitude ?? null,
+    },
     schedule: { pickupDateTime: new Date(pickupDateTime) },
     flight: {
       flightNumber: body.flightNumber || body.flight?.flightNumber || '',
@@ -134,7 +166,7 @@ async function createBookingFromPayload(body, { userId } = {}) {
     },
     pricing: {
       totalAmount: quote.customQuoteRequired ? 0 : (quote.totalAmount ?? quote.price ?? 0),
-      extraKmCharge: quote.extraCharge || 0,
+      extraKmCharge: quote.pricingType === 'airport_fixed_route' ? 0 : (quote.extraCharge || 0),
       currency: quote.currency || 'SAR',
       breakdown: {
         pricingType: quote.pricingType,
@@ -143,8 +175,15 @@ async function createBookingFromPayload(body, { userId } = {}) {
         message: quote.message,
         displayLabel: quote.displayLabel,
         distanceKm: quote.distanceKm ?? body.distanceKm ?? null,
+        distanceApproximate: Boolean(quote.distanceApproximate),
         slabLabel: quote.slabLabel || null,
         extraKmUnpriced: Boolean(quote.extraKmUnpriced),
+        routeId: quote.routeId || null,
+        originId: quote.originId || null,
+        destinationId: quote.destinationId || null,
+        originLabel: quote.originLabel || null,
+        destinationLabel: quote.destinationLabel || null,
+        routeType: quote.routeType || null,
       },
     },
     paymentStatus: quote.customQuoteRequired ? 'NOT_REQUIRED' : 'PENDING',

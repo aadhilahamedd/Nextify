@@ -1,4 +1,6 @@
 import { citySlabForDistance } from '../utils/distanceSlabs';
+import { matchAirportFixedRoute, quoteAirportFixedRoute } from './airportFixedRoutes';
+import { findAirport } from './saudiAirports';
 
 export const FLEET_CLASS = {
   FIRST: 'First class',
@@ -302,6 +304,8 @@ export function getOfficialQuote({
   origin,
   destination,
   airport,
+  pickupPlace,
+  dropoffPlace,
   returnTrip,
 } = {}) {
   const vehicle = findFleetVehicle({ category: vehicleCategory, name: vehicleName });
@@ -309,6 +313,30 @@ export function getOfficialQuote({
 
   switch (serviceType) {
     case 'airport_transfer': {
+      const fixedRoute = matchAirportFixedRoute(pickupPlace || origin || airport, dropoffPlace || destination);
+      if (fixedRoute) {
+        const matched = quoteAirportFixedRoute(fixedRoute, vehicle.category, {
+          airport: airport || origin,
+          vehicleCategory: vehicle.category,
+          vehicleName: vehicle.label,
+          displayLabel: vehicle.label,
+        });
+        if (matched.customQuoteRequired) {
+          return customOfficialQuote(matched.message, matched);
+        }
+        return officialQuote(vehicle, matched.price, matched);
+      }
+      const pickupAirport = findAirport(pickupPlace) || findAirport(origin) || findAirport(airport);
+      const dropoffAirport = findAirport(dropoffPlace) || findAirport(destination);
+      if (destination && !pickupAirport && !dropoffAirport) {
+        return customOfficialQuote('Rate on Request', {
+          serviceType,
+          quoteStatus: 'rate_on_request',
+          origin: origin || airport,
+          destination,
+          pricingModel: 'airport_transfer',
+        });
+      }
       if (vehicle.airport == null) {
         return customOfficialQuote('No fixed airport transfer rate for this vehicle. Custom quote required.', {
           serviceType,
@@ -318,7 +346,7 @@ export function getOfficialQuote({
       }
       return officialQuote(vehicle, vehicle.airport, {
         serviceType,
-        airport: airport || origin,
+        airport: pickupAirport?.nameEn || dropoffAirport?.nameEn || airport || origin,
         pricingType: 'airport_base',
         pricingModel: 'airport_transfer',
       });

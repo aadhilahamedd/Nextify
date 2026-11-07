@@ -11,31 +11,31 @@ const CARDS = [
   {
     serviceType: 'airport_transfer',
     Icon: SERVICE_ICONS.airport_transfer,
-    image: '/images/services/service-airport.jpg',
+    image: '/images/services/service-airport.jpg?v=3',
     altKey: 'rates.airportAlt',
   },
   {
     serviceType: 'city_transfer',
     Icon: SERVICE_ICONS.city_transfer,
-    image: '/images/services/service-city.jpg?v=2',
+    image: '/images/services/service-city.jpg?v=3',
     altKey: 'rates.cityAlt',
   },
   {
     serviceType: 'chauffeur',
     Icon: SERVICE_ICONS.chauffeur,
-    image: '/images/services/service-chauffeur.jpg?v=2',
+    image: '/images/services/service-chauffeur.jpg?v=3',
     altKey: 'rates.chauffeurAlt',
   },
   {
     serviceType: 'intercity_transfer',
     Icon: SERVICE_ICONS.intercity_transfer,
-    image: '/images/services/service-intercity.jpg',
+    image: '/images/services/service-intercity.jpg?v=2',
     altKey: 'rates.intercityAlt',
   },
   {
     serviceType: 'gcc_transfer',
     Icon: SERVICE_ICONS.gcc_transfer,
-    image: '/images/services/service-gcc.jpg',
+    image: '/images/services/service-gcc.jpg?v=3',
     altKey: 'rates.gccAlt',
   },
 ];

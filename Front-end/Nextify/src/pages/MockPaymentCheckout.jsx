@@ -75,11 +75,10 @@ function MockPaymentCheckout() {
         if (whatsappRedirected.current) return;
         whatsappRedirected.current = true;
         const message = buildWhatsAppConfirmationMessage({ booking: current });
-        openCompanyWhatsApp(message);
-        navigate(`/booking-confirmation/${current.bookingNumber}`, {
-          state: { booking: current, whatsappPending: true },
-          replace: true,
-        });
+        try {
+          sessionStorage.setItem(`booking_${current.bookingNumber}`, JSON.stringify(current));
+        } catch { /* ignore quota */ }
+        openCompanyWhatsApp(message, { redirect: true });
         return;
       }
       createPaymentAPI(current._id).then((res) => {

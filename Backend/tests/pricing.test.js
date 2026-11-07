@@ -45,6 +45,39 @@ const tests = [
   { name: 'Intercity Jeddah to Riyadh uses same rate', payload: { serviceType: 'intercity_transfer', origin: 'Jeddah', destination: 'Riyadh', vehicleCategory: 'lexus_es' }, expect: 2200 },
   { name: 'Intercity Al Khobar to Riyadh GMC uses same rate', payload: { serviceType: 'intercity_transfer', origin: 'Al Khobar', destination: 'Riyadh', vehicleCategory: 'gmc' }, expect: 1400 },
   { name: 'Airport any Saudi airport uses configured vehicle rate', payload: { serviceType: 'airport_transfer', airport: 'King Khalid International Airport', vehicleCategory: 'gmc' }, expect: 240 },
+  { name: 'Fixed Jeddah Airport to Makkah GMC', payload: { serviceType: 'airport_transfer', origin: 'Jeddah Airport', destination: 'Makkah', vehicleCategory: 'gmc', distanceKm: 999, totalAmount: 1 }, expect: 800, expectType: 'airport_fixed_route', expectKm: 90 },
+  { name: 'Fixed Jeddah Airport to Makkah Sedan', payload: { serviceType: 'airport_transfer', origin: 'Jeddah Airport', destination: 'Mecca', vehicleCategory: 'ford_taurus' }, expect: 600, expectType: 'airport_fixed_route' },
+  { name: 'Fixed Jeddah Airport to Makkah Lexus', payload: { serviceType: 'airport_transfer', origin: 'JED', destination: 'Maka', vehicleCategory: 'lexus_es' }, expect: 600, expectType: 'airport_fixed_route' },
+  { name: 'Fixed Jeddah Airport to Madinah GMC', payload: { serviceType: 'airport_transfer', origin: 'King Abdulaziz International Airport', destination: 'Madinah', vehicleCategory: 'gmc' }, expect: 1000, expectType: 'airport_fixed_route', expectKm: 394 },
+  { name: 'Fixed Jeddah Airport to Madinah Sedan', payload: { serviceType: 'airport_transfer', origin: 'Jeddah Airport', destination: 'Medina', vehicleCategory: 'ford_taurus' }, expect: 800, expectType: 'airport_fixed_route' },
+  { name: 'Fixed Makkah to Madinah GMC', payload: { serviceType: 'airport_transfer', origin: 'Makkah', destination: 'Madinah', vehicleCategory: 'gmc' }, expect: 1000, expectType: 'airport_fixed_route', expectKm: 437 },
+  { name: 'Fixed Makkah to Madinah Sedan', payload: { serviceType: 'airport_transfer', origin: 'Mecca', destination: 'Medina', vehicleCategory: 'lexus_es' }, expect: 800, expectType: 'airport_fixed_route' },
+  { name: 'Fixed Riyadh to Al Qassim Airport GMC', payload: { serviceType: 'airport_transfer', origin: 'Riyadh', destination: 'Al Qassim Airport', vehicleCategory: 'gmc' }, expect: 1000, expectType: 'airport_fixed_route', expectKm: 370 },
+  { name: 'Fixed Riyadh to Al Qassim Airport Sedan', payload: { serviceType: 'airport_transfer', origin: 'Riyadh', destination: 'ELQ', vehicleCategory: 'ford_taurus' }, expect: 800, expectType: 'airport_fixed_route' },
+  { name: 'Fixed Riyadh to Dammam GMC', payload: { serviceType: 'airport_transfer', origin: 'Riyadh', destination: 'Dammam', vehicleCategory: 'gmc' }, expect: 1300, expectType: 'airport_fixed_route', expectKm: 430 },
+  { name: 'Fixed Riyadh to Dammam Sedan', payload: { serviceType: 'airport_transfer', origin: 'Riyadh', destination: 'Dammam', vehicleCategory: 'lexus_es' }, expect: 1100, expectType: 'airport_fixed_route' },
+  { name: 'Fixed Riyadh to Al Khobar GMC uses Dammam rate', payload: { serviceType: 'airport_transfer', origin: 'Riyadh', destination: 'Al Khobar', vehicleCategory: 'gmc' }, expect: 1300, expectType: 'airport_fixed_route', expectKm: 430 },
+  { name: 'Fixed Riyadh to Al Khobar Sedan uses Dammam rate', payload: { serviceType: 'airport_transfer', origin: 'Riyadh', destination: 'Khobar', vehicleCategory: 'lexus_es' }, expect: 1100, expectType: 'airport_fixed_route' },
+  { name: 'KKIA to Al Khobar GMC uses Riyadh to Dammam rate', payload: { serviceType: 'airport_transfer', airport: 'King Khalid International Airport', origin: 'King Khalid International Airport', destination: 'Al Khobar', vehicleCategory: 'gmc' }, expect: 1300, expectType: 'airport_fixed_route', expectKm: 430 },
+  { name: 'Fixed Riyadh to Bahrain GMC', payload: { serviceType: 'airport_transfer', origin: 'Riyadh', destination: 'Bahrain', vehicleCategory: 'gmc' }, expect: 1500, expectType: 'airport_fixed_route', expectKm: 480 },
+  { name: 'Fixed Riyadh to Bahrain Sedan', payload: { serviceType: 'airport_transfer', origin: 'Riyadh', destination: 'Manama', vehicleCategory: 'ford_taurus' }, expect: 1300, expectType: 'airport_fixed_route' },
+  { name: 'Fixed Riyadh to Jeddah GMC', payload: { serviceType: 'airport_transfer', origin: 'Riyadh', destination: 'Jeddah', vehicleCategory: 'gmc' }, expect: 3200, expectType: 'airport_fixed_route', expectKm: 980 },
+  { name: 'Fixed Riyadh to Jeddah Sedan', payload: { serviceType: 'airport_transfer', origin: 'Riyadh', destination: 'Jeda', vehicleCategory: 'lexus_es' }, expect: 2500, expectType: 'airport_fixed_route' },
+  { name: 'Fixed Riyadh to Makkah GMC', payload: { serviceType: 'airport_transfer', origin: 'Riyadh', destination: 'Makkah', vehicleCategory: 'gmc' }, expect: 3000, expectType: 'airport_fixed_route', expectKm: 850 },
+  { name: 'Fixed Riyadh to Makkah Sedan', payload: { serviceType: 'airport_transfer', origin: 'Riyadh', destination: 'Maka', vehicleCategory: 'ford_taurus' }, expect: 2500, expectType: 'airport_fixed_route' },
+  { name: 'Fixed Riyadh to Madinah GMC', payload: { serviceType: 'airport_transfer', origin: 'Riyadh', destination: 'Madinah', vehicleCategory: 'gmc' }, expect: 2900, expectType: 'airport_fixed_route', expectKm: 850 },
+  { name: 'Fixed Riyadh to Madinah Sedan', payload: { serviceType: 'airport_transfer', origin: 'Riyadh', destination: 'Medina', vehicleCategory: 'lexus_es' }, expect: 2500, expectType: 'airport_fixed_route' },
+  { name: 'Fixed route other vehicle is rate on request', payload: { serviceType: 'airport_transfer', origin: 'Jeddah Airport', destination: 'Makkah', vehicleCategory: 'bmw_5' }, expectCustom: true, expectStatus: 'rate_on_request', expectType: 'airport_fixed_route' },
+  { name: 'Reverse Makkah to Jeddah Airport GMC', payload: { serviceType: 'airport_transfer', origin: 'Makkah', destination: 'Jeddah Airport', vehicleCategory: 'gmc' }, expect: 800, expectType: 'airport_fixed_route', expectKm: 90 },
+  { name: 'Reverse Makkah to Jeddah Airport Sedan', payload: { serviceType: 'airport_transfer', origin: 'Makkah', destination: 'King Abdulaziz International Airport', vehicleCategory: 'ford_taurus' }, expect: 600, expectType: 'airport_fixed_route' },
+  { name: 'Reverse Madinah to Makkah Sedan', payload: { serviceType: 'airport_transfer', origin: 'Madinah', destination: 'Makkah', vehicleCategory: 'ford_taurus' }, expect: 800, expectType: 'airport_fixed_route' },
+  { name: 'Reverse Al Qassim Airport to Riyadh GMC', payload: { serviceType: 'airport_transfer', origin: 'Prince Naif bin Abdulaziz International Airport', destination: 'Riyadh', vehicleCategory: 'gmc' }, expect: 1000, expectType: 'airport_fixed_route', expectKm: 370 },
+  { name: 'KKIA to Madinah GMC uses Riyadh to Madinah fixed price', payload: { serviceType: 'airport_transfer', airport: 'King Khalid International Airport', origin: 'King Khalid International Airport', destination: 'Madinah', vehicleCategory: 'gmc', pickupPlace: { kind: 'airport', iata: 'RUH', id: 'riyadh-airport', nameEn: 'King Khalid International Airport', cityEn: 'Riyadh' } }, expect: 2900, expectType: 'airport_fixed_route', expectKm: 850 },
+  { name: 'KKIA to Madinah Sedan uses Riyadh to Madinah fixed price', payload: { serviceType: 'airport_transfer', airport: 'King Khalid International Airport', origin: 'King Khalid International Airport', destination: 'Madinah', vehicleCategory: 'ford_taurus' }, expect: 2500, expectType: 'airport_fixed_route', expectKm: 850 },
+  { name: 'KKIA to Dammam GMC uses Riyadh to Dammam fixed price', payload: { serviceType: 'airport_transfer', airport: 'King Khalid International Airport', origin: 'King Khalid International Airport', destination: 'Dammam', vehicleCategory: 'gmc', distanceKm: 10 }, expect: 1300, expectType: 'airport_fixed_route', expectKm: 430 },
+  { name: 'KKIA to Riyadh city stays on airport vehicle base', payload: { serviceType: 'airport_transfer', airport: 'King Khalid International Airport', origin: 'King Khalid International Airport', destination: 'Riyadh', vehicleCategory: 'gmc' }, expect: 240, expectType: 'airport_base' },
+  { name: 'Normal airport route above 40 km still uses vehicle base', payload: { serviceType: 'airport_transfer', airport: 'King Khalid International Airport', destination: 'Olaya', vehicleCategory: 'gmc', distanceKm: 46 }, expect: 240, expectType: 'airport_base' },
+  { name: 'Normal airport route below 40 km still uses vehicle base', payload: { serviceType: 'airport_transfer', airport: 'King Khalid International Airport', destination: 'Diplomatic Quarter', vehicleCategory: 'ford_taurus', distanceKm: 12 }, expect: 180, expectType: 'airport_base' },
   { name: 'Intercity Dammam GMC rate on request', payload: { serviceType: 'intercity_transfer', origin: 'Riyadh', destination: 'Dammam', vehicleCategory: 'gmc' }, expectCustom: true, expectStatus: 'rate_on_request' },
   { name: 'Intercity BMW 7 Khobar rate on request', payload: { serviceType: 'intercity_transfer', origin: 'Riyadh', destination: 'Khobar', vehicleCategory: 'bmw_7' }, expectCustom: true, expectStatus: 'rate_on_request' },
   { name: 'GCC Dubai GMC', payload: { serviceType: 'gcc_transfer', destination: 'Dubai', vehicleCategory: 'gmc' }, expect: 4800 },
@@ -68,15 +101,17 @@ async function run() {
   for (const t of tests) {
     const result = await calculatePrice(t.payload);
     const statusOk = !t.expectStatus || result.quoteStatus === t.expectStatus;
+    const typeOk = !t.expectType || result.pricingType === t.expectType;
+    const kmOk = t.expectKm == null || result.distanceKm === t.expectKm;
     const ok = t.expectCustom
-      ? result.customQuoteRequired === true && result.price == null && statusOk
-      : result.price === t.expect && !result.customQuoteRequired && statusOk;
+      ? result.customQuoteRequired === true && result.price == null && statusOk && typeOk
+      : result.price === t.expect && result.totalAmount === t.expect && !result.customQuoteRequired && statusOk && typeOk && kmOk;
     if (ok) {
       passed += 1;
       console.log(`✅ ${t.name}`);
     } else {
       failed += 1;
-      console.log(`❌ ${t.name} — got price=${result.price} custom=${result.customQuoteRequired} status=${result.quoteStatus}`);
+      console.log(`❌ ${t.name} — got price=${result.price} total=${result.totalAmount} custom=${result.customQuoteRequired} status=${result.quoteStatus} type=${result.pricingType} km=${result.distanceKm}`);
     }
   }
 

@@ -35,6 +35,7 @@ function BookingConfirmation() {
     paymentSuccess !== true &&
     paymentSuccess !== false &&
     (Boolean(location.state?.whatsappPending) || booking?.paymentStatus === 'PENDING');
+  const whatsappOpened = Boolean(location.state?.whatsappOpened);
 
 
 
@@ -67,6 +68,16 @@ function BookingConfirmation() {
     }
 
   }, [booking]);
+
+  useEffect(() => {
+    if (!booking?.bookingNumber || !location.state?.whatsappPending || whatsappOpened) return;
+    const key = `wa_auto_${booking.bookingNumber}`;
+    if (sessionStorage.getItem(key) === 'done') return;
+    sessionStorage.setItem(key, 'done');
+    window.location.assign(
+      getWhatsAppUrl(COMPANY_PHONE, buildWhatsAppConfirmationMessage({ booking })),
+    );
+  }, [booking, location.state?.whatsappPending, whatsappOpened]);
 
 
 
@@ -195,6 +206,8 @@ function BookingConfirmation() {
         <div className="d-flex flex-wrap gap-2 justify-content-center">
 
           <a
+
+            id="whatsapp-confirm-link"
 
             href={getWhatsAppUrl(COMPANY_PHONE, whatsappMessage)}
 

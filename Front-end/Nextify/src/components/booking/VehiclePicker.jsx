@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { findFleetVehicle } from '../../data/fleetVehicles';
+import { findFleetVehicle, getOfficialQuote } from '../../data/fleetVehicles';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { translateVehicle } from '../../i18n/places';
 
@@ -7,11 +7,14 @@ export default function VehiclePicker({
   vehicles = [],
   value,
   onChange,
+  serviceType,
+  durationType,
+  quotePayload = {},
   placeholder,
   className = 'form-control book-input',
   id = 'booking-vehicle',
 }) {
-  const { t, isAr } = useLanguage();
+  const { t, isAr, formatSar } = useLanguage();
   const wrapRef = useRef(null);
   const selectedRef = useRef(false);
   const [open, setOpen] = useState(false);
@@ -31,6 +34,23 @@ export default function VehiclePicker({
       return label.includes(q);
     });
   }, [typing, query, vehicles, t]);
+
+  const fareFor = (item) => {
+    if (serviceType === 'chauffeur' && !durationType) {
+      return { note: item.fleetClass, priceLabel: '' };
+    }
+    const quote = getOfficialQuote({
+      ...quotePayload,
+      serviceType,
+      durationType,
+      vehicleCategory: item.category,
+      vehicleName: item.label,
+    });
+    if (quote?.customQuoteRequired || quote?.price == null) {
+      return { note: item.fleetClass, priceLabel: t('booking.rateOnRequest') };
+    }
+    return { note: item.fleetClass, priceLabel: formatSar(quote.price) };
+  };
 
   useEffect(() => {
     const onDoc = (event) => {
@@ -54,12 +74,6 @@ export default function VehiclePicker({
     setQuery('');
     setTyping(false);
     setOpen(false);
-  };
-
-  const noteFor = (item) => {
-    if (item.city == null) return t('booking.cityUnavailable');
-    if (item.half == null) return t('booking.onlyFullDay');
-    return item.fleetClass;
   };
 
   return (
@@ -118,22 +132,28 @@ export default function VehiclePicker({
       />
       {open && (
         <ul id={`${id}-list`} className={`dest-ac-list${isAr ? ' is-rtl' : ''}`} role="listbox">
-          {results.length ? results.map((item, index) => (
-            <li
-              key={item.category}
-              role="option"
-              aria-selected={index === active}
-              className={`dest-ac-item${index === active ? ' is-active' : ''}${value === item.category ? ' is-selected' : ''}`}
-              onMouseDown={(e) => {
-                e.preventDefault();
-                selectItem(item);
-              }}
-              onMouseEnter={() => setActive(index)}
-            >
-              <span className="dest-ac-name">{translateVehicle(item.category, item.label, t)}</span>
-              <span className="dest-ac-region">{noteFor(item)}</span>
-            </li>
-          )) : (
+          {results.length ? results.map((item, index) => {
+            const fare = fareFor(item);
+            return (
+              <li
+                key={item.category}
+                role="option"
+                aria-selected={index === active}
+                className={`dest-ac-item${index === active ? ' is-active' : ''}${value === item.category ? ' is-selected' : ''}`}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  selectItem(item);
+                }}
+                onMouseEnter={() => setActive(index)}
+              >
+                <span className="dest-ac-copy">
+                  <span className="dest-ac-name">{translateVehicle(item.category, item.label, t)}</span>
+                  {fare.note ? <span className="dest-ac-region">{fare.note}</span> : null}
+                </span>
+                {fare.priceLabel ? <span className="dest-ac-price">{fare.priceLabel}</span> : null}
+              </li>
+            );
+          }) : (
             <li className="dest-ac-empty">{t('booking.noResults')}</li>
           )}
         </ul>

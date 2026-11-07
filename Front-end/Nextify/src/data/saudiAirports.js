@@ -36,7 +36,7 @@ export const SAUDI_AIRPORTS = [
     regionAr: 'مكة المكرمة',
     lat: 21.680241,
     lng: 39.157436,
-    aliases: ['JED', 'KAIA', 'Jeddah Airport', 'OEJN', 'Mecca'],
+    aliases: ['JED', 'KAIA', 'Jeddah Airport', 'OEJN'],
   }),
   airport({
     id: 'dammam-airport',
@@ -114,13 +114,13 @@ export const SAUDI_AIRPORTS = [
     iata: 'ELQ',
     nameEn: 'Prince Naif bin Abdulaziz International Airport',
     nameAr: 'مطار الأمير نايف بن عبدالعزيز',
-    cityEn: 'Qassim',
+    cityEn: 'Al Qassim',
     cityAr: 'القصيم',
     regionEn: 'Qassim',
     regionAr: 'القصيم',
     lat: 26.302799,
     lng: 43.774399,
-    aliases: ['ELQ', 'Gassim Airport', 'Qassim Airport', 'Prince Naif bin Abdulaziz Airport', 'OEGS'],
+    aliases: ['ELQ', 'Gassim Airport', 'Qassim Airport', 'Al Qassim Airport', 'Buraidah Airport', 'Prince Naif bin Abdulaziz Airport', 'OEGS'],
   }),
   airport({
     id: 'hail-airport',
@@ -514,7 +514,10 @@ export function searchSaudiAirports(query, limit = 12) {
 export function displayAirportName(value, lang = 'en') {
   const match = findAirport(value);
   if (!match) return typeof value === 'string' ? value : value?.nameEn || '';
-  return lang === 'ar' ? match.nameAr : match.nameEn;
+  const name = lang === 'ar' ? (match.nameAr || match.nameEn) : match.nameEn;
+  const city = lang === 'ar' ? (match.cityAr || match.cityEn) : match.cityEn;
+  if (city && name && !name.includes(city)) return `${name} – ${city}`;
+  return name;
 }
 
 export function sameAirportLocation(left, right) {

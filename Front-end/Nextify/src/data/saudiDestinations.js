@@ -4,13 +4,15 @@ function dest(id, nameEn, nameAr, regionEn, regionAr, aliases = []) {
 
 export const SAUDI_DESTINATIONS = [
   dest('riyadh', 'Riyadh', 'الرياض', 'Riyadh', 'الرياض', ['Ar Riyadh', 'Riad', 'الرياض العاصمة']),
-  dest('jeddah', 'Jeddah', 'جدة', 'Makkah', 'مكة المكرمة', ['Jiddah', 'Jedda', 'جده']),
+  dest('jeddah', 'Jeddah', 'جدة', 'Makkah', 'مكة المكرمة', ['Jiddah', 'Jedda', 'Jeda', 'جده']),
   dest('dammam', 'Dammam', 'الدمام', 'Eastern Province', 'المنطقة الشرقية', ['Ad Dammam']),
-  dest('khobar', 'Khobar', 'الخبر', 'Eastern Province', 'المنطقة الشرقية', ['Al Khobar', 'Al-Khobar']),
+  dest('bahrain', 'Bahrain', 'البحرين', 'GCC', 'دول الخليج', ['Manama', 'Kingdom of Bahrain']),
+  dest('khobar', 'Al Khobar', 'الخبر', 'Eastern Province', 'المنطقة الشرقية', ['Khobar', 'Al-Khobar']),
   dest('dhahran', 'Dhahran', 'الظهران', 'Eastern Province', 'المنطقة الشرقية', ['Dhaharan']),
   dest('jubail', 'Jubail', 'الجبيل', 'Eastern Province', 'المنطقة الشرقية', ['Al Jubail', 'Jubayl', 'الجبيل الصناعية']),
-  dest('mecca', 'Mecca', 'مكة المكرمة', 'Makkah', 'مكة المكرمة', ['Makkah', 'Makkah Al Mukarramah', 'مكة']),
-  dest('medina', 'Medina', 'المدينة المنورة', 'Madinah', 'المدينة المنورة', ['Madinah', 'Al Madinah', 'المدينة']),
+  dest('mecca', 'Makkah', 'مكة المكرمة', 'Makkah', 'مكة المكرمة', ['Mecca', 'Maka', 'Makka', 'Makkah Al Mukarramah', 'مكة']),
+  dest('medina', 'Madinah', 'المدينة المنورة', 'Madinah', 'المدينة المنورة', ['Medina', 'Al Madinah', 'المدينة']),
+  dest('al-qassim', 'Al Qassim', 'القصيم', 'Qassim', 'القصيم', ['Qassim', 'Gassim', 'Buraidah', 'Buraydah']),
   dest('taif', 'Taif', 'الطائف', 'Makkah', 'مكة المكرمة', ['At Taif', 'At-Taif']),
   dest('abha', 'Abha', 'أبها', 'Asir', 'عسير'),
   dest('khamis-mushait', 'Khamis Mushait', 'خميس مشيط', 'Asir', 'عسير', ['Khamis Mushayt']),
@@ -101,7 +103,7 @@ export const SAUDI_DESTINATIONS = [
   dest('abha-airport', 'Abha International Airport', 'مطار أبها الدولي', 'Asir', 'عسير', ['AHB']),
   dest('taif-airport', 'Taif International Airport', 'مطار الطائف الدولي', 'Makkah', 'مكة المكرمة', ['TIF']),
   dest('tabuk-airport', 'Prince Sultan bin Abdulaziz Airport', 'مطار الأمير سلطان بن عبدالعزيز', 'Tabuk', 'تبوك', ['TUU', 'Tabuk Airport']),
-  dest('gassim-airport', 'Prince Naif bin Abdulaziz Airport', 'مطار الأمير نايف بن عبدالعزيز', 'Qassim', 'القصيم', ['ELQ', 'Gassim Airport', 'Qassim Airport']),
+  dest('gassim-airport', 'Prince Naif bin Abdulaziz Airport', 'مطار الأمير نايف بن عبدالعزيز', 'Qassim', 'القصيم', ['ELQ', 'Gassim Airport', 'Qassim Airport', 'Al Qassim Airport']),
   dest('hail-airport', 'Hail International Airport', 'مطار حائل الدولي', 'Hail', 'حائل', ['HAS']),
   dest('jazan-airport', 'King Abdullah bin Abdulaziz Airport', 'مطار الملك عبدالله بن عبدالعزيز', 'Jazan', 'جازان', ['GIZ', 'Jazan Airport']),
   dest('alula-airport', 'AlUla International Airport', 'مطار العلا الدولي', 'Madinah', 'المدينة المنورة', ['ULH']),
@@ -138,14 +140,28 @@ function normalize(value) {
     .trim();
 }
 
-function fieldsOf(item) {
-  return [item.nameEn, item.nameAr, item.regionEn, item.regionAr, ...(item.aliases || [])];
+function isAirportDestination(item) {
+  return String(item?.id || '').endsWith('-airport');
+}
+
+function identityFields(item) {
+  return [item.id, item.nameEn, item.nameAr, ...(item.aliases || [])];
 }
 
 export function findDestination(value) {
+  if (value == null || value === '') return null;
+  if (typeof value === 'object') {
+    if (value.id) {
+      const byId = SAUDI_DESTINATIONS.find((item) => item.id === value.id && !isAirportDestination(item));
+      if (byId) return byId;
+    }
+    return findDestination(value.nameEn || value.address || value.label);
+  }
   const q = normalize(value);
   if (!q) return null;
-  return SAUDI_DESTINATIONS.find((item) => fieldsOf(item).some((field) => normalize(field) === q)) || null;
+  return SAUDI_DESTINATIONS.find((item) => (
+    !isAirportDestination(item) && identityFields(item).some((field) => normalize(field) === q)
+  )) || null;
 }
 
 export function displayDestinationName(value, lang = 'en') {

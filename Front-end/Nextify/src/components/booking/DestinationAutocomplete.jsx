@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { displayDestinationName, resolveDestinationValue, searchSaudiDestinations } from '../../data/saudiDestinations';
+import { displayDestinationName, findDestination, resolveDestinationValue, searchSaudiDestinations } from '../../data/saudiDestinations';
 import { displayAirportName, searchSaudiAirports, toLocationPlace } from '../../data/saudiAirports';
+import { formatTransferLocation, searchTransferLocations } from '../../data/transferLocations';
 import { searchPlacesAPI } from '../../Services/allAPI';
 import { useLanguage } from '../../i18n/LanguageContext';
 
@@ -34,31 +35,40 @@ export default function DestinationAutocomplete({
   const [liveResults, setLiveResults] = useState([]);
   const [searching, setSearching] = useState(false);
 
-  const isAirportSearch = variant === 'airports' || variant === 'airportOrPlace';
+  const isTransferSearch = variant === 'transfer' || variant === 'airportOrPlace';
+  const isAirportSearch = variant === 'airports' || isTransferSearch;
   const includePlaces = variant !== 'airports';
   const displayValue = typing
     ? query
-    : (isAirportSearch ? displayAirportName(value, lang) : displayDestinationName(value, lang)) || value || '';
+    : (isTransferSearch
+      ? formatTransferLocation(value, lang)
+      : (isAirportSearch ? displayAirportName(value, lang) : displayDestinationName(value, lang))) || value || '';
 
   const localResults = useMemo(() => {
     const q = typing ? query : '';
     if (variant === 'airports') {
       return searchSaudiAirports(q, 12).map((item) => ({ ...item, kind: 'airport' }));
     }
-    if (variant === 'airportOrPlace') {
-      const airports = searchSaudiAirports(q, 8).map((item) => ({ ...item, kind: 'airport' }));
-      const places = searchSaudiDestinations(q, 8)
-        .filter((item) => !isAirportItem(item) && !airports.some((airport) => airport.nameEn === item.nameEn))
-        .map((item) => ({ ...item, kind: 'place' }));
-      return [...airports, ...places].slice(0, 12);
+    if (variant === 'transfer' || variant === 'airportOrPlace') {
+      const grouped = searchTransferLocations(q);
+      const rows = [];
+      if (grouped.airports.length) {
+        rows.push({ group: 'airports', label: t('booking.airportsGroup') });
+        grouped.airports.forEach((item) => rows.push({ ...item, kind: 'airport' }));
+      }
+      if (grouped.cities.length) {
+        rows.push({ group: 'cities', label: t('booking.citiesGroup') });
+        grouped.cities.forEach((item) => rows.push({ ...item, kind: 'place' }));
+      }
+      return rows;
     }
     return searchSaudiDestinations(q, 10)
       .filter((item) => !excludeAirports || !isAirportItem(item))
       .map((item) => ({ ...item, kind: 'place' }));
-  }, [typing, query, variant, excludeAirports]);
+  }, [typing, query, variant, excludeAirports, t]);
 
   const results = useMemo(() => {
-    if (!liveSearch || !includePlaces) return localResults;
+    if (!liveSearch || !includePlaces || variant === 'transfer' || variant === 'airportOrPlace') return localResults;
     const seen = new Set(localResults.map((item) => String(item.nameEn || '').toLowerCase()));
     const extra = liveResults.filter((item) => {
       if (excludeAirports && isAirportItem(item)) return false;
@@ -68,7 +78,9 @@ export default function DestinationAutocomplete({
       return true;
     });
     return [...localResults.slice(0, 6), ...extra].slice(0, 12);
-  }, [localResults, liveResults, liveSearch, includePlaces, excludeAirports]);
+  }, [localResults, liveResults, liveSearch, includePlaces, excludeAirports, variant]);
+
+  const selectableResults = useMemo(() => results.filter((item) => !item.group), [results]);
 
   useEffect(() => {
     const q = typing ? query.trim() : '';
@@ -108,14 +120,26 @@ export default function DestinationAutocomplete({
   }, []);
 
   const emit = (nextValue, item) => {
-    onChange(nextValue, item ? toLocationPlace(item, nextValue) : toLocationPlace(null, nextValue));
+    if (item) {
+      const selectedName = item.nameEn || item.address || item.label || nextValue;
+      onChange(selectedName, toLocationPlace(item, selectedName));
+      return;
+    }
+    if (includePlaces) {
+      const dest = findDestination(nextValue);
+      if (dest && !isAirportItem(dest)) {
+        onChange(dest.nameEn, toLocationPlace({ ...dest, kind: 'place' }, dest.nameEn));
+        return;
+      }
+    }
+    onChange(nextValue, toLocationPlace(null, nextValue));
   };
 
   const commit = (next) => {
     const resolved = isAirportSearch && !includePlaces
       ? (displayAirportName(next, 'en') || resolveDestinationValue(next))
       : resolveDestinationValue(next);
-    emit(resolved, results.find((item) => item.nameEn === resolved || item.address === resolved) || null);
+    emit(resolved, selectableResults.find((item) => item.nameEn === resolved || item.address === resolved) || null);
     setTyping(false);
     setOpen(false);
   };
@@ -169,13 +193,13 @@ export default function DestinationAutocomplete({
           }
           if (e.key === 'ArrowDown') {
             e.preventDefault();
-            setActive((i) => Math.min(i + 1, Math.max(results.length - 1, 0)));
+            setActive((i) => Math.min(i + 1, Math.max(selectableResults.length - 1, 0)));
           } else if (e.key === 'ArrowUp') {
             e.preventDefault();
             setActive((i) => Math.max(i - 1, 0));
-          } else if (e.key === 'Enter' && open && results[active]) {
+          } else if (e.key === 'Enter' && open && selectableResults[active]) {
             e.preventDefault();
-            selectItem(results[active]);
+            selectItem(selectableResults[active]);
           } else if (e.key === 'Escape') {
             setOpen(false);
           }
@@ -183,31 +207,45 @@ export default function DestinationAutocomplete({
       />
       {open && (
         <ul id={`${id}-list`} className={`dest-ac-list${isAr ? ' is-rtl' : ''}`} role="listbox">
-          {results.length ? results.map((item, index) => (
+          {results.length ? results.map((item) => {
+            if (item.group) {
+              return (
+                <li key={`group-${item.group}`} className="dest-ac-group" role="presentation">
+                  {item.label}
+                </li>
+              );
+            }
+            const selectableIndex = selectableResults.findIndex((row) => placeKey(row) === placeKey(item));
+            const title = item.kind === 'airport'
+              ? formatTransferLocation(item, lang)
+              : (lang === 'ar' ? (item.nameAr || item.nameEn || item.address) : (item.nameEn || item.address));
+            const region = item.kind === 'airport'
+              ? (isTransferSearch ? t('booking.airportsGroup') : `${lang === 'ar' ? item.cityAr : item.cityEn}${item.iata ? ` · ${item.iata}` : ''}`)
+              : (isTransferSearch
+                ? t('booking.citiesGroup')
+                : ([item.cityEn, lang === 'ar' ? item.regionAr : item.regionEn].filter(Boolean).join(' · ') || item.address || ''));
+            return (
             <li
               key={placeKey(item)}
               role="option"
-              aria-selected={index === active}
-              className={`dest-ac-item${index === active ? ' is-active' : ''}`}
+              aria-selected={selectableIndex === active}
+              className={`dest-ac-item${selectableIndex === active ? ' is-active' : ''}`}
               onMouseDown={(e) => {
                 e.preventDefault();
                 selectItem(item);
               }}
-              onMouseEnter={() => setActive(index)}
+              onMouseEnter={() => setActive(selectableIndex)}
             >
               <span className="dest-ac-copy">
-                <span className="dest-ac-name">{lang === 'ar' ? (item.nameAr || item.nameEn || item.address) : (item.nameEn || item.address)}</span>
-                <span className="dest-ac-region">
-                  {item.kind === 'airport'
-                    ? `${lang === 'ar' ? item.cityAr : item.cityEn}${item.iata ? ` · ${item.iata}` : ''}`
-                    : ([item.cityEn, lang === 'ar' ? item.regionAr : item.regionEn].filter(Boolean).join(' · ') || item.address || '')}
-                </span>
+                <span className="dest-ac-name">{title}</span>
+                <span className="dest-ac-region">{region}</span>
               </span>
               {item.kind === 'airport' && item.iata ? (
                 <span className="dest-ac-iata">{item.iata}</span>
               ) : null}
             </li>
-          )) : (
+            );
+          }) : (
             <li className="dest-ac-empty">{searching ? t('booking.searchingPlaces') : t('booking.noResults')}</li>
           )}
         </ul>

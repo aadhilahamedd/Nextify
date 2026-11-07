@@ -462,6 +462,12 @@
 
 .book-summary-row span:first-child {
   color: rgba(255, 255, 255, 0.5);
+  flex-shrink: 0;
+}
+
+.book-summary-row span:last-child {
+  text-align: right;
+  overflow-wrap: anywhere;
 }
 
 .book-summary-total {
@@ -734,13 +740,22 @@
   position: relative;
 }
 
+.dest-ac-group {
+  padding: 10px 16px 6px;
+  color: #c8a261;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
 .dest-ac-list {
   position: absolute;
   top: calc(100% + 6px);
   left: 0;
   right: 0;
   z-index: 30;
-  max-height: min(360px, 55vh);
+  max-height: min(420px, 62vh);
   overflow-y: auto;
   margin: 0;
   padding: 6px 0;
@@ -767,12 +782,14 @@
   min-width: 0;
 }
 
-.dest-ac-iata {
+.dest-ac-iata,
+.dest-ac-price {
   flex-shrink: 0;
   color: #c8a261;
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.08em;
+  white-space: nowrap;
 }
 
 .dest-ac-item.is-active,
@@ -783,6 +800,7 @@
 .dest-ac-name {
   color: #fff;
   font-size: 0.95rem;
+  overflow-wrap: anywhere;
 }
 
 .dest-ac-region {

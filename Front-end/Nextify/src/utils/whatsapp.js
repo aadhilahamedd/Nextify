@@ -323,26 +323,70 @@ export function buildConfirmedBookingWhatsAppMessage(booking) {
   return lines.join('\n');
 }
 
+const WHATSAPP_WINDOW_NAME = 'nextifyWhatsApp';
+
 export function getWhatsAppUrl(phone, message = '') {
   const normalized = normalizeWhatsAppPhone(phone) || phone;
   const base = `https://wa.me/${normalized}`;
   return message ? `${base}?text=${encodeURIComponent(message)}` : base;
 }
 
+/** Open a named tab during the click so WhatsApp is not treated as a blocked popup later. */
+export function reserveWhatsAppWindow() {
+  if (typeof window === 'undefined') return null;
+  try {
+    return window.open('about:blank', WHATSAPP_WINDOW_NAME);
+  } catch {
+    return null;
+  }
+}
+
+function assignWhatsAppWindow(target, url) {
+  if (!target || target.closed) return false;
+  try {
+    target.location.replace(url);
+    target.focus();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** Opens WhatsApp with a pre-filled message to the given phone number */
-export function openWhatsAppBooking(phone, message) {
+export function openWhatsAppBooking(phone, message, options = {}) {
   const normalized = normalizeWhatsAppPhone(phone);
   if (!normalized) {
     return { ok: false, error: 'WhatsApp is unavailable. Please check the company phone number.' };
   }
 
-  window.open(getWhatsAppUrl(normalized, message), '_blank', 'noopener,noreferrer');
-  return { ok: true };
+  const url = getWhatsAppUrl(normalized, message);
+  if (assignWhatsAppWindow(options.window, url)) {
+    return { ok: true, method: 'window' };
+  }
+
+  if (options.redirect) {
+    window.location.assign(url);
+    return { ok: true, method: 'redirect' };
+  }
+
+  let popup = null;
+  try {
+    popup = window.open(url, WHATSAPP_WINDOW_NAME);
+  } catch {
+    popup = null;
+  }
+
+  if (assignWhatsAppWindow(popup, url)) {
+    return { ok: true, method: 'window' };
+  }
+
+  window.location.assign(url);
+  return { ok: true, method: 'redirect' };
 }
 
 export const COMPANY_WHATSAPP_NUMBER = normalizeWhatsAppPhone(COMPANY_PHONE);
 
 /** Opens WhatsApp to the Nextify company number with a pre-filled message */
-export function openCompanyWhatsApp(message) {
-  return openWhatsAppBooking(COMPANY_WHATSAPP_NUMBER, message);
+export function openCompanyWhatsApp(message, options = {}) {
+  return openWhatsAppBooking(COMPANY_WHATSAPP_NUMBER, message, options);
 }

@@ -14,6 +14,11 @@ const {
   citySlabForDistance,
   ruleCoversCitySlab,
 } = require('../utils/distanceSlabs');
+const {
+  matchAirportFixedRoute,
+  quoteAirportFixedRoute,
+} = require('../data/airportFixedRoutes');
+const { findAirport } = require('../data/saudiAirports');
 
 const DEFAULT_CURRENCY = 'SAR';
 const RATE_ON_REQUEST = 'Rate on Request';
@@ -176,6 +181,9 @@ async function calculateAirportPrice(payload = {}) {
     vehicleName,
     airport,
     origin,
+    destination,
+    pickupPlace,
+    dropoffPlace,
   } = payload;
   const vCat = normalizeVehicleCat(vehicleCategory || vehicle?.category || '');
   const vName = vehicleName || vehicle?.name || vehicle?.label || '';
@@ -183,19 +191,52 @@ async function calculateAirportPrice(payload = {}) {
 
   if (!vCat && !vName) return customQuote('Please select a vehicle.', { serviceType: 'airport_transfer' });
 
+  const pickupValue = pickupPlace || origin || airport;
+  const dropoffValue = dropoffPlace || destination;
+  const fixedRoute = matchAirportFixedRoute(pickupValue, dropoffValue);
+  if (fixedRoute) {
+    const matched = quoteAirportFixedRoute(fixedRoute, vCat || vName, {
+      airport: airportName,
+      vehicleCategory: vCat,
+      vehicleName: vName,
+      displayLabel: vName || vCat,
+    });
+    if (matched.customQuoteRequired) {
+      return rateOnRequest(matched.message, matched);
+    }
+    return {
+      success: true,
+      currency: DEFAULT_CURRENCY,
+      ...matched,
+    };
+  }
+
+  const pickupAirport = findAirport(pickupPlace) || findAirport(origin) || findAirport(airport);
+  const dropoffAirport = findAirport(dropoffPlace) || findAirport(destination);
+  if (dropoffValue && !pickupAirport && !dropoffAirport) {
+    return rateOnRequest('Rate on Request', {
+      serviceType: 'airport_transfer',
+      origin: origin || airportName,
+      destination: destination || '',
+      pricingModel: 'airport_transfer',
+    });
+  }
+
+  const resolvedAirport = pickupAirport?.nameEn || dropoffAirport?.nameEn || airportName;
   const rules = await getRulesByService('airport_transfer');
-  const rule = findAirportRule(rules, airportName, vCat, vName);
+  const rule = findAirportRule(rules, resolvedAirport, vCat, vName);
   if (!rule) {
     return customQuote('No fixed airport transfer rate for this vehicle. Custom quote required.', {
       serviceType: 'airport_transfer',
-      airport: airportName,
+      airport: resolvedAirport,
       pricingModel: 'airport_transfer',
     });
   }
 
   return fixedQuote(rule, {
     serviceType: 'airport_transfer',
-    airport: airportName,
+    airport: resolvedAirport,
+    destination: destination || '',
     pricingType: 'airport_base',
     quoteStatus: 'priced',
     pricingModel: 'airport_transfer',
