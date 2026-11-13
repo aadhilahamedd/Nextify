@@ -11,10 +11,10 @@ function Footer() {
   const { t, formatNumber } = useLanguage();
   const addressLines = [t('company.address1'), t('company.address2'), t('company.address3'), t('company.address4')];
   return (
-    <footer className="py-5 text-white" style={{ backgroundColor: '#0a0a0a', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+    <footer className="site-footer py-5 text-white" style={{ backgroundColor: '#0a0a0a', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
       <Container className="py-5">
-        <div className="row g-5">
-          <div className="col-lg-4 col-md-6">
+        <div className="row g-5 site-footer-grid">
+          <div className="col-4">
             <div className="mb-4">
               <img src={logo} alt="Nextify Logo" style={{ height: '52px', width: 'auto', objectFit: 'contain' }} />
             </div>
@@ -29,7 +29,7 @@ function Footer() {
             </div>
           </div>
 
-          <div className="col-lg-2 col-md-3">
+          <div className="col-2">
             <h4 className="h6 text-uppercase fw-bold mb-4" style={{ letterSpacing: '2px', color: '#eeb012' }}>{t('footer.company')}</h4>
             <ul className="list-unstyled">
               <li className="mb-3"><Link to="/" className="text-white-50 text-decoration-none">{t('nav.home')}</Link></li>
@@ -39,7 +39,7 @@ function Footer() {
             </ul>
           </div>
 
-          <div className="col-lg-2 col-md-3">
+          <div className="col-2">
             <h4 className="h6 text-uppercase fw-bold mb-4" style={{ letterSpacing: '2px', color: '#eeb012' }}>{t('footer.help')}</h4>
             <ul className="list-unstyled">
               <li className="mb-3"><Link to="/contact" className="text-white-50 text-decoration-none">{t('footer.support')}</Link></li>
@@ -51,7 +51,7 @@ function Footer() {
             </ul>
           </div>
 
-          <div className="col-lg-4 col-md-12">
+          <div className="col-4">
             <h4 className="h6 text-uppercase fw-bold mb-4" style={{ letterSpacing: '2px', color: '#eeb012' }}>{t('footer.contactInfo')}</h4>
             <div className="d-flex gap-3 mb-3">
               <ClockIcon size={16} />
@@ -80,9 +80,9 @@ function Footer() {
           </div>
         </div>
 
-        <hr className="my-5" style={{ opacity: '0.05' }} />
+        <hr className="site-footer-rule my-5" style={{ opacity: '0.05' }} />
 
-        <div className="d-flex flex-column flex-md-row justify-content-between align-items-center gap-4">
+        <div className="site-footer-bottom d-flex flex-row flex-wrap justify-content-between align-items-center gap-4">
           <p className="text-white-50 small mb-0" style={{ letterSpacing: '1px' }}>© {formatNumber(new Date().getFullYear())} {t('footer.rights')}</p>
           <div className="d-flex flex-wrap justify-content-center gap-3 gap-md-4">
             <Link to="/privacy-policy" className="text-white-50 small text-decoration-none">{t('footer.privacy')}</Link>

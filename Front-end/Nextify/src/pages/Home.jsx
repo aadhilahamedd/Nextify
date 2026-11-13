@@ -356,34 +356,42 @@ function Home() {
                 </div>
               </div>
 
-              <div className="row g-4">
-                <div className="col-md-6 mb-4">
-                  <KeyIcon size={26} className="mb-3 d-block" />
-                  <h4 className="h5 mb-3" style={{ fontFamily: 'Georgia, serif' }}>{t('home.easy')}</h4>
-                  <p className="small" style={{ color: '#777', lineHeight: '1.6' }}>
-                    {t('home.easyText')}
-                  </p>
+              <div className="row row-cols-2 g-3 g-md-4 home-about-points">
+                <div className="col">
+                  <div className="home-about-point h-100">
+                    <KeyIcon size={26} className="mb-3 d-block" />
+                    <h4 className="h5 mb-3" style={{ fontFamily: 'Georgia, serif' }}>{t('home.easy')}</h4>
+                    <p className="small mb-0" style={{ color: '#777', lineHeight: '1.6' }}>
+                      {t('home.easyText')}
+                    </p>
+                  </div>
                 </div>
-                <div className="col-md-6 mb-4">
-                  <ShieldIcon size={26} className="mb-3 d-block" />
-                  <h4 className="h5 mb-3" style={{ fontFamily: 'Georgia, serif' }}>{t('home.protection')}</h4>
-                  <p className="small" style={{ color: '#777', lineHeight: '1.6' }}>
-                    {t('home.protectionText')}
-                  </p>
+                <div className="col">
+                  <div className="home-about-point h-100">
+                    <ShieldIcon size={26} className="mb-3 d-block" />
+                    <h4 className="h5 mb-3" style={{ fontFamily: 'Georgia, serif' }}>{t('home.protection')}</h4>
+                    <p className="small mb-0" style={{ color: '#777', lineHeight: '1.6' }}>
+                      {t('home.protectionText')}
+                    </p>
+                  </div>
                 </div>
-                <div className="col-md-6 mb-4">
-                  <ClockIcon size={26} className="mb-3 d-block" />
-                  <h4 className="h5 mb-3" style={{ fontFamily: 'Georgia, serif' }}>{t('home.onTime')}</h4>
-                  <p className="small" style={{ color: '#777', lineHeight: '1.6' }}>
-                    {t('home.onTimeText')}
-                  </p>
+                <div className="col">
+                  <div className="home-about-point h-100">
+                    <ClockIcon size={26} className="mb-3 d-block" />
+                    <h4 className="h5 mb-3" style={{ fontFamily: 'Georgia, serif' }}>{t('home.onTime')}</h4>
+                    <p className="small mb-0" style={{ color: '#777', lineHeight: '1.6' }}>
+                      {t('home.onTimeText')}
+                    </p>
+                  </div>
                 </div>
-                <div className="col-md-6 mb-4">
-                  <AwardIcon size={26} className="mb-3 d-block" />
-                  <h4 className="h5 mb-3" style={{ fontFamily: 'Georgia, serif' }}>{t('home.premium')}</h4>
-                  <p className="small" style={{ color: '#777', lineHeight: '1.6' }}>
-                    {t('home.premiumText')}
-                  </p>
+                <div className="col">
+                  <div className="home-about-point h-100">
+                    <AwardIcon size={26} className="mb-3 d-block" />
+                    <h4 className="h5 mb-3" style={{ fontFamily: 'Georgia, serif' }}>{t('home.premium')}</h4>
+                    <p className="small mb-0" style={{ color: '#777', lineHeight: '1.6' }}>
+                      {t('home.premiumText')}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -529,7 +537,7 @@ function Home() {
         </div>
 
         <div
-          className="rounded-4 p-4 p-md-5 d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-4"
+          className="home-ready-banner rounded-4 p-4 p-md-5 d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-4"
           style={{ background: 'linear-gradient(135deg, #14110b 0%, #0f0f0f 100%)', border: '1px solid rgba(238,176,18,0.22)' }}
         >
           <div>
@@ -539,7 +547,7 @@ function Home() {
               {t('home.readyText')}
             </p>
           </div>
-          <div className="d-flex flex-wrap gap-3">
+          <div className="home-ready-actions d-flex flex-wrap gap-3">
             <Link
               to="/booking"
               className="btn rounded-pill px-4 py-3 fw-semibold border-0 text-decoration-none"
