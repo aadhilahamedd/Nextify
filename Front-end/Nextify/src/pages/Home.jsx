@@ -356,10 +356,10 @@ function Home() {
                 </div>
               </div>
 
-              <div className="row row-cols-2 g-3 g-md-4 home-about-points">
+              <div className="row row-cols-1 row-cols-sm-2 g-4 home-about-points">
                 <div className="col">
                   <div className="home-about-point h-100">
-                    <KeyIcon size={26} className="mb-3 d-block" />
+                    <span className="home-about-point-icon"><KeyIcon size={22} /></span>
                     <h4 className="h5 mb-3" style={{ fontFamily: 'Georgia, serif' }}>{t('home.easy')}</h4>
                     <p className="small mb-0" style={{ color: '#777', lineHeight: '1.6' }}>
                       {t('home.easyText')}
@@ -368,7 +368,7 @@ function Home() {
                 </div>
                 <div className="col">
                   <div className="home-about-point h-100">
-                    <ShieldIcon size={26} className="mb-3 d-block" />
+                    <span className="home-about-point-icon"><ShieldIcon size={22} /></span>
                     <h4 className="h5 mb-3" style={{ fontFamily: 'Georgia, serif' }}>{t('home.protection')}</h4>
                     <p className="small mb-0" style={{ color: '#777', lineHeight: '1.6' }}>
                       {t('home.protectionText')}
@@ -377,7 +377,7 @@ function Home() {
                 </div>
                 <div className="col">
                   <div className="home-about-point h-100">
-                    <ClockIcon size={26} className="mb-3 d-block" />
+                    <span className="home-about-point-icon"><ClockIcon size={22} /></span>
                     <h4 className="h5 mb-3" style={{ fontFamily: 'Georgia, serif' }}>{t('home.onTime')}</h4>
                     <p className="small mb-0" style={{ color: '#777', lineHeight: '1.6' }}>
                       {t('home.onTimeText')}
@@ -386,7 +386,7 @@ function Home() {
                 </div>
                 <div className="col">
                   <div className="home-about-point h-100">
-                    <AwardIcon size={26} className="mb-3 d-block" />
+                    <span className="home-about-point-icon"><AwardIcon size={22} /></span>
                     <h4 className="h5 mb-3" style={{ fontFamily: 'Georgia, serif' }}>{t('home.premium')}</h4>
                     <p className="small mb-0" style={{ color: '#777', lineHeight: '1.6' }}>
                       {t('home.premiumText')}

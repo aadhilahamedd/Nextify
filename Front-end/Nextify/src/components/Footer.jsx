@@ -11,67 +11,65 @@ function Footer() {
   const { t, formatNumber } = useLanguage();
   const addressLines = [t('company.address1'), t('company.address2'), t('company.address3'), t('company.address4')];
   return (
-    <footer className="site-footer py-5 text-white" style={{ backgroundColor: '#0a0a0a', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-      <Container className="py-5">
-        <div className="row g-5 site-footer-grid">
-          <div className="col-4">
-            <div className="mb-4">
-              <img src={logo} alt="Nextify Logo" style={{ height: '52px', width: 'auto', objectFit: 'contain' }} />
-            </div>
-            <p className="text-white-50 mt-3" style={{ lineHeight: '1.8', maxWidth: '300px' }}>
+    <footer className="site-footer text-white">
+      <Container>
+        <div className="site-footer-grid">
+          <div className="site-footer-brand">
+            <img src={logo} alt="Nextify Logo" className="site-footer-logo" />
+            <p className="site-footer-copy">
               {t('company.description')}
             </p>
-            <div className="d-flex align-items-center gap-3 mt-4">
-              <div className="d-flex align-items-center justify-content-center border border-secondary rounded-circle" style={{ width: '40px', height: '40px' }}>
+            <div className="site-footer-phone">
+              <span className="site-footer-phone-icon">
                 <PhoneIcon size={16} />
-              </div>
+              </span>
               <a href={`tel:${COMPANY.phonePrimaryDigits}`} className="fw-semibold text-white text-decoration-none ltr-num" dir="ltr">{COMPANY.phonePrimary}</a>
             </div>
           </div>
 
-          <div className="col-2">
-            <h4 className="h6 text-uppercase fw-bold mb-4" style={{ letterSpacing: '2px', color: '#eeb012' }}>{t('footer.company')}</h4>
-            <ul className="list-unstyled">
-              <li className="mb-3"><Link to="/" className="text-white-50 text-decoration-none">{t('nav.home')}</Link></li>
-              <li className="mb-3"><Link to="/about" className="text-white-50 text-decoration-none">{t('nav.about')}</Link></li>
-              <li className="mb-3"><Link to="/carlist" className="text-white-50 text-decoration-none">{t('footer.fleet')}</Link></li>
-              <li className="mb-3"><Link to="/contact" className="text-white-50 text-decoration-none">{t('footer.contact')}</Link></li>
+          <div className="site-footer-col">
+            <h4>{t('footer.company')}</h4>
+            <ul className="list-unstyled mb-0">
+              <li><Link to="/" className="text-white-50 text-decoration-none">{t('nav.home')}</Link></li>
+              <li><Link to="/about" className="text-white-50 text-decoration-none">{t('nav.about')}</Link></li>
+              <li><Link to="/carlist" className="text-white-50 text-decoration-none">{t('footer.fleet')}</Link></li>
+              <li><Link to="/contact" className="text-white-50 text-decoration-none">{t('footer.contact')}</Link></li>
             </ul>
           </div>
 
-          <div className="col-2">
-            <h4 className="h6 text-uppercase fw-bold mb-4" style={{ letterSpacing: '2px', color: '#eeb012' }}>{t('footer.help')}</h4>
-            <ul className="list-unstyled">
-              <li className="mb-3"><Link to="/contact" className="text-white-50 text-decoration-none">{t('footer.support')}</Link></li>
-              <li className="mb-3"><Link to={{ pathname: '/', hash: '#how-it-works' }} className="text-white-50 text-decoration-none">{t('footer.how')}</Link></li>
-              <li className="mb-3"><Link to="/track-booking" className="text-white-50 text-decoration-none">{t('footer.track')}</Link></li>
-              <li className="mb-3"><Link to="/qr" className="text-white-50 text-decoration-none">{t('footer.qr')}</Link></li>
-              <li className="mb-3"><Link to="/privacy-policy" className="text-white-50 text-decoration-none">{t('footer.privacy')}</Link></li>
-              <li className="mb-3"><Link to="/terms-and-conditions" className="text-white-50 text-decoration-none">{t('footer.terms')}</Link></li>
+          <div className="site-footer-col">
+            <h4>{t('footer.help')}</h4>
+            <ul className="list-unstyled mb-0">
+              <li><Link to="/contact" className="text-white-50 text-decoration-none">{t('footer.support')}</Link></li>
+              <li><Link to={{ pathname: '/', hash: '#how-it-works' }} className="text-white-50 text-decoration-none">{t('footer.how')}</Link></li>
+              <li><Link to="/track-booking" className="text-white-50 text-decoration-none">{t('footer.track')}</Link></li>
+              <li><Link to="/qr" className="text-white-50 text-decoration-none">{t('footer.qr')}</Link></li>
+              <li><Link to="/privacy-policy" className="text-white-50 text-decoration-none">{t('footer.privacy')}</Link></li>
+              <li><Link to="/terms-and-conditions" className="text-white-50 text-decoration-none">{t('footer.terms')}</Link></li>
             </ul>
           </div>
 
-          <div className="col-4">
-            <h4 className="h6 text-uppercase fw-bold mb-4" style={{ letterSpacing: '2px', color: '#eeb012' }}>{t('footer.contactInfo')}</h4>
-            <div className="d-flex gap-3 mb-3">
+          <div className="site-footer-col site-footer-contact">
+            <h4>{t('footer.contactInfo')}</h4>
+            <div className="site-footer-contact-row">
               <ClockIcon size={16} />
-              <p className="text-white-50 small mb-0">{t('company.hours')}</p>
+              <p className="text-white-50 mb-0">{t('company.hours')}</p>
             </div>
-            <div className="d-flex gap-3 mb-3">
+            <div className="site-footer-contact-row">
               <MailIcon size={16} />
-              <a href={`mailto:${COMPANY.email}`} className="text-white-50 small mb-0 text-decoration-none">{COMPANY.email}</a>
+              <a href={`mailto:${COMPANY.email}`} className="text-white-50 mb-0 text-decoration-none">{COMPANY.email}</a>
             </div>
-            <div className="d-flex gap-3 mb-3">
+            <div className="site-footer-contact-row">
               <PhoneIcon size={16} />
-              <p className="text-white-50 small mb-0">
+              <p className="text-white-50 mb-0">
                 <a href={`tel:${COMPANY.phonePrimaryDigits}`} className="text-white-50 text-decoration-none ltr-num" dir="ltr">{COMPANY.phonePrimary}</a>
                 <br />
                 <a href={`tel:${COMPANY.phoneLandline.replace(/\s/g, '')}`} className="text-white-50 text-decoration-none ltr-num" dir="ltr">{COMPANY.phoneLandline}</a>
               </p>
             </div>
-            <div className="d-flex gap-3">
+            <div className="site-footer-contact-row">
               <MapPinIcon size={16} />
-              <p className="text-white-50 small mb-0">
+              <p className="text-white-50 mb-0">
                 {addressLines.map((line) => (
                   <React.Fragment key={line}>{line}<br /></React.Fragment>
                 ))}
@@ -80,19 +78,21 @@ function Footer() {
           </div>
         </div>
 
-        <hr className="site-footer-rule my-5" style={{ opacity: '0.05' }} />
+        <hr className="site-footer-rule" />
 
-        <div className="site-footer-bottom d-flex flex-row flex-wrap justify-content-between align-items-center gap-4">
-          <p className="text-white-50 small mb-0" style={{ letterSpacing: '1px' }}>© {formatNumber(new Date().getFullYear())} {t('footer.rights')}</p>
-          <div className="d-flex flex-wrap justify-content-center gap-3 gap-md-4">
-            <Link to="/privacy-policy" className="text-white-50 small text-decoration-none">{t('footer.privacy')}</Link>
-            <Link to="/terms-and-conditions" className="text-white-50 small text-decoration-none">{t('footer.terms')}</Link>
-            <Link to="/contact" className="text-white-50 small text-decoration-none">{t('footer.contact')}</Link>
+        <div className="site-footer-bottom">
+          <p className="site-footer-legal mb-0">© {formatNumber(new Date().getFullYear())} {t('footer.rights')}</p>
+          <div className="site-footer-bottom-links">
+            <Link to="/privacy-policy" className="text-white-50 text-decoration-none">{t('footer.privacy')}</Link>
+            <Link to="/terms-and-conditions" className="text-white-50 text-decoration-none">{t('footer.terms')}</Link>
+            <Link to="/contact" className="text-white-50 text-decoration-none">{t('footer.contact')}</Link>
           </div>
-          <div className="d-flex gap-4">
+          <div className="site-footer-bottom-icons">
             <a href={COMPANY.website} target="_blank" rel="noreferrer" className="text-white-50"><GlobeIcon size={20} /></a>
             <a href={`mailto:${COMPANY.email}`} className="text-white-50"><MailIcon size={20} /></a>
-            <a href={getWhatsAppUrl(COMPANY_PHONE, t('wa.help'))} target="_blank" rel="noreferrer" className="text-white-50" aria-label={t('footer.whatsapp')}><i className="bi bi-whatsapp fs-5"></i></a>
+            <a href={getWhatsAppUrl(COMPANY_PHONE, t('wa.help'))} target="_blank" rel="noreferrer" className="text-white-50" aria-label={t('footer.whatsapp')}>
+              <i className="bi bi-whatsapp" />
+            </a>
           </div>
         </div>
       </Container>
