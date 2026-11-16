@@ -37,11 +37,11 @@ import './Booking.css';
 import { CheckCircleIcon, CoinsIcon, SERVICE_ICONS, ShieldIcon, UserIcon } from '../icons';
 
 const SERVICE_IMAGES = {
-  airport_transfer: '/images/services/service-airport.jpg?v=3',
-  city_transfer: '/images/services/service-city.jpg?v=3',
+  airport_transfer: '/images/services/service-airport.jpg?v=4',
+  city_transfer: '/images/services/service-city.jpg?v=4',
   chauffeur: '/images/services/service-chauffeur.jpg?v=3',
-  intercity_transfer: '/images/services/service-intercity.jpg?v=2',
-  gcc_transfer: '/images/services/service-gcc.jpg?v=3',
+  intercity_transfer: '/images/services/service-intercity.jpg?v=4',
+  gcc_transfer: '/images/services/service-gcc.jpg?v=4',
 };
 
 const SERVICE_ALT_KEYS = {
