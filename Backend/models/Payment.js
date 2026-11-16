@@ -24,4 +24,13 @@ const paymentSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+paymentSchema.index(
+  { provider: 1, providerReference: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { providerReference: { $gt: '' } },
+    name: 'uniq_provider_reference',
+  }
+);
+
 module.exports = mongoose.model('Payment', paymentSchema);

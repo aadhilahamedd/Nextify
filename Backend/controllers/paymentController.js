@@ -1,6 +1,7 @@
 const Payment = require('../models/Payment');
 const Booking = require('../models/Booking');
 const paymentService = require('../services/paymentService');
+const { mockPaymentEndpointsEnabled } = require('../services/paymentProviders/mockPaymentGuard');
 const { success, error } = require('../utils/apiResponse');
 
 function notifyWhatsAppPayment(result) {
@@ -54,6 +55,7 @@ exports.createPayment = async (req, res, next) => {
 
 exports.mockComplete = async (req, res, next) => {
   try {
+    if (!mockPaymentEndpointsEnabled()) return error(res, 404, 'Not found');
     const { paymentId } = req.body;
     const payment = await Payment.findById(paymentId);
     if (!payment) return error(res, 404, 'Payment not found');
@@ -73,6 +75,7 @@ exports.mockComplete = async (req, res, next) => {
 
 exports.mockFail = async (req, res, next) => {
   try {
+    if (!mockPaymentEndpointsEnabled()) return error(res, 404, 'Not found');
     const { paymentId } = req.body;
     const payment = await Payment.findById(paymentId);
     if (!payment) return error(res, 404, 'Payment not found');
@@ -98,13 +101,18 @@ exports.verifyPayment = async (req, res, next) => {
     const result = await paymentService.verifyPayment(paymentId);
     const mapped = result.mappedStatus || result.payment.status;
     const verified = mapped === 'PAID';
-    notifyWhatsAppPayment(result);
+    if (!result.reused && !result.duplicateCharge) notifyWhatsAppPayment(result);
 
-    return success(res, verified ? 200 : 422, verified ? 'Payment verified' : 'Payment not successful', {
+    const httpMessage = result.manualInterventionRequired
+      ? result.message
+      : (verified ? 'Payment verified' : 'Payment not successful');
+    return success(res, verified ? 200 : 422, httpMessage, {
       payment: paymentService.toSafePayment(result.payment),
       booking: result.booking?.toPublicJSON ? result.booking.toPublicJSON() : result.booking,
       verified,
       status: mapped,
+      duplicateCharge: Boolean(result.duplicateCharge),
+      manualInterventionRequired: Boolean(result.manualInterventionRequired),
     });
   } catch (err) {
     next(err);
@@ -129,11 +137,19 @@ exports.attachMoyasarReference = async (req, res, next) => {
 exports.webhook = async (req, res, next) => {
   try {
     const result = await paymentService.handleWebhook(req.body);
-    notifyWhatsAppPayment(result);
-    return success(res, 200, 'Webhook processed', {
+    if (result?.verification || result?.ignored) {
+      return success(res, 200, 'Webhook accepted', {
+        verification: Boolean(result.verification),
+        ignored: Boolean(result.ignored),
+      });
+    }
+    if (!result.reused && !result.duplicateCharge) notifyWhatsAppPayment(result);
+    return success(res, 200, result.manualInterventionRequired ? result.message : 'Webhook processed', {
       payment: paymentService.toSafePayment(result.payment),
       bookingNumber: result.booking?.bookingNumber,
-      status: result.mappedStatus || result.payment.status,
+      status: result.mappedStatus || result.payment?.status,
+      duplicateCharge: Boolean(result.duplicateCharge),
+      manualInterventionRequired: Boolean(result.manualInterventionRequired),
     });
   } catch (err) {
     next(err);

@@ -1,5 +1,6 @@
 const LEADS = {
   'booking.waPayLead': 'Confirm on WhatsApp, then pay securely.',
+  'booking.payLead': 'Pay securely with mada, Visa, Mastercard, Apple Pay, Samsung Pay, or Google Pay.',
   'confirm.payMethodsLead': 'After confirmation you can pay securely.',
 };
 

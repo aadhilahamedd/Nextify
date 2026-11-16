@@ -152,6 +152,11 @@ function BookingConfirmation() {
             {t('confirm.id')} <strong>{booking.bookingNumber}</strong>
 
           </p>
+          {location.state?.manualInterventionRequired && (
+            <p className="mt-3 mb-0" style={{ color: '#eeb012' }}>
+              {location.state.paymentNotice || 'This booking is already paid. A second charge was not applied and needs a manual refund in the Moyasar dashboard.'}
+            </p>
+          )}
           {whatsappPending && (
             <div style={{ maxWidth: 520, marginInline: 'auto' }}>
               <p className="text-white-50 mt-2 mb-3">

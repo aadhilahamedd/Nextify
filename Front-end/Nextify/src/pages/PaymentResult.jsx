@@ -28,7 +28,12 @@ function PaymentResult() {
       if (verified && booking?.bookingNumber) {
         sessionStorage.removeItem('nextify_pending_booking');
         navigate(`/booking-confirmation/${booking.bookingNumber}`, {
-          state: { booking, paymentSuccess: true },
+          state: {
+            booking,
+            paymentSuccess: true,
+            manualInterventionRequired: Boolean(res.data?.manualInterventionRequired),
+            paymentNotice: res.message || '',
+          },
           replace: true,
         });
         return;

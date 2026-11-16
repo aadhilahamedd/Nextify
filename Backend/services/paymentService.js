@@ -2,6 +2,8 @@ const Payment = require('../models/Payment');
 const Booking = require('../models/Booking');
 const mockPaymentProvider = require('./paymentProviders/mockPaymentProvider');
 const moyasarPaymentProvider = require('./paymentProviders/moyasarPaymentProvider');
+const { assertMoyasarCredentials } = require('./paymentProviders/moyasarConfig');
+const { frontendBaseUrl } = require('../config/publicUrls');
 
 const PROVIDER = process.env.PAYMENT_PROVIDER || 'mock';
 
@@ -61,10 +63,6 @@ function getCheckoutConfig(payment, booking) {
   return { provider: PROVIDER };
 }
 
-function frontendBaseUrl() {
-  return (process.env.FRONTEND_URL || process.env.CLIENT_URL || 'http://localhost:5173').replace(/\/$/, '');
-}
-
 async function createOrReuseCheckout(bookingDoc) {
   const booking = bookingDoc?._id ? bookingDoc : await Booking.findById(bookingDoc);
   if (!booking) {
@@ -88,6 +86,7 @@ async function createOrReuseCheckout(bookingDoc) {
     err.statusCode = 409;
     throw err;
   }
+  if (PROVIDER === 'moyasar') assertMoyasarCredentials({ force: true });
 
   const alreadyPaid = await Payment.findOne({ booking: booking._id, status: 'PAID' });
   if (alreadyPaid) {

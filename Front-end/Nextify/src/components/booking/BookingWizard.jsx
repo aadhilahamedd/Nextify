@@ -776,8 +776,8 @@ function BookingWizard() {
           <p className="mb-0">{t('booking.inquiryReadyLead')}</p>
         </div>
       )}
-      {!isInquiry && TEMP_WHATSAPP_BOOKING_INSTEAD_OF_MOYASAR && step === 2 && !quote?.customQuoteRequired && (
-        <PaymentMethods />
+      {!isInquiry && step === 2 && !quote?.customQuoteRequired && (
+        <PaymentMethods leadKey={TEMP_WHATSAPP_BOOKING_INSTEAD_OF_MOYASAR ? 'booking.waPayLead' : 'booking.payLead'} />
       )}
       {error && !/timeout|network error|econnaborted/i.test(error) && (
         <div className="book-error">{error}</div>
