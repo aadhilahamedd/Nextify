@@ -2,7 +2,7 @@ const User = require('../models/User');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { success, error } = require('../utils/apiResponse');
-const { JWT_SECRET, REFRESH_WINDOW_MS, signAuthToken, publicUser } = require('../utils/authToken');
+const { getJwtSecret, REFRESH_WINDOW_MS, signAuthToken, publicUser } = require('../utils/authToken');
 
 const DEFAULT_ADMIN_EMAIL = process.env.ADMIN_EMAIL ? process.env.ADMIN_EMAIL.toLowerCase() : 'support@nextify.com';
 const DEFAULT_ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'nextify123';
@@ -133,12 +133,12 @@ exports.refresh = async (req, res) => {
 
     let decoded;
     try {
-      decoded = jwt.verify(token, JWT_SECRET);
+      decoded = jwt.verify(token, getJwtSecret());
     } catch (err) {
       if (err.name !== 'TokenExpiredError') {
         return error(res, 403, 'Invalid token.');
       }
-      decoded = jwt.verify(token, JWT_SECRET, { ignoreExpiration: true });
+      decoded = jwt.verify(token, getJwtSecret(), { ignoreExpiration: true });
       const expiredAt = Number(decoded.exp) * 1000;
       if (!expiredAt || Date.now() - expiredAt > REFRESH_WINDOW_MS) {
         return error(res, 401, 'Token has expired. Please login again.');

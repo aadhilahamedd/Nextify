@@ -1,5 +1,14 @@
 const express = require('express');
 require('dotenv').config();
+const { assertProductionJwtSecret } = require('./utils/jwtSecret');
+
+try {
+  assertProductionJwtSecret();
+} catch (err) {
+  console.error('[auth] JWT configuration rejected:', err.message);
+  process.exit(1);
+}
+
 const cors = require('cors');
 const route = require('./routes/route');
 const errorHandler = require('./middleware/errorHandler');

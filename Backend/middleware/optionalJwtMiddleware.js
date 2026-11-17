@@ -1,6 +1,5 @@
 const jwt = require('jsonwebtoken');
-
-const JWT_SECRET = process.env.JWT_SECRET || 'nextify_fallback_secret';
+const { getJwtSecret } = require('../utils/jwtSecret');
 
 /** Attaches req.user when a valid token is present; continues as guest otherwise */
 const optionalJwtMiddleware = (req, res, next) => {
@@ -8,7 +7,7 @@ const optionalJwtMiddleware = (req, res, next) => {
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const token = authHeader.split(' ')[1];
-      req.user = jwt.verify(token, JWT_SECRET);
+      req.user = jwt.verify(token, getJwtSecret());
     }
   } catch {
     // Invalid token on optional route — treat as guest

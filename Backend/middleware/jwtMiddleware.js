@@ -1,6 +1,5 @@
 const jwt = require('jsonwebtoken');
-
-const JWT_SECRET = process.env.JWT_SECRET || 'nextify_fallback_secret';
+const { getJwtSecret } = require('../utils/jwtSecret');
 
 const jwtMiddleware = (req, res, next) => {
   try {
@@ -13,7 +12,7 @@ const jwtMiddleware = (req, res, next) => {
     const token = authHeader.split(' ')[1];
 
     // Verify token
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, getJwtSecret());
     req.user = decoded;
     next();
   } catch (err) {
