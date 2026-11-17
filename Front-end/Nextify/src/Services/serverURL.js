@@ -1,4 +1,4 @@
-const PRODUCTION_API_URL = 'https://nextify-egkj.onrender.com';
+const PRODUCTION_API_URL = 'https://nextify-1.onrender.com';
 
 function developmentApiUrl() {
   const configured = String(
