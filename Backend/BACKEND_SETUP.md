@@ -1,9 +1,9 @@
 # Nextify Backend Setup Guide
 
 ## Prerequisites
-- Node.js (v14+)
-- MongoDB Atlas account (already configured)
-- npm or yarn
+- Node.js (v18+)
+- MongoDB Atlas (or compatible MongoDB)
+- npm
 
 ## Setup Instructions
 
@@ -14,13 +14,46 @@ npm install
 ```
 
 ### 2. Environment Variables
-The `.env` file is already configured with MongoDB connection string:
-```
-connectionString=mongodb+srv://adhilahammed7792_db_user:nextify123@cluster0.3yo6top.mongodb.net/Nextify?appName=Cluster0
-PORT=3000
+Copy the example file and fill in real values locally. **Never commit `.env` or paste live credentials into docs.**
+
+```bash
+cp .env.example .env
 ```
 
-### 3. Run the Backend Server
+Required (names only — put secrets only in `.env` / your host secret store):
+
+| Variable | Purpose |
+|----------|---------|
+| `MONGODB_URI` or `connectionString` | MongoDB connection URI |
+| `JWT_SECRET` | Strong unique secret (required in production) |
+| `PORT` | HTTP port (default 5000) |
+| `ADMIN_EMAIL` / `ADMIN_PASSWORD` / `ADMIN_USERNAME` | Used only by the admin provisioning script — **not** for silent runtime bootstrap |
+| Moyasar / WhatsApp keys | See `.env.example` |
+
+Example shape (placeholders only):
+
+```
+PORT=5000
+MONGODB_URI=<paste Atlas URI from your secret store — do not commit>
+JWT_SECRET=your_secure_jwt_secret_here
+ADMIN_EMAIL=admin@example.com
+ADMIN_PASSWORD=use_a_long_unique_password
+ADMIN_USERNAME=Nextify Admin
+```
+
+### 3. Provision the first admin (ops only)
+Public registration always creates `role: user`. Admins are **not** created on login and **not** assigned by email during register.
+
+```bash
+# With ADMIN_EMAIL + ADMIN_PASSWORD (+ optional ADMIN_USERNAME) set in Backend/.env:
+npm run provision:admin
+```
+
+The script fails closed if credentials are missing, too short, or known placeholders. It never prints passwords or the Mongo URI.
+
+Existing admin accounts continue to log in via `POST /api/admin/login` with their stored password hash.
+
+### 4. Run the Backend Server
 
 **Development Mode (with auto-reload):**
 ```bash
@@ -32,7 +65,7 @@ npm run dev
 npm start
 ```
 
-The server will run on `http://localhost:3000`
+The server listens on the configured `PORT` (default `5000`).
 
 ## API Endpoints
 
@@ -49,119 +82,40 @@ The server will run on `http://localhost:3000`
 - **PATCH** `/api/messages/:id/read` - Mark message as read (admin)
 - **DELETE** `/api/messages/:id` - Delete message (admin)
 
-**Deploy note:** If `POST /api/messages` returns 404 on Render, push these files and redeploy:
-- `Backend/models/Message.js`
-- `Backend/controllers/messageController.js`
-- `Backend/middleware/adminMiddleware.js`
-- `Backend/routes/route.js` (updated)
-
-## Request/Response Examples
-
-### Create Booking
-**Request:**
-```json
-POST /api/bookings
-{
-  "name": "Ahmed Ali",
-  "mobile": "0501234567",
-  "email": "ahmed@example.com",
-  "serviceType": "airport",
-  "flightNumber": "EK901",
-  "arrivalDateTime": "2024-05-25T14:30:00",
-  "vehicle": "Mercedes-Benz S-Class",
-  "pickupLocation": "King Khalid International Airport (RUH) - Riyadh",
-  "otherPickupLocation": "",
-  "dropoffLocation": "Downtown Riyadh",
-  "hours": "5 HRS"
-}
-```
-
-**Response (201 Created):**
-```json
-{
-  "message": "Booking created successfully",
-  "booking": {
-    "_id": "64abc123def456ghi789jkl",
-    "name": "Ahmed Ali",
-    "mobile": "0501234567",
-    "email": "ahmed@example.com",
-    "serviceType": "airport",
-    "bookingStatus": "pending",
-    "createdAt": "2024-05-21T10:30:00Z",
-    "updatedAt": "2024-05-21T10:30:00Z"
-  }
-}
-```
-
-## Database Schema
-
-### Booking Model
-```javascript
-{
-  name: String (required),
-  mobile: String (required),
-  email: String (required),
-  serviceType: String (airport|pointToPoint|hourly, required),
-  flightNumber: String,
-  arrivalDateTime: Date (required),
-  vehicle: String (required),
-  pickupLocation: String (required),
-  otherPickupLocation: String,
-  dropoffLocation: String (required),
-  hours: String (default: "5 HRS"),
-  bookingStatus: String (pending|confirmed|cancelled, default: pending),
-  createdAt: Date (auto),
-  updatedAt: Date (auto)
-}
-```
-
-## Frontend Integration
-
-The frontend is configured to communicate with the backend at `http://localhost:3000`. API calls are made using the `bookingAPI` service in `Services/bookingAPI.js`.
-
-### Frontend URL Configuration
-Update `BASE_URL` in `Services/bookingAPI.js` if the backend port changes:
-```javascript
-const BASE_URL = "http://localhost:3000";
-```
+### Chat
+- **POST** `/api/chat` - FAQ / pricing assistant (no OpenAI)
 
 ## Troubleshooting
 
 ### Connection Failed
 - Ensure MongoDB Atlas cluster is active
-- Verify `.env` file has correct `connectionString`
-- Check internet connection
+- Verify `.env` has a valid `MONGODB_URI` or `connectionString` (never paste it into git)
+- Check network / Atlas IP allowlist
 
 ### Port Already in Use
-Change the PORT in `.env`:
-```
-PORT=3001
-```
-And update `BASE_URL` in frontend `bookingAPI.js`
+Change `PORT` in `.env`.
 
 ### CORS Issues
-The backend is configured with CORS enabled for all origins. If you encounter CORS errors, ensure the frontend request includes proper headers.
+CORS is allowlist-based via `FRONTEND_URL` / configured origins. Confirm the deployed frontend origin matches.
 
 ## Project Structure
 
 ```
 Backend/
-├── index.js (Main server file)
-├── .env (Environment variables)
+├── index.js
+├── .env.example
 ├── package.json
+├── scripts/
+│   └── provisionAdmin.js
 ├── dbConnect/
-│   └── dbConnect.js (MongoDB connection)
 ├── models/
-│   └── Booking.js (MongoDB schema)
 ├── controllers/
-│   └── bookingController.js (Business logic)
+├── services/
 └── routes/
-    └── route.js (API endpoints)
 ```
 
-## Next Steps
+## Security notes
 
-1. Start the backend server: `npm run dev`
-2. Verify connection in terminal output
-3. Test API endpoints using Postman or browser
-4. Frontend will communicate with backend automatically
+1. Rotate any MongoDB password that was ever committed or shared in docs/chat.
+2. Do not store live secrets in markdown, zip archives, or tickets.
+3. After credential rotation, update Render (or your host) secret store only.

@@ -1,6 +1,6 @@
 const crypto = require('crypto');
 const ChatSession = require('../models/ChatSession');
-const { generateAIReply } = require('../services/aiChatService');
+const { processMessage } = require('../services/chatService');
 const { success, error } = require('../utils/apiResponse');
 
 exports.chat = async (req, res) => {
@@ -17,27 +17,21 @@ exports.chat = async (req, res) => {
     if (!session) {
       session = new ChatSession({
         sessionId: sid,
-        mode: 'ai',
+        mode: 'faq',
         messages: [],
       });
     }
 
-    const conversation = (session.messages || []).map((item) => ({
-      role: item.role,
-      content: item.content,
-    }));
-
-    let reply;
+    let replyPayload;
     try {
-      reply = await generateAIReply(message.trim(), conversation);
-    } catch (aiErr) {
-      console.error('AI Chat Error:', aiErr);
-      const quotaError = aiErr?.code === 'credit_balance_exhausted' || aiErr?.type === 'insufficient_quota' || aiErr?.status === 429;
-      if (quotaError) {
-        return error(res, 502, 'The assistant is temporarily unavailable. Please try again or contact Nextify on WhatsApp.');
-      }
+      replyPayload = await processMessage(message.trim());
+    } catch (chatErr) {
+      console.error('Chat Error:', chatErr.message);
       return error(res, 502, 'The assistant is temporarily unavailable. Please try again or contact Nextify on WhatsApp.');
     }
+
+    const reply = replyPayload?.reply;
+    const mode = replyPayload?.mode || 'faq';
 
     if (!reply || typeof reply !== 'string') {
       return error(res, 502, 'The assistant is temporarily unavailable. Please try again or contact Nextify on WhatsApp.');
@@ -51,17 +45,17 @@ exports.chat = async (req, res) => {
       role: 'assistant',
       content: reply,
     });
-    session.mode = 'ai';
+    session.mode = mode;
 
     await session.save();
 
     return success(res, 200, 'Chat response', {
       sessionId: sid,
       reply,
-      mode: 'ai',
+      mode,
     });
   } catch (err) {
-    console.error('Chat Controller Error:', err);
+    console.error('Chat Controller Error:', err.message);
     if (err.name === 'ValidationError') {
       const errors = Object.values(err.errors || {}).map((e) => e.message);
       return error(res, 400, 'Validation failed', errors);

@@ -1,4 +1,4 @@
-// Legacy FAQ/intent helpers. /api/chat now uses aiChatService, not processMessage.
+// FAQ/intent helpers for /api/chat (OpenAI removed).
 const Car = require('../models/Car');
 const PricingRule = require('../models/PricingRule');
 const { getRulesByService } = require('./pricingService');

@@ -12,8 +12,8 @@ const chatSessionSchema = new mongoose.Schema(
     ],
     mode: {
       type: String,
-      enum: ['ai', 'human', 'demo'],
-      default: 'ai',
+      enum: ['ai', 'human', 'demo', 'faq', 'pricing'],
+      default: 'faq',
     },
   },
   { timestamps: true }

@@ -19,7 +19,6 @@ const Settings = require('../models/Settings');
 const { DEFAULT_CONTACT } = require('../services/seedService');
 const mapsController = require('../controllers/mapsController');
 const { success } = require('../utils/apiResponse');
-const openaiService = require('../services/openaiService');
 
 // ====== Auth routes ======
 router.post('/api/register', authController.register);
@@ -104,32 +103,11 @@ router.use(whatsappRoutes);
 router.get('/api/reviews', reviewController.getReviews);
 router.post('/api/reviews', reviewController.createReview);
 
-// ====== Chat ======
+// ====== Chat (FAQ/rules only — no OpenAI) ======
 router.post('/api/chat', chatController.chat);
 
 router.get('/api/test', (req, res) => {
   return success(res, 200, 'API route working', { ok: true });
 });
 
-router.get("/api/test-openai", async (req, res) => {
-  try {
-    const response = await openaiService.responses.create({
-      model: "gpt-5",
-      input: "Say hello to Nextify in one short sentence.",
-    });
-
-    return res.status(200).json({
-      success: true,
-      reply: response.output_text,
-    });
-  } catch (error) {
-    console.error("OpenAI Test Error:", error);
-
-    return res.status(500).json({
-      success: false,
-      message: "OpenAI request failed",
-      error: error.message,
-    });
-  }
-});
 module.exports = router;

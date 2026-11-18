@@ -4,39 +4,49 @@ const jwt = require('jsonwebtoken');
 const { success, error } = require('../utils/apiResponse');
 const { getJwtSecret, REFRESH_WINDOW_MS, signAuthToken, publicUser } = require('../utils/authToken');
 
-const DEFAULT_ADMIN_EMAIL = process.env.ADMIN_EMAIL ? process.env.ADMIN_EMAIL.toLowerCase() : 'support@nextify.com';
-const DEFAULT_ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'nextify123';
-const DEFAULT_ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'Nextify Admin';
+/** Public registration always creates a normal user. Privilege fields in the body are ignored. */
+function buildRegisteredUserDocument({ username, email, passwordHash }) {
+  return {
+    username,
+    email,
+    password: passwordHash,
+    role: 'user',
+  };
+}
 
-const createDefaultAdmin = async () => {
-  const existingAdmin = await User.findOne({ email: DEFAULT_ADMIN_EMAIL });
-  if (existingAdmin) {
-    if (existingAdmin.role !== 'admin') {
-      existingAdmin.role = 'admin';
-      await existingAdmin.save();
-    }
-    return existingAdmin;
+async function authenticateByEmailPassword(email, password) {
+  const normalizedEmail = email?.toLowerCase();
+  if (!normalizedEmail || !password) {
+    return { ok: false, status: 400, message: 'Email and password are required' };
   }
 
-  const salt = await bcrypt.genSalt(10);
-  const hashedPassword = await bcrypt.hash(DEFAULT_ADMIN_PASSWORD, salt);
-  const adminUser = new User({
-    username: DEFAULT_ADMIN_USERNAME,
-    email: DEFAULT_ADMIN_EMAIL,
-    password: hashedPassword,
-    role: 'admin',
-  });
-  return adminUser.save();
-};
+  const user = await User.findOne({ email: normalizedEmail });
+  if (!user) {
+    return { ok: false, status: 401, message: 'Invalid email or password' };
+  }
+
+  const isPasswordValid = await bcrypt.compare(password, user.password);
+  if (!isPasswordValid) {
+    return { ok: false, status: 401, message: 'Invalid email or password' };
+  }
+
+  return { ok: true, user };
+}
 
 exports.register = async (req, res) => {
   try {
-    const { username, email, password } = req.body;
+    const { username, email, password } = req.body || {};
     const normalizedEmail = email?.toLowerCase();
 
     if (!username || !normalizedEmail || !password) {
       return error(res, 400, 'All fields are required');
     }
+
+    // Explicitly ignore privilege / mass-assignment fields from the client.
+    // role, isAdmin, and similar must never influence registration.
+    void req.body?.role;
+    void req.body?.isAdmin;
+    void req.body?.admin;
 
     const existingUser = await User.findOne({ email: normalizedEmail });
     if (existingUser) {
@@ -45,14 +55,13 @@ exports.register = async (req, res) => {
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
-    const assignedRole = normalizedEmail === DEFAULT_ADMIN_EMAIL ? 'admin' : 'user';
-
-    const newUser = new User({
-      username,
-      email: normalizedEmail,
-      password: hashedPassword,
-      role: assignedRole,
-    });
+    const newUser = new User(
+      buildRegisteredUserDocument({
+        username,
+        email: normalizedEmail,
+        passwordHash: hashedPassword,
+      }),
+    );
 
     await newUser.save();
 
@@ -63,53 +72,52 @@ exports.register = async (req, res) => {
       user: publicUser(newUser),
     });
   } catch (err) {
-    console.error('Registration error:', err);
-    return error(res, 500, 'Error during registration', [err.message]);
+    console.error('Registration error:', err.message);
+    return error(res, 500, 'Error during registration');
   }
 };
 
 exports.userLogin = async (req, res) => {
   try {
-    const { email, password } = req.body;
-    const normalizedEmail = email?.toLowerCase();
-
-    if (!normalizedEmail || !password) {
-      return error(res, 400, 'Email and password are required');
+    const { email, password } = req.body || {};
+    const result = await authenticateByEmailPassword(email, password);
+    if (!result.ok) {
+      return error(res, result.status, result.message);
     }
 
-    let user = await User.findOne({ email: normalizedEmail });
-
-    if (!user) {
-      if (normalizedEmail === DEFAULT_ADMIN_EMAIL && password === DEFAULT_ADMIN_PASSWORD) {
-        user = await createDefaultAdmin();
-      } else {
-        return error(res, 401, 'Invalid email or password');
-      }
-    }
-
-    if (user.email.toLowerCase() === DEFAULT_ADMIN_EMAIL && user.role !== 'admin') {
-      user.role = 'admin';
-      await user.save();
-    }
-
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
-      return error(res, 401, 'Invalid email or password');
-    }
-
-    const token = signAuthToken(user);
-
+    const token = signAuthToken(result.user);
     return success(res, 200, 'Login successful', {
       token,
-      user: publicUser(user),
+      user: publicUser(result.user),
     });
   } catch (err) {
-    console.error('User login error:', err);
-    return error(res, 500, 'Error during login', [err.message]);
+    console.error('User login error:', err.message);
+    return error(res, 500, 'Error during login');
   }
 };
 
-exports.adminLogin = exports.userLogin;
+exports.adminLogin = async (req, res) => {
+  try {
+    const { email, password } = req.body || {};
+    const result = await authenticateByEmailPassword(email, password);
+    if (!result.ok) {
+      return error(res, result.status, result.message);
+    }
+
+    if (result.user.role !== 'admin') {
+      return error(res, 403, 'Admin access denied');
+    }
+
+    const token = signAuthToken(result.user);
+    return success(res, 200, 'Login successful', {
+      token,
+      user: publicUser(result.user),
+    });
+  } catch (err) {
+    console.error('Admin login error:', err.message);
+    return error(res, 500, 'Error during login');
+  }
+};
 
 exports.getMe = async (req, res) => {
   try {
@@ -119,7 +127,7 @@ exports.getMe = async (req, res) => {
       user: publicUser(user),
     });
   } catch (err) {
-    return error(res, 500, 'Error fetching profile', [err.message]);
+    return error(res, 500, 'Error fetching profile');
   }
 };
 
@@ -155,4 +163,9 @@ exports.refresh = async (req, res) => {
   } catch (err) {
     return error(res, 401, 'Token has expired. Please login again.');
   }
+};
+
+// Exported for unit tests only — not an HTTP route.
+exports._test = {
+  buildRegisteredUserDocument,
 };
