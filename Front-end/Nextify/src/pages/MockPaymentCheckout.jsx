@@ -48,18 +48,23 @@ function loadMoyasarAssets() {
   });
 }
 
+function readSessionBooking() {
+  try {
+    return JSON.parse(sessionStorage.getItem('nextify_pending_booking') || 'null');
+  } catch {
+    return null;
+  }
+}
+
 function MockPaymentCheckout() {
   const { t, formatSar } = useLanguage();
   const location = useLocation();
   const navigate = useNavigate();
   const queryBookingId = new URLSearchParams(location.search).get('bookingId');
   const [booking, setBooking] = useState(() => {
+    if (queryBookingId) return null;
     if (location.state?.booking) return location.state.booking;
-    try {
-      return JSON.parse(sessionStorage.getItem('nextify_pending_booking') || 'null');
-    } catch {
-      return null;
-    }
+    return readSessionBooking();
   });
   const [loading, setLoading] = useState(false);
   const [payment, setPayment] = useState(null);
@@ -67,10 +72,21 @@ function MockPaymentCheckout() {
   const [error, setError] = useState('');
   const formReady = useRef(false);
   const whatsappRedirected = useRef(false);
+  const checkoutStartedFor = useRef(null);
+  const bootstrapped = useRef(false);
 
   useEffect(() => {
+    if (bootstrapped.current) return;
+    let cancelled = false;
+
     const startCheckout = (current) => {
-      sessionStorage.setItem('nextify_pending_booking', JSON.stringify(current));
+      if (!current?._id || checkoutStartedFor.current === current._id) return;
+      checkoutStartedFor.current = current._id;
+
+      try {
+        sessionStorage.setItem('nextify_pending_booking', JSON.stringify(current));
+      } catch { /* ignore quota */ }
+
       if (TEMP_WHATSAPP_BOOKING_INSTEAD_OF_MOYASAR) {
         if (whatsappRedirected.current) return;
         whatsappRedirected.current = true;
@@ -81,8 +97,12 @@ function MockPaymentCheckout() {
         openCompanyWhatsApp(message, { redirect: true });
         return;
       }
+
       createPaymentAPI(current._id).then((res) => {
+        if (cancelled) return;
         if (res?.status === 200 || res?.status === 201) {
+          const paidBooking = res.data?.booking;
+          if (paidBooking?._id) setBooking((prev) => ({ ...prev, ...paidBooking }));
           setPayment(res.data?.payment);
           setCheckout(res.data?.checkout || { provider: 'mock' });
         } else {
@@ -91,25 +111,34 @@ function MockPaymentCheckout() {
       });
     };
 
-    if (booking?._id) {
-      startCheckout(booking);
-      return;
-    }
-
-    if (!queryBookingId) {
-      navigate('/booking');
-      return;
-    }
-
-    getPublicPayBookingAPI(queryBookingId).then((res) => {
-      const fetched = res.data?.booking;
-      if ((res?.status === 200 || res?.status === 201) && fetched?._id) {
-        setBooking(fetched);
-        startCheckout(fetched);
-      } else {
-        setError(res?.data?.message || res?.error || 'Could not load this booking');
+    // Explicit bookingId (retry) always wins over stale session state.
+    if (queryBookingId) {
+      bootstrapped.current = true;
+      if (!/^[a-fA-F0-9]{24}$/.test(queryBookingId)) {
+        setError('Invalid booking id');
+        return () => { cancelled = true; };
       }
-    });
+      getPublicPayBookingAPI(queryBookingId).then((res) => {
+        if (cancelled) return;
+        const fetched = res.data?.booking;
+        if ((res?.status === 200 || res?.status === 201) && fetched?._id) {
+          setBooking(fetched);
+          startCheckout(fetched);
+        } else {
+          setError(res?.data?.message || res?.error || 'Could not load this booking');
+        }
+      });
+      return () => { cancelled = true; };
+    }
+
+    if (booking?._id) {
+      bootstrapped.current = true;
+      startCheckout(booking);
+      return () => { cancelled = true; };
+    }
+
+    navigate('/booking');
+    return () => { cancelled = true; };
   }, [booking, navigate, queryBookingId]);
 
   useEffect(() => {
@@ -144,6 +173,7 @@ function MockPaymentCheckout() {
           }),
           on_completed: async (moyasarPayment) => {
             if (moyasarPayment?.id) {
+              // Attach new Moyasar id to this checkout's local attempt only (immutable history).
               await attachMoyasarReferenceAPI(payment._id, moyasarPayment.id);
             }
           },
@@ -169,6 +199,18 @@ function MockPaymentCheckout() {
     setLoading(false);
     if (res?.status === 200) {
       const updatedBooking = res.data?.booking || booking;
+      if (success) {
+        sessionStorage.removeItem('nextify_pending_booking');
+      } else if (updatedBooking?._id) {
+        try {
+          sessionStorage.setItem('nextify_pending_booking', JSON.stringify({
+            _id: updatedBooking._id,
+            bookingNumber: updatedBooking.bookingNumber,
+            paymentStatus: updatedBooking.paymentStatus,
+            bookingStatus: updatedBooking.bookingStatus,
+          }));
+        } catch { /* ignore */ }
+      }
       navigate(`/booking-confirmation/${updatedBooking.bookingNumber}`, {
         state: { booking: updatedBooking, paymentSuccess: success },
       });

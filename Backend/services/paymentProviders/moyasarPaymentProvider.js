@@ -31,18 +31,35 @@ function getCheckoutConfig(payment, booking) {
 }
 
 async function createPayment({ booking, amount, currency = 'SAR' }) {
-  const payment = await Payment.create({
-    booking: booking._id,
-    bookingNumber: booking.bookingNumber,
-    amount,
-    currency,
-    provider: 'moyasar',
-    status: 'PENDING',
-    metadata: {
-      amountHalalas: toHalalas(amount),
-      env: process.env.MOYASAR_ENV || 'test',
-    },
-  });
+  let payment;
+  try {
+    payment = await Payment.create({
+      booking: booking._id,
+      bookingNumber: booking.bookingNumber,
+      amount,
+      currency,
+      provider: 'moyasar',
+      status: 'PENDING',
+      providerReference: '',
+      metadata: {
+        amountHalalas: toHalalas(amount),
+        env: process.env.MOYASAR_ENV || 'test',
+      },
+    });
+  } catch (err) {
+    // Concurrent checkout: reuse the single open empty-ref PENDING attempt.
+    if (err.code === 11000) {
+      payment = await Payment.findOne({
+        booking: booking._id,
+        provider: 'moyasar',
+        status: 'PENDING',
+        providerReference: '',
+      }).sort({ createdAt: -1 });
+      if (!payment) throw err;
+    } else {
+      throw err;
+    }
+  }
 
   booking.paymentStatus = 'PENDING';
   booking.bookingStatus = 'PAYMENT_PENDING';
@@ -51,21 +68,70 @@ async function createPayment({ booking, amount, currency = 'SAR' }) {
   return payment;
 }
 
+function assertMoyasarOwnership(localPayment, moyasarPayment) {
+  const metadata = moyasarPayment?.metadata || {};
+  const metaPaymentId = metadata.payment_id != null ? String(metadata.payment_id) : '';
+  const metaBookingNumber = metadata.booking_number != null ? String(metadata.booking_number) : '';
+
+  if (!metaPaymentId || !metaBookingNumber) {
+    throw httpError(409, 'Moyasar payment metadata is missing payment_id or booking_number');
+  }
+  if (metaPaymentId !== String(localPayment._id)) {
+    throw httpError(409, 'Moyasar payment does not belong to this payment attempt');
+  }
+  if (metaBookingNumber !== String(localPayment.bookingNumber)) {
+    throw httpError(409, 'Moyasar payment does not belong to this booking');
+  }
+
+  assertAmountMatch(localPayment, moyasarPayment);
+
+  if (typeof moyasarPayment.live === 'boolean') {
+    const expectLive = String(process.env.MOYASAR_ENV || 'test').trim().toLowerCase() === 'live';
+    if (moyasarPayment.live !== expectLive) {
+      throw httpError(409, 'Moyasar payment environment does not match server MOYASAR_ENV');
+    }
+  }
+}
+
 async function findLocalPayment(moyasarPayment) {
   const metadata = moyasarPayment?.metadata || {};
-  if (metadata.payment_id) {
-    const byId = await Payment.findById(metadata.payment_id);
-    if (byId) return byId;
-  }
-  if (moyasarPayment?.id) {
-    const byRef = await Payment.findOne({ providerReference: moyasarPayment.id, provider: 'moyasar' });
+  const incomingId = moyasarPayment?.id ? String(moyasarPayment.id) : '';
+
+  // 1) Exact Moyasar id already attached to an attempt (preferred).
+  if (incomingId) {
+    const byRef = await Payment.findOne({ providerReference: incomingId, provider: 'moyasar' });
     if (byRef) return byRef;
   }
-  if (metadata.booking_number) {
-    return Payment.findOne({
-      bookingNumber: metadata.booking_number,
-      provider: 'moyasar',
-    }).sort({ createdAt: -1 });
+
+  // 2) Server-issued checkout metadata — require both payment_id and booking_number.
+  if (metadata.payment_id && metadata.booking_number) {
+    const byId = await Payment.findById(metadata.payment_id);
+    if (byId) {
+      const ref = String(byId.providerReference || '');
+      const providerOk = byId.provider === 'moyasar';
+      const refOk = !ref || ref === incomingId;
+      const bookingMeta = String(metadata.booking_number) === String(byId.bookingNumber);
+      if (providerOk && refOk && bookingMeta) {
+        return byId;
+      }
+      console.error('[payments] rejected payment_id metadata match', {
+        moyasarId: incomingId || null,
+        paymentId: String(metadata.payment_id),
+        providerOk,
+        refOk,
+        bookingMeta,
+        bookingNumber: byId.bookingNumber,
+      });
+    }
+  }
+
+  // Do not fall back to booking_number + empty providerReference.
+  if (incomingId || metadata.payment_id || metadata.booking_number) {
+    console.error('[payments] unmatched Moyasar payment; refusing unsafe booking_number fallback', {
+      moyasarId: incomingId || null,
+      paymentId: metadata.payment_id || null,
+      bookingNumber: metadata.booking_number || null,
+    });
   }
   return null;
 }
@@ -194,13 +260,38 @@ async function verifyPayment(moyasarPaymentId) {
   }
 
   if (decision.action === 'idempotent_paid' || decision.action === 'ignore_unpay') {
+    if (decision.action === 'ignore_unpay' && localPayment.status !== 'PAID') {
+      await Payment.updateOne(
+        { _id: localPayment._id, status: { $ne: 'PAID' } },
+        {
+          $set: {
+            status: mapped === 'FAILED' ? 'FAILED' : (mapped === 'CANCELLED' ? 'CANCELLED' : localPayment.status),
+            'metadata.moyasarStatus': moyasarPayment.status,
+            'metadata.moyasarPaymentId': incomingId,
+          },
+        }
+      );
+    }
     const freshBooking = await Booking.findById(localPayment.booking);
     const staysPaid = localPayment.status === 'PAID' || freshBooking?.paymentStatus === 'PAID';
+    return {
+      payment: await Payment.findById(localPayment._id),
+      booking: freshBooking,
+      moyasarStatus: moyasarPayment.status,
+      mappedStatus: staysPaid ? 'PAID' : mapped,
+      reused: true,
+      duplicateCharge: false,
+      manualInterventionRequired: false,
+    };
+  }
+
+  if (decision.action === 'idempotent_failed' || decision.action === 'idempotent_cancelled') {
+    const freshBooking = await Booking.findById(localPayment.booking);
     return {
       payment: localPayment,
       booking: freshBooking,
       moyasarStatus: moyasarPayment.status,
-      mappedStatus: staysPaid ? 'PAID' : mapped,
+      mappedStatus: localPayment.status,
       reused: true,
       duplicateCharge: false,
       manualInterventionRequired: false,
@@ -289,6 +380,7 @@ async function verifyPayment(moyasarPaymentId) {
       {
         $set: {
           status: nextStatus,
+          providerReference: localPayment.providerReference || incomingId,
           'metadata.moyasarStatus': moyasarPayment.status,
           'metadata.moyasarPaymentId': incomingId,
         },
@@ -309,8 +401,8 @@ async function verifyPayment(moyasarPaymentId) {
       { _id: booking._id, paymentStatus: { $ne: 'PAID' } },
       {
         $set: {
-          paymentStatus: nextStatus === 'FAILED' ? 'FAILED' : 'PENDING',
-          bookingStatus: 'PAYMENT_PENDING',
+          paymentStatus: 'FAILED',
+          bookingStatus: 'CANCELLED',
         },
       }
     );
@@ -384,16 +476,66 @@ async function handleWebhook(payload) {
 }
 
 async function attachReference(localPaymentId, moyasarPaymentId) {
+  assertMoyasarCredentials({ force: true });
   const payment = await Payment.findById(localPaymentId);
   if (!payment) throw httpError(404, 'Payment not found');
   if (payment.provider !== 'moyasar') throw httpError(400, 'Not a Moyasar payment');
+
+  // Idempotent: same Moyasar id already on this attempt.
+  if (payment.providerReference === moyasarPaymentId) return payment;
+
   if (payment.status === 'PAID' && payment.providerReference && payment.providerReference !== moyasarPaymentId) {
     await rememberDuplicateCharge(payment, { id: moyasarPaymentId });
     const err = httpError(409, DUPLICATE_CHARGE_MESSAGE);
     err.manualInterventionRequired = true;
     throw err;
   }
-  if (payment.providerReference === moyasarPaymentId) return payment;
+
+  // Ownership is established only via Moyasar server retrieve + checkout metadata.
+  const moyasarPayment = await retrievePayment(moyasarPaymentId);
+  if (String(moyasarPayment.id || '') !== String(moyasarPaymentId)) {
+    throw httpError(409, 'Moyasar payment id mismatch');
+  }
+  assertMoyasarOwnership(payment, moyasarPayment);
+
+  // Another local attempt already owns this Moyasar id.
+  const existingAttempt = await Payment.findOne({ provider: 'moyasar', providerReference: moyasarPaymentId });
+  if (existingAttempt) {
+    if (String(existingAttempt._id) === String(payment._id)) return existingAttempt;
+    throw httpError(409, 'This Moyasar payment is already linked to another payment attempt');
+  }
+
+  // Immutable history: never overwrite a different providerReference on this attempt.
+  // Card retry against the same local checkout id creates a new attempt for the same booking.
+  if (payment.providerReference && payment.providerReference !== moyasarPaymentId) {
+    try {
+      return await Payment.create({
+        booking: payment.booking,
+        bookingNumber: payment.bookingNumber,
+        amount: payment.amount,
+        currency: payment.currency,
+        provider: 'moyasar',
+        providerReference: moyasarPaymentId,
+        status: 'PENDING',
+        metadata: {
+          ...(payment.metadata || {}),
+          moyasarPaymentId,
+          retryOf: payment._id,
+          ownedByPaymentId: String(payment._id),
+        },
+      });
+    } catch (err) {
+      if (err.code === 11000) {
+        const found = await Payment.findOne({ provider: 'moyasar', providerReference: moyasarPaymentId });
+        if (found) {
+          if (String(found.booking) === String(payment.booking)) return found;
+          throw httpError(409, 'This Moyasar payment is already linked to another booking');
+        }
+        throw httpError(409, 'Could not create a new payment attempt for this Moyasar id');
+      }
+      throw err;
+    }
+  }
 
   try {
     const updated = await Payment.findOneAndUpdate(
@@ -429,5 +571,7 @@ module.exports = {
   handleWebhook,
   getCheckoutConfig,
   attachReference,
+  findLocalPayment,
+  assertMoyasarOwnership,
   toHalalas,
 };

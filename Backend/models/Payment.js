@@ -33,4 +33,18 @@ paymentSchema.index(
   }
 );
 
+// At most one open (empty-reference) PENDING checkout attempt per booking+provider.
+// Historical attempts with a Moyasar/mock reference remain unrestricted.
+paymentSchema.index(
+  { booking: 1, provider: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      status: 'PENDING',
+      providerReference: '',
+    },
+    name: 'uniq_open_checkout_attempt',
+  }
+);
+
 module.exports = mongoose.model('Payment', paymentSchema);

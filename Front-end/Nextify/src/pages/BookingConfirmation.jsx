@@ -127,6 +127,16 @@ function BookingConfirmation() {
 
   };
 
+  const paymentFailed =
+    paymentSuccess === false ||
+    ['FAILED', 'failed'].includes(String(booking.paymentStatus || '')) ||
+    (
+      ['CANCELLED', 'cancelled'].includes(String(booking.bookingStatus || '')) &&
+      ['FAILED', 'failed'].includes(String(booking.paymentStatus || ''))
+    );
+  const retryBookingId = booking._id;
+  const canRetryPayment = Boolean(paymentFailed && retryBookingId && !customQuote);
+
 
 
   return (
@@ -182,13 +192,13 @@ function BookingConfirmation() {
 
             <div className="col-md-6"><strong>{t('confirm.vehicle')}</strong><br />{booking.vehicle?.name} {t('confirm.chauffeur')}</div>
 
-            <div className="col-md-6"><strong>{t('confirm.pickup')}</strong><br />{booking.pickup?.address || booking.pickupLocation || booking.origin}</div>
+            <div className="col-md-6"><strong>{t('confirm.pickup')}</strong><br />{booking.pickup?.address || booking.pickupLocation || booking.origin || '—'}</div>
 
             <div className="col-md-6"><strong>{t('confirm.dest')}</strong><br />{booking.destination?.address || booking.dropoffLocation || booking.destinationText || '—'}</div>
 
-            <div className="col-md-6"><strong>{t('confirm.datetime')}</strong><br />{formatDateTimeForLang(booking.schedule?.pickupDateTime || booking.arrivalDateTime, lang)}</div>
+            <div className="col-md-6"><strong>{t('confirm.datetime')}</strong><br />{booking.schedule?.pickupDateTime || booking.arrivalDateTime ? formatDateTimeForLang(booking.schedule?.pickupDateTime || booking.arrivalDateTime, lang) : '—'}</div>
 
-            <div className="col-md-6"><strong>{t('confirm.contact')}</strong><br />{booking.customer?.name}<br />{booking.customer?.mobile}</div>
+            <div className="col-md-6"><strong>{t('confirm.contact')}</strong><br />{booking.customer?.name || '—'}{booking.customer?.mobile ? <><br />{booking.customer.mobile}</> : null}</div>
 
           </div>
 
@@ -209,6 +219,16 @@ function BookingConfirmation() {
 
 
         <div className="d-flex flex-wrap gap-2 justify-content-center">
+
+          {canRetryPayment && (
+            <Link
+              to={`/payment?bookingId=${encodeURIComponent(retryBookingId)}`}
+              className="btn rounded-pill px-4"
+              style={{ background: '#eeb012', color: '#0a0a0a' }}
+            >
+              {t('payment.tryAgain')}
+            </Link>
+          )}
 
           <a
 

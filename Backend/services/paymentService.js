@@ -86,6 +86,11 @@ async function createOrReuseCheckout(bookingDoc) {
     err.statusCode = 409;
     throw err;
   }
+  if (booking.bookingStatus === 'CANCELLED' && String(booking.paymentStatus || '').toUpperCase() !== 'FAILED') {
+    const err = new Error('This booking has been cancelled');
+    err.statusCode = 400;
+    throw err;
+  }
   if (PROVIDER === 'moyasar') assertMoyasarCredentials({ force: true });
 
   const alreadyPaid = await Payment.findOne({ booking: booking._id, status: 'PAID' });
@@ -103,9 +108,41 @@ async function createOrReuseCheckout(bookingDoc) {
     throw err;
   }
 
-  let payment = await Payment.findOne({ booking: booking._id, status: 'PENDING' }).sort({ createdAt: -1 });
+  // Reuse only an open attempt with no Moyasar id yet. Attempts that already have a
+  // providerReference are immutable history and must not be reused for a new checkout.
+  let payment = await Payment.findOne({
+    booking: booking._id,
+    status: 'PENDING',
+    $or: [{ providerReference: { $in: ['', null] } }, { providerReference: { $exists: false } }],
+  }).sort({ createdAt: -1 });
+
   if (!payment) {
-    payment = await createPayment({ booking, amount, currency });
+    try {
+      payment = await createPayment({ booking, amount, currency });
+    } catch (err) {
+      // Race: another request created the open PENDING attempt first.
+      if (err.code === 11000) {
+        payment = await Payment.findOne({
+          booking: booking._id,
+          status: 'PENDING',
+          $or: [{ providerReference: { $in: ['', null] } }, { providerReference: { $exists: false } }],
+        }).sort({ createdAt: -1 });
+      }
+      if (!payment) throw err;
+    }
+  }
+
+  if (
+    payment
+    && (
+      booking.bookingStatus === 'CANCELLED'
+      || String(booking.paymentStatus || '').toUpperCase() === 'FAILED'
+    )
+  ) {
+    // Reused/created attempt after a failed/cancelled cycle: reopen checkout state.
+    booking.paymentStatus = 'PENDING';
+    booking.bookingStatus = 'PAYMENT_PENDING';
+    await booking.save();
   }
 
   const refreshed = await Booking.findById(booking._id);

@@ -28,6 +28,12 @@ function classifyVerification({
   if (mappedStatus === 'PAID') {
     return { action: 'mark_paid', confirmBooking: true, manualInterventionRequired: false };
   }
+  if (mappedStatus === 'FAILED' && localStatus === 'FAILED' && (sameReference || !reference || reference === incoming)) {
+    return { action: 'idempotent_failed', confirmBooking: false, manualInterventionRequired: false };
+  }
+  if (mappedStatus === 'CANCELLED' && localStatus === 'CANCELLED' && (sameReference || !reference || reference === incoming)) {
+    return { action: 'idempotent_cancelled', confirmBooking: false, manualInterventionRequired: false };
+  }
   if (mappedStatus === 'FAILED') {
     return { action: 'mark_failed', confirmBooking: false, manualInterventionRequired: false };
   }

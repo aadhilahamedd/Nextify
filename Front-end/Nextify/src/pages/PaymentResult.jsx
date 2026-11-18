@@ -4,6 +4,55 @@ import Container from 'react-bootstrap/Container';
 import { verifyPaymentAPI } from '../Services/allAPI';
 import { useLanguage } from '../i18n/LanguageContext';
 
+function readSessionBooking(bookingNumber) {
+  let pending = null;
+  let stored = null;
+  try {
+    pending = JSON.parse(sessionStorage.getItem('nextify_pending_booking') || 'null');
+  } catch { /* ignore */ }
+  try {
+    if (bookingNumber) {
+      stored = JSON.parse(sessionStorage.getItem(`booking_${bookingNumber}`) || 'null');
+    }
+  } catch { /* ignore */ }
+  return { ...(stored || {}), ...(pending || {}) };
+}
+
+function storeRetryBooking(booking) {
+  if (!booking?._id) return;
+  try {
+    sessionStorage.setItem(
+      'nextify_pending_booking',
+      JSON.stringify({
+        _id: booking._id,
+        bookingNumber: booking.bookingNumber,
+        paymentStatus: booking.paymentStatus,
+        bookingStatus: booking.bookingStatus,
+      })
+    );
+  } catch {
+    /* ignore quota */
+  }
+}
+
+/** Merge server-safe verify fields with any client-local session copy the user already had. */
+function mergeConfirmationBooking(verifiedBooking) {
+  if (!verifiedBooking?._id) return verifiedBooking;
+  const local = readSessionBooking(verifiedBooking.bookingNumber);
+  if (!local?._id || String(local._id) !== String(verifiedBooking._id)) {
+    return verifiedBooking;
+  }
+  return {
+    ...local,
+    ...verifiedBooking,
+    // Prefer verified payment/booking statuses and amount from the server.
+    paymentStatus: verifiedBooking.paymentStatus ?? local.paymentStatus,
+    bookingStatus: verifiedBooking.bookingStatus ?? local.bookingStatus,
+    quotedPrice: verifiedBooking.quotedPrice ?? local.quotedPrice,
+    pricing: verifiedBooking.pricing || local.pricing,
+  };
+}
+
 function PaymentResult() {
   const { t } = useLanguage();
   const [searchParams] = useSearchParams();
@@ -11,6 +60,7 @@ function PaymentResult() {
   const moyasarId = searchParams.get('id');
   const [error, setError] = useState('');
   const [message, setMessage] = useState(t('payment.verifying'));
+  const [retryBookingId, setRetryBookingId] = useState('');
 
   useEffect(() => {
     if (!moyasarId) {
@@ -21,9 +71,12 @@ function PaymentResult() {
     let cancelled = false;
     verifyPaymentAPI(moyasarId).then((res) => {
       if (cancelled) return;
-      const booking = res.data?.booking;
+      const verifiedBooking = res.data?.booking;
+      const booking = mergeConfirmationBooking(verifiedBooking);
       const verified = res.data?.verified === true && res.status === 200;
       const status = res.data?.status;
+
+      if (booking?._id) setRetryBookingId(booking._id);
 
       if (verified && booking?.bookingNumber) {
         sessionStorage.removeItem('nextify_pending_booking');
@@ -40,7 +93,7 @@ function PaymentResult() {
       }
 
       if (booking?.bookingNumber && ['FAILED', 'CANCELLED'].includes(status)) {
-        sessionStorage.removeItem('nextify_pending_booking');
+        storeRetryBooking(booking);
         navigate(`/booking-confirmation/${booking.bookingNumber}`, {
           state: { booking, paymentSuccess: false },
           replace: true,
@@ -53,6 +106,7 @@ function PaymentResult() {
         return;
       }
 
+      if (booking?._id) storeRetryBooking(booking);
       setError(res?.data?.message || res?.error || 'Payment verification failed');
       setMessage('');
     });
@@ -60,7 +114,11 @@ function PaymentResult() {
     return () => {
       cancelled = true;
     };
-  }, [moyasarId, navigate]);
+  }, [moyasarId, navigate, t]);
+
+  const retryHref = retryBookingId
+    ? `/payment?bookingId=${encodeURIComponent(retryBookingId)}`
+    : '/track-booking';
 
   return (
     <div style={{ backgroundColor: '#0a0a0a', minHeight: '100vh', paddingTop: 140, paddingBottom: 80, color: 'white' }}>
@@ -71,7 +129,9 @@ function PaymentResult() {
           <p className="text-white-50 mt-3">{error || message}</p>
           {error && (
             <div className="d-flex flex-wrap gap-2 justify-content-center mt-4">
-              <Link to="/payment" className="btn rounded-pill px-4" style={{ background: '#eeb012', color: '#0a0a0a' }}>{t('payment.tryAgain')}</Link>
+              <Link to={retryHref} className="btn rounded-pill px-4" style={{ background: '#eeb012', color: '#0a0a0a' }}>
+                {retryBookingId ? t('payment.tryAgain') : t('payment.track')}
+              </Link>
               <Link to="/track-booking" className="btn btn-outline-light rounded-pill px-4">{t('payment.track')}</Link>
             </div>
           )}

@@ -241,6 +241,23 @@ check('failed and cancelled charges are recorded only before payment', () => {
   }).action, 'mark_cancelled');
 });
 
+check('duplicate failed and cancelled charges are classified as idempotent', () => {
+  assert.strictEqual(classifyVerification({
+    localStatus: 'FAILED',
+    localReference: 'pay_failed',
+    incomingId: 'pay_failed',
+    mappedStatus: 'FAILED',
+    bookingAlreadyPaid: false,
+  }).action, 'idempotent_failed');
+  assert.strictEqual(classifyVerification({
+    localStatus: 'CANCELLED',
+    localReference: 'pay_cancelled',
+    incomingId: 'pay_cancelled',
+    mappedStatus: 'CANCELLED',
+    bookingAlreadyPaid: false,
+  }).action, 'idempotent_cancelled');
+});
+
 check('secret key logging was removed', () => {
   const source = fs.readFileSync(path.join(__dirname, '../services/paymentProviders/moyasarClient.js'), 'utf8');
   assert.ok(!source.includes('Key prefix'));

@@ -33,11 +33,11 @@ async function completePayment(paymentId, outcome = 'success') {
   } else if (outcome === 'fail') {
     payment.status = 'FAILED';
     booking.paymentStatus = 'FAILED';
-    booking.bookingStatus = 'PAYMENT_PENDING';
+    booking.bookingStatus = 'CANCELLED';
   } else if (outcome === 'cancel') {
     payment.status = 'CANCELLED';
-    booking.paymentStatus = 'PENDING';
-    booking.bookingStatus = 'PAYMENT_PENDING';
+    booking.paymentStatus = 'FAILED';
+    booking.bookingStatus = 'CANCELLED';
   }
 
   await payment.save();

@@ -2,6 +2,7 @@ const Booking = require('../models/Booking');
 const { isDriverAvailable } = require('../services/availabilityService');
 const { createBookingFromPayload } = require('../services/bookingCreateService');
 const { success, error } = require('../utils/apiResponse');
+const { toCheckoutBooking } = require('../utils/checkoutBooking');
 
 exports.createBooking = async (req, res, next) => {
   try {
@@ -20,9 +21,12 @@ exports.createBooking = async (req, res, next) => {
 
 exports.getPublicPayBooking = async (req, res, next) => {
   try {
-    const booking = await Booking.findById(req.params.id);
+    // Lean + no populate: avoid accidental driver/customer leakage via refs.
+    const booking = await Booking.findById(req.params.id).select(
+      '_id bookingNumber serviceType vehicle vehicleName quotedPrice pricing paymentStatus bookingStatus customQuoteRequired'
+    ).lean();
     if (!booking) return error(res, 404, 'Booking not found');
-    return success(res, 200, 'Booking fetched', { booking: booking.toPublicJSON() });
+    return success(res, 200, 'Booking fetched', { booking: toCheckoutBooking(booking) });
   } catch (err) {
     next(err);
   }
@@ -81,6 +85,48 @@ exports.updateBooking = async (req, res, next) => {
   try {
     const booking = await Booking.findById(req.params.id);
     if (!booking) return error(res, 404, 'Booking not found');
+
+    if (req.body.paymentStatus !== undefined) {
+      const nextPayment = String(req.body.paymentStatus).toUpperCase();
+      const currentPayment = String(booking.paymentStatus || '').toUpperCase();
+      // PAID is reserved for verified Moyasar (or mock provider) payment processing.
+      if (nextPayment === 'PAID' && currentPayment !== 'PAID') {
+        return error(
+          res,
+          400,
+          'paymentStatus PAID can only be set by verified payment processing. For custom quotes use CONFIRMED with NOT_REQUIRED.'
+        );
+      }
+      // NOT_REQUIRED is only valid for server-flagged custom-quote bookings.
+      if (nextPayment === 'NOT_REQUIRED' && !booking.customQuoteRequired) {
+        return error(
+          res,
+          400,
+          'paymentStatus NOT_REQUIRED is only allowed for custom-quote bookings created by server pricing.'
+        );
+      }
+    }
+
+    if (req.body.bookingStatus !== undefined) {
+      const nextStatus = String(req.body.bookingStatus);
+      const nextPayment = req.body.paymentStatus !== undefined
+        ? String(req.body.paymentStatus).toUpperCase()
+        : String(booking.paymentStatus || '').toUpperCase();
+      // Approving a custom quote: CONFIRMED + NOT_REQUIRED requires customQuoteRequired.
+      if (
+        ['CONFIRMED', 'confirmed'].includes(nextStatus)
+        && nextPayment === 'NOT_REQUIRED'
+        && !booking.customQuoteRequired
+      ) {
+        return error(
+          res,
+          400,
+          'CONFIRMED with NOT_REQUIRED is only allowed for approved custom-quote bookings.'
+        );
+      }
+    }
+
+    // customQuoteRequired is server-owned (pricing); never accept client/admin body overrides here.
     const allowed = ['bookingStatus', 'paymentStatus', 'specialRequests', 'driver', 'vehicle', 'quotedPrice'];
     for (const key of allowed) {
       if (req.body[key] !== undefined) booking[key] = req.body[key];
@@ -100,6 +146,24 @@ exports.assignDriver = async (req, res, next) => {
     const { driverId } = req.body;
     const booking = await Booking.findById(req.params.id);
     if (!booking) return error(res, 404, 'Booking not found');
+
+    if (['CANCELLED', 'cancelled'].includes(booking.bookingStatus)) {
+      return error(res, 400, 'Cannot assign a driver to a cancelled booking');
+    }
+
+    const isPaid = String(booking.paymentStatus || '').toUpperCase() === 'PAID';
+    const isApprovedExemption =
+      Boolean(booking.customQuoteRequired) &&
+      ['CONFIRMED', 'confirmed'].includes(booking.bookingStatus) &&
+      String(booking.paymentStatus || '').toUpperCase() === 'NOT_REQUIRED';
+
+    if (!isPaid && !isApprovedExemption) {
+      return error(
+        res,
+        400,
+        'Cannot assign a driver to an unpaid booking. Driver assignment requires verified payment or an approved custom-quote exemption.'
+      );
+    }
 
     const pickupDateTime = booking.schedule?.pickupDateTime || booking.arrivalDateTime;
     const availability = await isDriverAvailable(driverId, pickupDateTime, booking._id);

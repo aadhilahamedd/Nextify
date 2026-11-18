@@ -3,6 +3,7 @@ const Booking = require('../models/Booking');
 const paymentService = require('../services/paymentService');
 const { mockPaymentEndpointsEnabled } = require('../services/paymentProviders/mockPaymentGuard');
 const { success, error } = require('../utils/apiResponse');
+const { toCheckoutBooking, toPaymentConfirmationBooking } = require('../utils/checkoutBooking');
 
 function notifyWhatsAppPayment(result) {
   setImmediate(() => {
@@ -45,9 +46,11 @@ exports.createPayment = async (req, res, next) => {
     }
 
     const result = await paymentService.createOrReuseCheckout(booking);
-    return success(res, result.payment.createdAt?.getTime() === result.payment.updatedAt?.getTime() ? 201 : 200, 'Payment ready', publicResult(result.payment, result.booking, {
+    return success(res, result.payment.createdAt?.getTime() === result.payment.updatedAt?.getTime() ? 201 : 200, 'Payment ready', {
+      payment: paymentService.toSafePayment(result.payment),
+      booking: toCheckoutBooking(result.booking),
       checkout: result.checkout,
-    }));
+    });
   } catch (err) {
     next(err);
   }
@@ -108,7 +111,7 @@ exports.verifyPayment = async (req, res, next) => {
       : (verified ? 'Payment verified' : 'Payment not successful');
     return success(res, verified ? 200 : 422, httpMessage, {
       payment: paymentService.toSafePayment(result.payment),
-      booking: result.booking?.toPublicJSON ? result.booking.toPublicJSON() : result.booking,
+      booking: toPaymentConfirmationBooking(result.booking, result.payment),
       verified,
       status: mapped,
       duplicateCharge: Boolean(result.duplicateCharge),
