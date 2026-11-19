@@ -7,21 +7,33 @@ const logo = '/images/logo.webp';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../i18n/LanguageContext';
 import { LogInIcon } from './icons';
+import {
+  AUTH_SESSION_EVENT,
+  clearSession,
+  readStoredUser,
+  readToken,
+} from '../utils/authSession';
 
 function Header() {
   const location = useLocation();
   const navigate = useNavigate();
   const { lang, setLang, t } = useLanguage();
   const [expanded, setExpanded] = useState(false);
+  const [user, setUser] = useState(() => (readToken() ? readStoredUser() : null));
   const isLogin = location.pathname === '/login';
-
-  let user = null;
-  try {
-    user = JSON.parse(localStorage.getItem('user') || 'null');
-  } catch (err) {
-    user = null;
-  }
   const isAdmin = user?.role === 'admin';
+
+  useEffect(() => {
+    const syncUser = () => {
+      setUser(readToken() ? readStoredUser() : null);
+    };
+    window.addEventListener(AUTH_SESSION_EVENT, syncUser);
+    window.addEventListener('storage', syncUser);
+    return () => {
+      window.removeEventListener(AUTH_SESSION_EVENT, syncUser);
+      window.removeEventListener('storage', syncUser);
+    };
+  }, []);
 
   useEffect(() => {
     setExpanded(false);
@@ -36,8 +48,7 @@ function Header() {
 
   const handleLogout = () => {
     closeMenu();
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    clearSession();
     navigate('/');
   };
 

@@ -32,7 +32,12 @@ const commonAPI = async (httpMethod, url, reqBody, reqHeaders, extra = {}) => {
 
   const response = await sendRequest(httpMethod, url, reqBody, headers, extra);
   const expired = isAuthExpiredMessage(response?.data?.message || response?.error);
-  if (response?.status === 401 && expired && !extra._retried && headers?.Authorization) {
+  if (
+    (response?.status === 401 || response?.status === 403)
+    && expired
+    && !extra._retried
+    && headers?.Authorization
+  ) {
     const refreshed = await refreshSession();
     if (refreshed) {
       return commonAPI(

@@ -1,5 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import {
+  AUTH_SESSION_EVENT,
+  clearSession,
+  readStoredUser,
+  readToken,
+} from '../../utils/authSession';
 import './AdminLayout.css';
 
 const logo = '/images/logo.webp';
@@ -13,41 +19,60 @@ const NAV_ITEMS = [
   { to: '/admin/payments', label: 'Payments' },
 ];
 
+function getValidAdminUser() {
+  if (!readToken()) return null;
+  const stored = readStoredUser();
+  return stored?.role === 'admin' ? stored : null;
+}
+
 export default function AdminLayout() {
   const navigate = useNavigate();
   const location = useLocation();
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(getValidAdminUser);
   const [menuOpen, setMenuOpen] = useState(false);
+  const loggingOutRef = useRef(false);
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    const userData = localStorage.getItem('user');
+    const loginTarget = `/login?next=${encodeURIComponent(location.pathname + location.search)}`;
 
-    if (!token || !userData) {
-      navigate('/login');
-      return;
-    }
-
-    try {
-      const parsedUser = JSON.parse(userData);
-      if (parsedUser.role !== 'admin') {
-        navigate('/');
-        return;
+    const redirectIfUnauthorized = () => {
+      const token = readToken();
+      const storedUser = readStoredUser();
+      if (!token || !storedUser) {
+        navigate(loginTarget, { replace: true });
+        return null;
       }
-      setUser(parsedUser);
-    } catch {
-      navigate('/login');
-    }
-  }, [navigate]);
+      if (storedUser.role !== 'admin') {
+        navigate('/', { replace: true });
+        return null;
+      }
+      return storedUser;
+    };
+
+    redirectIfUnauthorized();
+
+    const handleSessionChange = () => {
+      if (loggingOutRef.current) return;
+      setUser(redirectIfUnauthorized());
+    };
+
+    window.addEventListener(AUTH_SESSION_EVENT, handleSessionChange);
+    window.addEventListener('storage', handleSessionChange);
+    return () => {
+      window.removeEventListener(AUTH_SESSION_EVENT, handleSessionChange);
+      window.removeEventListener('storage', handleSessionChange);
+    };
+  }, [navigate, location.pathname, location.search]);
 
   useEffect(() => {
     setMenuOpen(false);
   }, [location.pathname]);
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    navigate('/login');
+    loggingOutRef.current = true;
+    clearSession();
+    setUser(null);
+    navigate('/login', { replace: true });
   };
 
   if (!user) return null;

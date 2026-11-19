@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { registerAPI, userLoginAPI } from '../Services/allAPI';
+import { persistSession } from '../utils/authSession';
 import './Login.css';
 import { useLanguage } from '../i18n/LanguageContext';
 
@@ -51,8 +52,7 @@ function Login() {
 
       if (response.status === 200) {
         const { token, user } = response.data;
-        localStorage.setItem('token', token);
-        localStorage.setItem('user', JSON.stringify(user));
+        persistSession(token, user);
         showAlert('success', `Welcome back, ${user.username}!`);
 
         setTimeout(() => {
@@ -95,8 +95,7 @@ function Login() {
 
       if (response.status === 201 || response.status === 200) {
         const { token, user } = response.data;
-        localStorage.setItem('token', token);
-        localStorage.setItem('user', JSON.stringify(user));
+        persistSession(token, user);
         showAlert('success', t('login.created'));
 
         setTimeout(() => {
