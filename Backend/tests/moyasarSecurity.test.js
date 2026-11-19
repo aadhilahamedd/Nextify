@@ -1,7 +1,8 @@
 /**
  * Run: node Backend/tests/moyasarSecurity.test.js
  * Unit checks do not print credential values.
- * The HTTP section expects the local API on port 5000.
+ * The HTTP section runs against an isolated in-process Express server on an ephemeral port
+ * with in-memory model stubs and mocked Moyasar API responses (no MongoDB or external calls).
  */
 const assert = require('assert');
 const fs = require('fs');
@@ -280,90 +281,231 @@ check('env example has an empty secret placeholder and production env is ignored
 });
 
 async function httpChecks() {
-  const base = 'http://localhost:5000';
-  const bookRes = await fetch(`${base}/api/bookings`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Origin: 'http://localhost:5173' },
-    body: JSON.stringify({
-      serviceType: 'airport_transfer',
-      vehicleCategory: 'ford_taurus',
-      vehicleName: 'Ford Taurus',
-      quotedPrice: 1,
-      totalAmount: 1,
-      airport: 'King Khalid International Airport',
-      origin: 'King Khalid International Airport',
-      destination: 'Olaya',
-      pickupPlace: { id: 'riyadh-airport', iata: 'RUH', nameEn: 'King Khalid International Airport', cityEn: 'Riyadh', kind: 'airport' },
-      dropoffPlace: { id: 'olaya', nameEn: 'Olaya', cityEn: 'Riyadh', pricingCity: 'Riyadh', kind: 'neighbourhood' },
-      travelDate: '2026-12-20',
-      travelTime: '15:00',
-      customer: { name: 'Security Test', email: 'security-pay-test@example.com', mobile: '0555992937' },
-    }),
-  });
-  const bookJson = await bookRes.json();
-  const booking = bookJson?.data?.booking;
-  assert.strictEqual(bookRes.status, 201, bookJson.message || 'booking failed');
-  assert.strictEqual(booking.pricing.totalAmount, 180);
-  assert.notStrictEqual(booking.pricing.totalAmount, 1);
+  const mongoose = require('mongoose');
+  const Booking = require('../models/Booking');
+  const Payment = require('../models/Payment');
+  const Car = require('../models/Car');
+  const { NextifyServer } = require('../index');
 
-  const payRes = await fetch(`${base}/api/payments/create`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Origin: 'http://localhost:5173' },
-    body: JSON.stringify({ bookingId: booking._id }),
-  });
-  const payJson = await payRes.json();
-  const raw = JSON.stringify(payJson);
-  assert.ok(payRes.status === 200 || payRes.status === 201, payJson.message || 'payment create failed');
-  assert.strictEqual(payJson.data.checkout.provider, 'moyasar');
-  assert.strictEqual(payJson.data.checkout.amountHalalas, 18000);
-  assert.ok(String(payJson.data.checkout.publishableKey).startsWith('pk_test_'));
-  assert.ok(!raw.includes('sk_test_'));
-  assert.ok(!raw.includes('sk_live_'));
-  assert.strictEqual(payJson.data.checkout.callbackUrl, 'http://localhost:5173/payment-result');
+  assert.strictEqual(mongoose.connection.readyState, 0, 'Test must not connect to shared MongoDB');
 
-  const corsRes = await fetch(`${base}/api/cars`, { headers: { Origin: 'https://evil.example' } });
-  assert.notStrictEqual(corsRes.headers.get('access-control-allow-origin'), 'https://evil.example');
-  const localCors = await fetch(`${base}/api/cars`, { headers: { Origin: 'http://localhost:5173' } });
-  assert.strictEqual(localCors.headers.get('access-control-allow-origin'), 'http://localhost:5173');
+  const bookings = new Map();
+  const payments = new Map();
+  const stubCars = [
+    { id: 1, name: 'Ford Taurus', img: '/images/car/ford-taurus.webp', price: '180 SAR' },
+  ];
 
-  const mockRes = await fetch(`${base}/api/payments/mock/complete`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ paymentId: payJson.data.payment._id }),
-  });
-  assert.strictEqual(mockRes.status, 404);
+  const origBookingFindOne = Booking.findOne;
+  const origBookingFindById = Booking.findById;
+  const origBookingSave = Booking.prototype.save;
+  const origPaymentFindOne = Payment.findOne;
+  const origPaymentCreate = Payment.create;
+  const origCarFind = Car.find;
+  const origCarDeleteMany = Car.deleteMany;
+  const origCarInsertMany = Car.insertMany;
+  const origFetch = global.fetch;
 
-  const badHook = await fetch(`${base}/api/payments/webhook`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ secret_token: 'not-the-token', type: 'payment_paid', data: { id: 'pay_fake' } }),
-  });
-  assert.strictEqual(badHook.status, 401);
+  let server = null;
+  let moyasarMockHits = 0;
 
-  const exampleHook = await fetch(`${base}/api/payment/webhook`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ secret_token: 'change_me_in_moyasar_dashboard', type: 'payment_paid', data: { id: 'pay_fake' } }),
-  });
-  assert.strictEqual(exampleHook.status, 401);
+  try {
+    Booking.findOne = async (query = {}) => {
+      if (query.bookingNumber) {
+        for (const doc of bookings.values()) {
+          if (doc.bookingNumber === query.bookingNumber) return doc;
+        }
+      }
+      return null;
+    };
 
-  const configured = process.env.MOYASAR_WEBHOOK_SECRET;
-  const modeHook = await fetch(`${base}/api/payments/webhook`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ secret_token: configured, type: 'payment_paid', live: true, data: { id: 'pay_fake' } }),
-  });
-  assert.strictEqual(modeHook.status, 409);
+    Booking.findById = async (id) => bookings.get(String(id)) || null;
 
-  const verifyRes = await fetch(`${base}/api/payments/verify/pay_does_not_exist`);
-  const verifyJson = await verifyRes.json();
-  assert.ok(verifyRes.status >= 400);
-  assert.notStrictEqual(verifyJson?.data?.booking?.paymentStatus, 'PAID');
-  const rawVerify = JSON.stringify(verifyJson);
-  assert.ok(!rawVerify.includes('sk_test_'));
-  assert.ok(!rawVerify.includes('sk_live_'));
+    Booking.prototype.save = async function saveStub() {
+      const now = new Date();
+      if (!this.createdAt) this.createdAt = now;
+      this.updatedAt = now;
+      bookings.set(String(this._id), this);
+      return this;
+    };
 
-  console.log('ok http payment creation stays on the server amount and test publishable key');
+    Payment.findOne = (query = {}) => {
+      const match = () => {
+        const list = Array.from(payments.values()).filter((p) => {
+          if (query.booking && String(p.booking) !== String(query.booking)) return false;
+          if (query.status && p.status !== query.status) return false;
+          if (query.$or) {
+            const ref = p.providerReference;
+            const emptyRef = ref === '' || ref === null || ref === undefined;
+            if (!emptyRef) return false;
+          }
+          return true;
+        });
+        list.sort((a, b) => (b.createdAt?.getTime?.() || 0) - (a.createdAt?.getTime?.() || 0));
+        return list[0] || null;
+      };
+      const result = match();
+      return {
+        sort() {
+          return this;
+        },
+        then(resolve, reject) {
+          return Promise.resolve(result).then(resolve, reject);
+        },
+      };
+    };
+
+    Payment.create = async (doc) => {
+      const now = new Date();
+      const created = {
+        _id: new mongoose.Types.ObjectId(),
+        providerReference: '',
+        ...doc,
+        createdAt: now,
+        updatedAt: now,
+        toObject() {
+          return { ...this };
+        },
+      };
+      payments.set(String(created._id), created);
+      return created;
+    };
+
+    Car.find = () => ({
+      sort() {
+        return Promise.resolve(stubCars);
+      },
+      then(resolve, reject) {
+        return Promise.resolve(stubCars).then(resolve, reject);
+      },
+    });
+    Car.deleteMany = async () => ({ deletedCount: 0 });
+    Car.insertMany = async () => stubCars;
+
+    server = await new Promise((resolve, reject) => {
+      const s = NextifyServer.listen(0, '127.0.0.1', () => resolve(s));
+      s.on('error', reject);
+    });
+    const { port } = server.address();
+    const base = `http://127.0.0.1:${port}`;
+
+    global.fetch = async (url, options) => {
+      const target = String(url);
+      if (target.startsWith('https://api.moyasar.com/v1/payments/')) {
+        moyasarMockHits += 1;
+        return {
+          ok: false,
+          status: 404,
+          json: async () => ({
+            type: 'invalid_request_error',
+            message: 'Payment not found',
+          }),
+        };
+      }
+      if (target.startsWith(base)) {
+        return origFetch(url, options);
+      }
+      throw new Error(`Blocked unexpected outbound fetch in isolated test: ${target}`);
+    };
+
+    const bookRes = await fetch(`${base}/api/bookings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Origin: 'http://localhost:5173' },
+      body: JSON.stringify({
+        serviceType: 'airport_transfer',
+        vehicleCategory: 'ford_taurus',
+        vehicleName: 'Ford Taurus',
+        quotedPrice: 1,
+        totalAmount: 1,
+        airport: 'King Khalid International Airport',
+        origin: 'King Khalid International Airport',
+        destination: 'Olaya',
+        pickupPlace: { id: 'riyadh-airport', iata: 'RUH', nameEn: 'King Khalid International Airport', cityEn: 'Riyadh', kind: 'airport' },
+        dropoffPlace: { id: 'olaya', nameEn: 'Olaya', cityEn: 'Riyadh', pricingCity: 'Riyadh', kind: 'neighbourhood' },
+        travelDate: '2026-12-20',
+        travelTime: '15:00',
+        customer: { name: 'Security Test', email: 'security-pay-test@example.com', mobile: '0555992937' },
+      }),
+    });
+    const bookJson = await bookRes.json();
+    const booking = bookJson?.data?.booking;
+    assert.strictEqual(bookRes.status, 201, bookJson.message || 'booking failed');
+    assert.strictEqual(booking.pricing.totalAmount, 180);
+    assert.notStrictEqual(booking.pricing.totalAmount, 1);
+
+    const payRes = await fetch(`${base}/api/payments/create`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Origin: 'http://localhost:5173' },
+      body: JSON.stringify({ bookingId: booking._id }),
+    });
+    const payJson = await payRes.json();
+    const raw = JSON.stringify(payJson);
+    assert.ok(payRes.status === 200 || payRes.status === 201, payJson.message || 'payment create failed');
+    assert.strictEqual(payJson.data.checkout.provider, 'moyasar');
+    assert.strictEqual(payJson.data.checkout.amountHalalas, 18000);
+    assert.ok(String(payJson.data.checkout.publishableKey).startsWith('pk_test_'));
+    assert.ok(!raw.includes('sk_test_'));
+    assert.ok(!raw.includes('sk_live_'));
+    assert.strictEqual(payJson.data.checkout.callbackUrl, 'http://localhost:5173/payment-result');
+
+    const corsRes = await fetch(`${base}/api/cars`, { headers: { Origin: 'https://evil.example' } });
+    assert.notStrictEqual(corsRes.headers.get('access-control-allow-origin'), 'https://evil.example');
+    const localCors = await fetch(`${base}/api/cars`, { headers: { Origin: 'http://localhost:5173' } });
+    assert.strictEqual(localCors.headers.get('access-control-allow-origin'), 'http://localhost:5173');
+
+    const mockRes = await fetch(`${base}/api/payments/mock/complete`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ paymentId: payJson.data.payment._id }),
+    });
+    assert.strictEqual(mockRes.status, 404);
+
+    const badHook = await fetch(`${base}/api/payments/webhook`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ secret_token: 'not-the-token', type: 'payment_paid', data: { id: 'pay_fake' } }),
+    });
+    assert.strictEqual(badHook.status, 401);
+
+    const exampleHook = await fetch(`${base}/api/payment/webhook`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ secret_token: 'change_me_in_moyasar_dashboard', type: 'payment_paid', data: { id: 'pay_fake' } }),
+    });
+    assert.strictEqual(exampleHook.status, 401);
+
+    const configured = process.env.MOYASAR_WEBHOOK_SECRET;
+    const modeHook = await fetch(`${base}/api/payments/webhook`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ secret_token: configured, type: 'payment_paid', live: true, data: { id: 'pay_fake' } }),
+    });
+    assert.strictEqual(modeHook.status, 409);
+
+    const verifyRes = await fetch(`${base}/api/payments/verify/pay_does_not_exist`);
+    const verifyJson = await verifyRes.json();
+    assert.ok(verifyRes.status >= 400);
+    assert.strictEqual(moyasarMockHits, 1, 'verify must hit mocked Moyasar endpoint once');
+    assert.notStrictEqual(verifyJson?.data?.booking?.paymentStatus, 'PAID');
+    const rawVerify = JSON.stringify(verifyJson);
+    assert.ok(!rawVerify.includes('sk_test_'));
+    assert.ok(!rawVerify.includes('sk_live_'));
+    assert.strictEqual(mongoose.connection.readyState, 0, 'Test must remain disconnected from MongoDB');
+
+    console.log('ok http payment creation stays on the server amount and test publishable key');
+  } finally {
+    global.fetch = origFetch;
+    Booking.findOne = origBookingFindOne;
+    Booking.findById = origBookingFindById;
+    Booking.prototype.save = origBookingSave;
+    Payment.findOne = origPaymentFindOne;
+    Payment.create = origPaymentCreate;
+    Car.find = origCarFind;
+    Car.deleteMany = origCarDeleteMany;
+    Car.insertMany = origCarInsertMany;
+    if (server) {
+      await new Promise((resolve) => server.close(resolve));
+    }
+  }
 }
 
 (async () => {
