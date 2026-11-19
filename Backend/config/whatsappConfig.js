@@ -2,6 +2,7 @@ module.exports = {
   accessToken: process.env.WHATSAPP_ACCESS_TOKEN || '',
   phoneNumberId: process.env.WHATSAPP_PHONE_NUMBER_ID || '',
   verifyToken: process.env.WHATSAPP_VERIFY_TOKEN || '',
+  appSecret: process.env.WHATSAPP_APP_SECRET || '',
   businessAccountId: process.env.WHATSAPP_BUSINESS_ACCOUNT_ID || '',
   apiVersion: process.env.WHATSAPP_API_VERSION || 'v21.0',
   // Cloud API Graph version used for outbound messages only.
@@ -10,5 +11,8 @@ module.exports = {
   },
   get verificationReady() {
     return Boolean(this.verifyToken);
+  },
+  get signatureReady() {
+    return Boolean(this.appSecret);
   },
 };

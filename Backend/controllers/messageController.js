@@ -24,7 +24,7 @@ exports.submitMessage = async (req, res) => {
     });
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ message: 'Error saving message', error: err.message });
+    return res.status(500).json({ message: 'Error saving message' });
   }
 };
 
@@ -34,7 +34,7 @@ exports.getMessages = async (req, res) => {
     return res.status(200).json(messages);
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ message: 'Error fetching messages', error: err.message });
+    return res.status(500).json({ message: 'Error fetching messages' });
   }
 };
 
@@ -56,7 +56,7 @@ exports.markMessageRead = async (req, res) => {
     });
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ message: 'Error updating message', error: err.message });
+    return res.status(500).json({ message: 'Error updating message' });
   }
 };
 
@@ -74,6 +74,6 @@ exports.deleteMessage = async (req, res) => {
     });
   } catch (err) {
     console.error(err);
-    return res.status(500).json({ message: 'Error deleting message', error: err.message });
+    return res.status(500).json({ message: 'Error deleting message' });
   }
 };

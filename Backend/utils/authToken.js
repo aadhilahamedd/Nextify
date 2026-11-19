@@ -1,8 +1,9 @@
 const jwt = require('jsonwebtoken');
 const { getJwtSecret } = require('./jwtSecret');
 
-const TOKEN_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '30d';
-const REFRESH_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+const TOKEN_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '12h';
+/** After expiry, refresh is allowed only within this grace window. */
+const REFRESH_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 function signAuthToken(user) {
   return jwt.sign(

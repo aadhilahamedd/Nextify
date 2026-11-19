@@ -12,6 +12,7 @@ try {
 }
 
 const cors = require('cors');
+const helmet = require('helmet');
 const route = require('./routes/route');
 const errorHandler = require('./middleware/errorHandler');
 const { buildCorsOptions } = require('./config/corsOptions');
@@ -31,10 +32,30 @@ const port = process.env.PORT || 5000;
 
 const corsOptions = buildCorsOptions();
 
+NextifyServer.use(helmet({
+  // JSON API — do not force a browser CSP that could break future admin tooling.
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false,
+}));
 NextifyServer.use(cors(corsOptions));
 NextifyServer.options('/{*splat}', cors(corsOptions));
-NextifyServer.use(express.json({ limit: '200mb' }));
-NextifyServer.use(express.urlencoded({ limit: '200mb', extended: true }));
+
+const BODY_LIMIT = '100kb';
+
+function isWhatsAppWebhookPath(req) {
+  const url = String(req.originalUrl || req.url || '');
+  return url.startsWith('/api/whatsapp/webhook');
+}
+
+NextifyServer.use(express.json({
+  limit: BODY_LIMIT,
+  verify: (req, res, buf) => {
+    if (isWhatsAppWebhookPath(req) && Buffer.isBuffer(buf)) {
+      req.rawBody = Buffer.from(buf);
+    }
+  },
+}));
+NextifyServer.use(express.urlencoded({ limit: BODY_LIMIT, extended: true }));
 NextifyServer.use(route);
 NextifyServer.use(errorHandler);
 
@@ -91,4 +112,5 @@ module.exports = {
   NextifyServer,
   bootstrap,
   port,
+  BODY_LIMIT,
 };

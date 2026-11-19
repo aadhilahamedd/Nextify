@@ -15,19 +15,20 @@ const reviewController = require('../controllers/reviewController');
 const jwtMiddleware = require('../middleware/jwtMiddleware');
 const optionalJwtMiddleware = require('../middleware/optionalJwtMiddleware');
 const adminMiddleware = require('../middleware/adminMiddleware');
+const { authLoginRegisterLimiter, authRefreshLimiter } = require('../middleware/rateLimiters');
 const Settings = require('../models/Settings');
 const { DEFAULT_CONTACT } = require('../services/seedService');
 const mapsController = require('../controllers/mapsController');
 const { success } = require('../utils/apiResponse');
 
 // ====== Auth routes ======
-router.post('/api/register', authController.register);
-router.post('/api/auth/register', authController.register);
-router.post('/api/user/login', authController.userLogin);
-router.post('/api/auth/login', authController.userLogin);
-router.post('/api/admin/login', authController.adminLogin);
+router.post('/api/register', authLoginRegisterLimiter, authController.register);
+router.post('/api/auth/register', authLoginRegisterLimiter, authController.register);
+router.post('/api/user/login', authLoginRegisterLimiter, authController.userLogin);
+router.post('/api/auth/login', authLoginRegisterLimiter, authController.userLogin);
+router.post('/api/admin/login', authLoginRegisterLimiter, authController.adminLogin);
 router.get('/api/auth/me', jwtMiddleware, authController.getMe);
-router.post('/api/auth/refresh', authController.refresh);
+router.post('/api/auth/refresh', authRefreshLimiter, authController.refresh);
 
 router.get('/api/contact', async (req, res) => {
   try {
@@ -102,6 +103,9 @@ router.use(whatsappRoutes);
 // ====== Reviews ======
 router.get('/api/reviews', reviewController.getReviews);
 router.post('/api/reviews', reviewController.createReview);
+router.get('/api/reviews/admin', jwtMiddleware, adminMiddleware, reviewController.listAdminReviews);
+router.patch('/api/reviews/:id/approve', jwtMiddleware, adminMiddleware, reviewController.approveReview);
+router.delete('/api/reviews/:id', jwtMiddleware, adminMiddleware, reviewController.rejectReview);
 
 // ====== Chat (FAQ/rules only — no OpenAI) ======
 router.post('/api/chat', chatController.chat);

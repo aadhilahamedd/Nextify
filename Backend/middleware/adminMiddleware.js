@@ -1,6 +1,8 @@
+const { error } = require('../utils/apiResponse');
+
 const adminMiddleware = (req, res, next) => {
   if (!req.user || req.user.role !== 'admin') {
-    return res.status(403).json({ message: 'Admin access required.' });
+    return error(res, 403, 'Admin access required.');
   }
   next();
 };

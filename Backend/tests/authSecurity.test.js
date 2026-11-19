@@ -223,6 +223,21 @@ async function run() {
     assert.ok(!md.includes('nextify123@'));
   });
 
+  await check('authToken defaults to 12h expiry and 24h refresh grace', () => {
+    delete process.env.JWT_EXPIRES_IN;
+    delete require.cache[require.resolve('../utils/authToken')];
+    const authToken = require('../utils/authToken');
+    assert.strictEqual(authToken.TOKEN_EXPIRES_IN, '12h');
+    assert.strictEqual(authToken.REFRESH_WINDOW_MS, 24 * 60 * 60 * 1000);
+  });
+
+  await check('env example documents JWT_EXPIRES_IN and WHATSAPP_APP_SECRET', () => {
+    const fs = require('fs');
+    const example = fs.readFileSync(path.join(__dirname, '../.env.example'), 'utf8');
+    assert.ok(example.includes('JWT_EXPIRES_IN=12h'));
+    assert.ok(example.includes('WHATSAPP_APP_SECRET='));
+  });
+
   const failed = results.filter((r) => !r.ok);
   console.log(`\n${results.length - failed.length}/${results.length} passed`);
   if (failed.length) {

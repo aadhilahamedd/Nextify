@@ -6,7 +6,7 @@ const reviewSchema = new mongoose.Schema(
     role: { type: String, default: '', trim: true, maxlength: 80 },
     quote: { type: String, required: true, trim: true, maxlength: 280 },
     rating: { type: Number, required: true, min: 1, max: 5, default: 5 },
-    approved: { type: Boolean, default: true },
+    approved: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
