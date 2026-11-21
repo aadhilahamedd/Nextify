@@ -52,30 +52,130 @@ exports.getBookingById = async (req, res, next) => {
   }
 };
 
+const DRIVER_VISIBLE_STATUSES = ['DRIVER_ASSIGNED', 'DRIVER_ON_THE_WAY', 'IN_PROGRESS', 'COMPLETED'];
+const MIN_TRACK_PHONE_DIGITS = 9;
+
+function normalizeTrackEmail(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+/** Strip spaces, punctuation, and all non-digit characters. */
+function normalizeTrackPhone(value) {
+  return String(value || '').replace(/\D/g, '');
+}
+
+/**
+ * Controlled Saudi mobile canonical form: 9665XXXXXXXX.
+ * Supports 05XXXXXXXX, 5XXXXXXXX, 9665XXXXXXXX, +9665…, and 96605…
+ * Unrecognized shapes keep digits as-is (exact compare only; no suffix matching).
+ */
+function canonicalizeTrackPhone(digits) {
+  if (!digits || digits.length < MIN_TRACK_PHONE_DIGITS) return null;
+  if (/^9665\d{8}$/.test(digits)) return digits;
+  if (/^96605\d{8}$/.test(digits)) return `966${digits.slice(4)}`;
+  if (/^05\d{8}$/.test(digits)) return `966${digits.slice(1)}`;
+  if (/^5\d{8}$/.test(digits)) return `966${digits}`;
+  return digits;
+}
+
+function phonesMatchForTracking(storedRaw, providedRaw) {
+  const storedDigits = normalizeTrackPhone(storedRaw);
+  const providedDigits = normalizeTrackPhone(providedRaw);
+  if (storedDigits.length < MIN_TRACK_PHONE_DIGITS) return false;
+  if (providedDigits.length < MIN_TRACK_PHONE_DIGITS) return false;
+
+  const stored = canonicalizeTrackPhone(storedDigits);
+  const provided = canonicalizeTrackPhone(providedDigits);
+  if (!stored || !provided) return false;
+  return stored === provided;
+}
+
+/** Public tracking projection — only fields used by TrackBooking.jsx. */
+function toPublicTrackBooking(doc) {
+  const normalized = Booking.normalizeLegacy(doc.toObject ? doc.toObject() : doc);
+  const showDriver = DRIVER_VISIBLE_STATUSES.includes(normalized.bookingStatus);
+  return {
+    bookingNumber: normalized.bookingNumber,
+    bookingStatus: normalized.bookingStatus,
+    paymentStatus: normalized.paymentStatus,
+    serviceType: normalized.serviceType,
+    vehicle: normalized.vehicle?.name
+      ? { name: normalized.vehicle.name }
+      : undefined,
+    vehicleName: normalized.vehicleName || normalized.vehicle?.name || '',
+    pickup: normalized.pickup?.address
+      ? { address: normalized.pickup.address }
+      : undefined,
+    pickupLocation: normalized.pickupLocation || normalized.pickup?.address || '',
+    destination: normalized.destination?.address
+      ? { address: normalized.destination.address }
+      : undefined,
+    dropoffLocation: normalized.dropoffLocation || normalized.destination?.address || '',
+    schedule: normalized.schedule?.pickupDateTime
+      ? { pickupDateTime: normalized.schedule.pickupDateTime }
+      : undefined,
+    arrivalDateTime: normalized.arrivalDateTime || normalized.schedule?.pickupDateTime || null,
+    quotedPrice: normalized.quotedPrice,
+    pricing: normalized.pricing
+      ? {
+          totalAmount: normalized.pricing.totalAmount,
+          currency: normalized.pricing.currency || 'SAR',
+          breakdown: normalized.pricing.breakdown
+            ? {
+                pricingType: normalized.pricing.breakdown.pricingType,
+                message: normalized.pricing.breakdown.message,
+              }
+            : undefined,
+        }
+      : undefined,
+    pricingType: normalized.pricingType || normalized.pricing?.breakdown?.pricingType,
+    customQuoteRequired: Boolean(normalized.customQuoteRequired),
+    customer: {
+      name: normalized.customer?.name || '',
+    },
+    driver: showDriver && normalized.driver?.name
+      ? {
+          name: normalized.driver.name,
+          phone: normalized.driver.phone || '',
+        }
+      : undefined,
+  };
+}
+
 exports.trackBooking = async (req, res, next) => {
   try {
-    const { bookingNumber } = req.params;
-    const { email, mobile } = req.query;
-    if (!email && !mobile) return error(res, 400, 'Email or mobile is required to track booking');
+    const bookingNumber = String(req.body?.bookingNumber || '').trim();
+    const emailRaw = req.body?.email;
+    const mobileRaw = req.body?.mobile;
 
-    const booking = await Booking.findOne({ bookingNumber }).populate('driver', 'name phone email status');
+    if (!bookingNumber) {
+      return error(res, 400, 'Booking number is required');
+    }
+
+    const email = normalizeTrackEmail(emailRaw);
+    const mobileDigits = normalizeTrackPhone(mobileRaw);
+    if (!email && !mobileDigits) {
+      return error(res, 400, 'Email or mobile is required to track booking');
+    }
+    if (mobileRaw && mobileDigits.length > 0 && mobileDigits.length < MIN_TRACK_PHONE_DIGITS) {
+      return error(res, 400, 'Mobile number must include at least 9 digits');
+    }
+
+    const booking = await Booking.findOne({ bookingNumber }).populate('driver', 'name phone status');
     if (!booking) return error(res, 404, 'Booking not found');
 
-    const customerEmail = (booking.customer?.email || booking.email || '').toLowerCase();
+    const customerEmail = normalizeTrackEmail(booking.customer?.email || booking.email);
     const customerMobile = booking.customer?.mobile || booking.mobile || '';
-    const emailMatch = email && customerEmail === email.toLowerCase();
-    const mobileMatch =
-      mobile && customerMobile.replace(/\D/g, '').endsWith(String(mobile).replace(/\D/g, '').slice(-9));
+    const emailMatch = Boolean(email) && customerEmail === email;
+    const mobileMatch = Boolean(mobileDigits) && phonesMatchForTracking(customerMobile, mobileDigits);
 
     if (!emailMatch && !mobileMatch) {
       return error(res, 403, 'Booking details do not match provided contact information');
     }
 
-    const normalized = Booking.normalizeLegacy(booking.toObject());
-    if (!['DRIVER_ASSIGNED', 'DRIVER_ON_THE_WAY', 'IN_PROGRESS', 'COMPLETED'].includes(normalized.bookingStatus)) {
-      delete normalized.driver;
-    }
-    return success(res, 200, 'Booking found', { booking: normalized });
+    return success(res, 200, 'Booking found', {
+      booking: toPublicTrackBooking(booking.toObject()),
+    });
   } catch (err) {
     next(err);
   }
@@ -223,3 +323,11 @@ exports.getDashboardStats = async (req, res, next) => {
 };
 
 exports.addBooking = exports.createBooking;
+
+// Exported for unit tests only — not an HTTP route.
+exports._test = {
+  normalizeTrackPhone,
+  canonicalizeTrackPhone,
+  phonesMatchForTracking,
+  MIN_TRACK_PHONE_DIGITS,
+};

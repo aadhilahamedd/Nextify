@@ -111,10 +111,16 @@ export const getBookingByIdAPI = async (id) => {
 
 export const trackBookingAPI = async (bookingNumber, { email, mobile }) => {
   try {
-    const params = new URLSearchParams();
-    if (email) params.set("email", email);
-    if (mobile) params.set("mobile", mobile);
-    const response = await commonAPI("GET", `${serverURL}/api/bookings/track/${bookingNumber}?${params}`, "");
+    const response = await commonAPI(
+      "POST",
+      `${serverURL}/api/bookings/track`,
+      {
+        bookingNumber,
+        email: email || undefined,
+        mobile: mobile || undefined,
+      },
+      { "Content-Type": "application/json" },
+    );
     return unwrap(response);
   } catch (err) {
     return handleError(err, "Booking not found");

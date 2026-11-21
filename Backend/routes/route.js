@@ -15,7 +15,7 @@ const reviewController = require('../controllers/reviewController');
 const jwtMiddleware = require('../middleware/jwtMiddleware');
 const optionalJwtMiddleware = require('../middleware/optionalJwtMiddleware');
 const adminMiddleware = require('../middleware/adminMiddleware');
-const { authLoginRegisterLimiter, authRefreshLimiter } = require('../middleware/rateLimiters');
+const { authLoginRegisterLimiter, authRefreshLimiter, trackBookingLimiter } = require('../middleware/rateLimiters');
 const Settings = require('../models/Settings');
 const { DEFAULT_CONTACT } = require('../services/seedService');
 const mapsController = require('../controllers/mapsController');
@@ -66,7 +66,7 @@ router.put('/api/pricing-rules/:id', jwtMiddleware, adminMiddleware, pricingCont
 // ====== Bookings (guest + optional auth) ======
 router.post('/api/bookings', optionalJwtMiddleware, bookingController.createBooking);
 router.get('/api/bookings/pay/:id', bookingController.getPublicPayBooking);
-router.get('/api/bookings/track/:bookingNumber', bookingController.trackBooking);
+router.post('/api/bookings/track', trackBookingLimiter, bookingController.trackBooking);
 router.get('/api/bookings', jwtMiddleware, adminMiddleware, bookingController.getBookings);
 router.get('/api/bookings/stats', jwtMiddleware, adminMiddleware, bookingController.getDashboardStats);
 router.get('/api/bookings/:id', jwtMiddleware, adminMiddleware, bookingController.getBookingById);

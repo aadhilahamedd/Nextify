@@ -38,7 +38,10 @@ function TrackBooking() {
       return;
     }
     setLoading(true);
-    const res = await trackBookingAPI(bookingNumber.trim(), { email, mobile });
+    const res = await trackBookingAPI(bookingNumber.trim(), {
+      email: email.trim() || undefined,
+      mobile: mobile.trim() || undefined,
+    });
     setLoading(false);
     if (res?.status === 200) {
       setBooking(res.data?.data?.booking || res.data?.booking);
