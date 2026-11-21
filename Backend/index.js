@@ -27,6 +27,9 @@ try {
 }
 
 const NextifyServer = express();
+
+// Trust the single reverse proxy in front of the Render service.
+NextifyServer.set('trust proxy', 1);
 console.log('🔥 INDEX.JS IS RUNNING FROM:', __dirname);
 const port = process.env.PORT || 5000;
 

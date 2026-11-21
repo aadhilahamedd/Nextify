@@ -15,7 +15,9 @@ function buildRegisteredUserDocument({ username, email, passwordHash }) {
 }
 
 async function authenticateByEmailPassword(email, password) {
-  const normalizedEmail = email?.toLowerCase();
+  const normalizedEmail = typeof email === 'string'
+    ? email.trim().toLowerCase()
+    : '';
   if (!normalizedEmail || !password) {
     return { ok: false, status: 400, message: 'Email and password are required' };
   }
