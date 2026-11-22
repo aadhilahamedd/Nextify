@@ -1533,9 +1533,9 @@ async function run() {
     assert.strictEqual(bookingDoc.bookingStatus, 'CONFIRMED', 'concurrently CONFIRMED booking must never be overwritten');
   });
 
-  // 26. webhook_verification logs code ONLY when MOYASAR_ENV=test, MOYASAR_LOG_WEBHOOK_VERIFICATION_CODE=true, and code exists
-  await check('26. handleWebhook logs webhook_verification code only when MOYASAR_ENV=test and explicit flag is true', async () => {
-    const verificationCode = 'VERIFY-CODE-84219';
+  // 26. webhook_verification runs after secret_token validation and before mode validation; logs 6-digit code only when flag=true
+  await check('26. handleWebhook handles webhook_verification before mode check and logs 6-digit code only when flag is true', async () => {
+    const verificationCode = '842193';
     const captureLogs = async (fn) => {
       const logs = [];
       const origLog = console.log;
@@ -1548,7 +1548,7 @@ async function run() {
       }
     };
 
-    // Case 1: MOYASAR_ENV=test + flag=true + NODE_ENV=production -> logs code, never logs secret_token or payload
+    // Case 1: Valid secret + flag=true in production (TEST mode) -> accepted and logs 6-digit code only
     setMoyasarMode('test');
     process.env.NODE_ENV = 'production';
     process.env.MOYASAR_LOG_WEBHOOK_VERIFICATION_CODE = 'true';
@@ -1559,56 +1559,70 @@ async function run() {
       data: { verification_code: verificationCode, extra_field: 'do_not_dump_payload' },
     }));
     assert.deepStrictEqual(c1.res, { verification: true, mappedStatus: 'IGNORED' });
-    assert.ok(c1.output.includes(verificationCode), 'must log verification code when test mode and explicit flag are enabled');
+    assert.ok(c1.output.includes(verificationCode), 'must log 6-digit verification code when flag is true');
     assert.ok(!c1.output.includes('whsec_hardening_test_secret'), 'must never log secret_token');
     assert.ok(!c1.output.includes('do_not_dump_payload'), 'must never log full webhook payload');
 
-    // Case 2: MOYASAR_ENV=test + flag unset -> does NOT log code
-    delete process.env.MOYASAR_LOG_WEBHOOK_VERIFICATION_CODE;
-    const c2 = await captureLogs(() => moyasarProvider.handleWebhook({
-      type: 'webhook_verification',
-      secret_token: 'whsec_hardening_test_secret',
-      live: false,
-      data: { verification_code: verificationCode },
-    }));
-    assert.deepStrictEqual(c2.res, { verification: true, mappedStatus: 'IGNORED' });
-    assert.ok(!c2.output.includes(verificationCode), 'must not log code when flag is unset');
-
-    // Case 3: MOYASAR_ENV=test + flag='false' -> does NOT log code
-    process.env.MOYASAR_LOG_WEBHOOK_VERIFICATION_CODE = 'false';
-    const c3 = await captureLogs(() => moyasarProvider.handleWebhook({
-      type: 'webhook_verification',
-      secret_token: 'whsec_hardening_test_secret',
-      live: false,
-      data: { verification_code: verificationCode },
-    }));
-    assert.ok(!c3.output.includes(verificationCode), 'must not log code when flag is false');
-
-    // Case 4: MOYASAR_ENV=live + flag='true' -> does NOT log code
-    setMoyasarMode('live');
-    process.env.MOYASAR_LOG_WEBHOOK_VERIFICATION_CODE = 'true';
-    const c4 = await captureLogs(() => moyasarProvider.handleWebhook({
+    // Case 2: LIVE webhook_verification accepted while MOYASAR_ENV=test (valid secret) and logs 6-digit code when flag=true
+    const cLiveInTest = await captureLogs(() => moyasarProvider.handleWebhook({
       type: 'webhook_verification',
       secret_token: 'whsec_hardening_test_secret',
       live: true,
       data: { verification_code: verificationCode },
     }));
-    assert.deepStrictEqual(c4.res, { verification: true, mappedStatus: 'IGNORED' });
-    assert.ok(!c4.output.includes(verificationCode), 'must never log verification code in live mode');
+    assert.deepStrictEqual(cLiveInTest.res, { verification: true, mappedStatus: 'IGNORED' });
+    assert.ok(cLiveInTest.output.includes(verificationCode), 'must log 6-digit verification code for LIVE verification while MOYASAR_ENV=test');
 
-    // Case 5: MOYASAR_ENV=test + flag='true' + missing code -> does NOT log verification code line
-    setMoyasarMode('test');
+    // Case 3: LIVE mode + NODE_ENV=production + flag=true -> logs 6-digit verification code only
+    setMoyasarMode('live');
+    process.env.NODE_ENV = 'production';
     process.env.MOYASAR_LOG_WEBHOOK_VERIFICATION_CODE = 'true';
-    const c5 = await captureLogs(() => moyasarProvider.handleWebhook({
+    const cLiveProd = await captureLogs(() => moyasarProvider.handleWebhook({
+      type: 'webhook_verification',
+      secret_token: 'whsec_hardening_test_secret',
+      live: true,
+      data: { verification_code: verificationCode, customer_email: 'guest@example.com' },
+    }));
+    assert.deepStrictEqual(cLiveProd.res, { verification: true, mappedStatus: 'IGNORED' });
+    assert.ok(cLiveProd.output.includes(verificationCode), 'must log 6-digit code in production when explicit flag is true');
+    assert.ok(!cLiveProd.output.includes('guest@example.com'), 'must never log customer info');
+
+    // Case 4: Flag unset or false -> does NOT log verification code
+    setMoyasarMode('test');
+    delete process.env.MOYASAR_LOG_WEBHOOK_VERIFICATION_CODE;
+    const cUnset = await captureLogs(() => moyasarProvider.handleWebhook({
       type: 'webhook_verification',
       secret_token: 'whsec_hardening_test_secret',
       live: false,
-      data: {},
+      data: { verification_code: verificationCode },
     }));
-    assert.deepStrictEqual(c5.res, { verification: true, mappedStatus: 'IGNORED' });
-    assert.ok(!c5.output.includes('dashboard verification code'), 'must not log code line when verification_code is missing');
+    assert.deepStrictEqual(cUnset.res, { verification: true, mappedStatus: 'IGNORED' });
+    assert.ok(!cUnset.output.includes(verificationCode), 'must not log code when flag is unset');
 
-    // Case 6: Existing secret validation and mode validation remain enforced
+    process.env.MOYASAR_LOG_WEBHOOK_VERIFICATION_CODE = 'false';
+    const cFalse = await captureLogs(() => moyasarProvider.handleWebhook({
+      type: 'webhook_verification',
+      secret_token: 'whsec_hardening_test_secret',
+      live: true,
+      data: { verification_code: verificationCode },
+    }));
+    assert.deepStrictEqual(cFalse.res, { verification: true, mappedStatus: 'IGNORED' });
+    assert.ok(!cFalse.output.includes(verificationCode), 'must not log code when flag is false');
+
+    // Case 5: Missing or non-6-digit verification_code -> does NOT log verification code line
+    process.env.MOYASAR_LOG_WEBHOOK_VERIFICATION_CODE = 'true';
+    for (const badCode of [undefined, '', '12345', '1234567', 'secret_leak']) {
+      const cBad = await captureLogs(() => moyasarProvider.handleWebhook({
+        type: 'webhook_verification',
+        secret_token: 'whsec_hardening_test_secret',
+        live: false,
+        data: badCode !== undefined ? { verification_code: badCode } : {},
+      }));
+      assert.deepStrictEqual(cBad.res, { verification: true, mappedStatus: 'IGNORED' });
+      assert.ok(!cBad.output.includes('dashboard verification code'), 'must only log a 6-digit verification code');
+    }
+
+    // Case 6: Invalid webhook secret is rejected with 401 even for webhook_verification
     let badSecretErr = null;
     try {
       await moyasarProvider.handleWebhook({
@@ -1622,18 +1636,20 @@ async function run() {
     }
     assert.ok(badSecretErr && badSecretErr.statusCode === 401);
 
-    let badModeErr = null;
+    // Case 7: Actual LIVE payment event is STILL rejected with 409 while MOYASAR_ENV=test
+    setMoyasarMode('test');
+    let livePaymentErr = null;
     try {
       await moyasarProvider.handleWebhook({
-        type: 'webhook_verification',
+        type: 'payment_paid',
         secret_token: 'whsec_hardening_test_secret',
         live: true,
-        data: { verification_code: verificationCode },
+        data: { id: 'pay_live_rejected_in_test', status: 'paid' },
       });
     } catch (err) {
-      badModeErr = err;
+      livePaymentErr = err;
     }
-    assert.ok(badModeErr && badModeErr.statusCode === 409);
+    assert.ok(livePaymentErr && livePaymentErr.statusCode === 409, 'actual LIVE payment event must still be rejected while MOYASAR_ENV=test');
   });
 
   // 27. REST payment response with omitted `live` succeeds with matching test or live credentials + matching metadata.env
