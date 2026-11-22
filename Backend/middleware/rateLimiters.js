@@ -7,7 +7,6 @@ const TRACK_BOOKING_MAX = 5;
 const PAYMENT_CREATE_MAX = 20;
 const PAYMENT_VERIFY_MAX = 30;
 const PAYMENT_REFERENCE_MAX = 15;
-const STAGING_ADMIN_SETUP_MAX = 5;
 
 const authLoginRegisterLimiter = rateLimit({
   windowMs: AUTH_WINDOW_MS,
@@ -81,18 +80,6 @@ const paymentReferenceLimiter = rateLimit({
   },
 });
 
-const stagingAdminSetupLimiter = rateLimit({
-  windowMs: AUTH_WINDOW_MS,
-  max: STAGING_ADMIN_SETUP_MAX,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: {
-    success: false,
-    message: 'Too many staging setup requests. Please try again later.',
-    errors: [],
-  },
-});
-
 module.exports = {
   AUTH_WINDOW_MS,
   AUTH_LOGIN_REGISTER_MAX,
@@ -101,12 +88,10 @@ module.exports = {
   PAYMENT_CREATE_MAX,
   PAYMENT_VERIFY_MAX,
   PAYMENT_REFERENCE_MAX,
-  STAGING_ADMIN_SETUP_MAX,
   authLoginRegisterLimiter,
   authRefreshLimiter,
   trackBookingLimiter,
   paymentCreateLimiter,
   paymentVerifyLimiter,
   paymentReferenceLimiter,
-  stagingAdminSetupLimiter,
 };

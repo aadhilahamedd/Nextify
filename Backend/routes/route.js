@@ -4,7 +4,6 @@ console.log("🔥 ROUTE.JS LOADED");
 
 const bookingController = require('../controllers/bookingController');
 const authController = require('../controllers/authController');
-const stagingAdminSetupController = require('../controllers/stagingAdminSetupController');
 const messageController = require('../controllers/messageController');
 const carController = require('../controllers/carController');
 const pricingController = require('../controllers/pricingController');
@@ -23,7 +22,6 @@ const {
   paymentCreateLimiter,
   paymentVerifyLimiter,
   paymentReferenceLimiter,
-  stagingAdminSetupLimiter,
 } = require('../middleware/rateLimiters');
 const Settings = require('../models/Settings');
 const { DEFAULT_CONTACT } = require('../services/seedService');
@@ -38,7 +36,6 @@ router.post('/api/auth/login', authLoginRegisterLimiter, authController.userLogi
 router.post('/api/admin/login', authLoginRegisterLimiter, authController.adminLogin);
 router.get('/api/auth/me', jwtMiddleware, authController.getMe);
 router.post('/api/auth/refresh', authRefreshLimiter, authController.refresh);
-router.post('/api/internal/staging-admin-setup', stagingAdminSetupLimiter, stagingAdminSetupController.setupStagingAdmin);
 
 router.get('/api/contact', async (req, res) => {
   try {
