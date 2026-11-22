@@ -454,16 +454,23 @@ async function handleWebhook(payload) {
   if (!webhookSecretAccepted(payload?.secret_token)) {
     throw httpError(401, 'Invalid webhook');
   }
-  assertWebhookMode(payload);
 
   if (payload?.type === 'webhook_verification') {
-    const code = payload?.data?.verification_code;
+    const rawCode = payload?.data?.verification_code;
+    const code = typeof rawCode === 'string' || typeof rawCode === 'number'
+      ? String(rawCode).trim()
+      : '';
     console.log('[payments] Moyasar webhook verification event accepted. This process does not register the webhook.');
-    if (process.env.NODE_ENV !== 'production' && code) {
+    if (
+      process.env.MOYASAR_LOG_WEBHOOK_VERIFICATION_CODE === 'true'
+      && /^\d{6}$/.test(code)
+    ) {
       console.log('[payments] Moyasar dashboard verification code:', code);
     }
     return { verification: true, mappedStatus: 'IGNORED' };
   }
+
+  assertWebhookMode(payload);
 
   if (payload?.type && !String(payload.type).startsWith('payment_')) {
     console.log('[payments] Moyasar webhook ignored', { type: payload.type });
