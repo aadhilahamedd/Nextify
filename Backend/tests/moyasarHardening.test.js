@@ -8,7 +8,7 @@ const mongoose = require('mongoose');
 const Booking = require('../models/Booking');
 const Payment = require('../models/Payment');
 const moyasarProvider = require('../services/paymentProviders/moyasarPaymentProvider');
-const { assertPaymentMode } = require('../services/paymentProviders/moyasarConfig');
+const { assertPaymentMode, assertWebhookMode } = require('../services/paymentProviders/moyasarConfig');
 const { generateCheckoutToken } = require('../utils/checkoutToken');
 
 const results = [];
@@ -135,18 +135,18 @@ async function run() {
     assert.strictEqual(dbTouched, false);
   });
 
-  // 3. Missing or invalid mode information rejected in both verifyPayment and attachReference
-  await check('3. Missing or invalid live mode rejected with 409 in verifyPayment and attachReference', async () => {
+  // 3. Invalid live mode values rejected in both verifyPayment and attachReference
+  await check('3. Invalid live mode values (null, strings, 0, 1) rejected with 409 in verifyPayment and attachReference', async () => {
     setMoyasarMode('test');
-    for (const badLive of [undefined, null, 'false', 'true', 0, 1]) {
-      assert.throws(() => assertPaymentMode({ live: badLive }), /missing or invalid/i);
+    for (const badLive of [null, 'false', 'true', 0, 1]) {
+      assert.throws(() => assertPaymentMode({ live: badLive }), /invalid/i);
 
       stubMoyasar({
         id: 'pay_bad_mode',
         status: 'paid',
         amount: 18000,
         currency: 'SAR',
-        ...(badLive !== undefined ? { live: badLive } : {}),
+        live: badLive,
         metadata: { payment_id: PAY_ID, booking_number: 'NX-M3' },
       });
 
@@ -167,6 +167,7 @@ async function run() {
         provider: 'moyasar',
         providerReference: '',
         status: 'PENDING',
+        metadata: { env: 'test' },
       });
       let attachErr = null;
       try {
@@ -224,7 +225,7 @@ async function run() {
       provider: 'moyasar',
       providerReference: 'pay_legit_first',
       status: 'PAID',
-      metadata: {},
+      metadata: { env: 'test' },
     };
     Payment.findById = async () => paidLocal;
 
@@ -300,6 +301,7 @@ async function run() {
       provider: 'moyasar',
       providerReference: moyasarId,
       status: 'PAID', // Already marked PAID before previous crash/failure
+      metadata: { env: 'test' },
     };
     const bookingDoc = {
       _id: BOOKING_ID,
@@ -351,6 +353,7 @@ async function run() {
       provider: 'moyasar',
       providerReference: moyasarId,
       status: 'FAILED', // Already marked FAILED before previous Booking update failed
+      metadata: { env: 'test' },
     };
     const bookingDoc = {
       _id: BOOKING_ID,
@@ -400,6 +403,7 @@ async function run() {
       provider: 'moyasar',
       providerReference: moyasarId,
       status: 'PENDING',
+      metadata: { env: 'test' },
     };
     const bookingDoc = {
       _id: BOOKING_ID,
@@ -474,6 +478,7 @@ async function run() {
       provider: 'moyasar',
       providerReference: 'pay_second_extra',
       status: 'PENDING',
+      metadata: { env: 'test' },
     };
     const paidBooking = {
       _id: BOOKING_ID,
@@ -528,6 +533,7 @@ async function run() {
       provider: 'moyasar',
       providerReference: moyasarId,
       status: 'PENDING',
+      metadata: { env: 'test' },
     };
     stubMoyasar({
       id: moyasarId,
@@ -571,6 +577,7 @@ async function run() {
       provider: 'moyasar',
       providerReference: moyasarId,
       status: 'PENDING',
+      metadata: { env: 'test' },
     };
     stubMoyasar({
       id: moyasarId,
@@ -610,6 +617,7 @@ async function run() {
       provider: 'moyasar',
       providerReference: moyasarId,
       status: 'PAID',
+      metadata: { env: 'test' },
     };
     const bookingDoc = {
       _id: BOOKING_ID,
@@ -671,6 +679,7 @@ async function run() {
       provider: 'moyasar',
       providerReference: 'pay_extra_refunded',
       status: 'PAID',
+      metadata: { env: 'test' },
     };
     const bookingDoc = {
       _id: BOOKING_ID,
@@ -725,6 +734,7 @@ async function run() {
       provider: 'moyasar',
       providerReference: 'pay_first_refunding',
       status: 'PAID',
+      metadata: { env: 'test' },
     };
     const concurrentSecondPaid = {
       _id: '507f191e810c19729de861e2',
@@ -794,6 +804,7 @@ async function run() {
       provider: 'moyasar',
       providerReference: moyasarId,
       status: 'REFUNDED', // Already marked REFUNDED by first attempt, but booking update had failed
+      metadata: { env: 'test' },
     };
     const bookingDoc = {
       _id: BOOKING_ID,
@@ -849,7 +860,7 @@ async function run() {
       provider: 'moyasar',
       providerReference: 'pay_hop_0',
       status: 'FAILED',
-      metadata: {},
+      metadata: { env: 'test' },
     };
     store.set(p0._id, p0);
 
@@ -917,7 +928,7 @@ async function run() {
       provider: 'moyasar',
       providerReference: 'pay_initial',
       status: 'FAILED',
-      metadata: {},
+      metadata: { env: 'test' },
     };
     const moyasarPayload = {
       id: 'pay_race_ref',
@@ -967,7 +978,7 @@ async function run() {
       currency: 'SAR',
       provider: 'moyasar',
       providerReference: 'pay_race_ref',
-      metadata: { ownedByPaymentId: p0._id },
+      metadata: { env: 'test', ownedByPaymentId: p0._id },
     };
     let findCalls = 0;
     Payment.findOne = async () => {
@@ -991,6 +1002,7 @@ async function run() {
       provider: 'moyasar',
       providerReference: moyasarId,
       status: 'PENDING',
+      metadata: { env: 'test' },
     };
     const bookingDoc = {
       _id: BOOKING_ID,
@@ -1102,6 +1114,7 @@ async function run() {
       provider: 'moyasar',
       providerReference: 'pay_tx_p1',
       status: 'PAID',
+      metadata: { env: 'test' },
     };
     const p2 = {
       _id: '507f191e810c19729de86222',
@@ -1112,6 +1125,7 @@ async function run() {
       provider: 'moyasar',
       providerReference: 'pay_tx_p2',
       status: 'PENDING',
+      metadata: { env: 'test' },
     };
     const bookingDoc = {
       _id: BOOKING_ID,
@@ -1204,7 +1218,7 @@ async function run() {
       provider: 'moyasar',
       providerReference: '',
       status: 'PENDING',
-      metadata: {},
+      metadata: { env: 'test' },
     };
     const refundedBooking = {
       _id: BOOKING_ID,
@@ -1293,6 +1307,7 @@ async function run() {
       provider: 'moyasar',
       providerReference: moyasarId,
       status: 'PENDING',
+      metadata: { env: 'test' },
     };
     const bookingDoc = {
       _id: BOOKING_ID,
@@ -1619,6 +1634,145 @@ async function run() {
       badModeErr = err;
     }
     assert.ok(badModeErr && badModeErr.statusCode === 409);
+  });
+
+  // 27. REST payment response with omitted `live` succeeds with matching test or live credentials + matching metadata.env
+  await check('27. REST payment with omitted live succeeds in test and live modes with matching credentials and metadata.env', async () => {
+    for (const mode of ['test', 'live']) {
+      setMoyasarMode(mode);
+      const moyasarId = `pay_rest_no_live_${mode}`;
+      const localPayment = {
+        _id: PAY_ID,
+        booking: BOOKING_ID,
+        bookingNumber: `NX-NOLIVE-${mode.toUpperCase()}`,
+        amount: 200,
+        currency: 'SAR',
+        provider: 'moyasar',
+        providerReference: moyasarId,
+        status: 'PENDING',
+        metadata: { env: mode },
+      };
+      const bookingDoc = {
+        _id: BOOKING_ID,
+        bookingNumber: localPayment.bookingNumber,
+        paymentStatus: 'PENDING',
+        bookingStatus: 'PAYMENT_PENDING',
+        checkoutTokenHash: 'c'.repeat(64),
+        checkoutTokenExpiresAt: new Date(Date.now() + 60_000),
+      };
+
+      // Standard Moyasar GET /v1/payments/{id} response without `live` field
+      stubMoyasar({
+        id: moyasarId,
+        status: 'paid',
+        amount: 20000,
+        currency: 'SAR',
+        metadata: { payment_id: PAY_ID, booking_number: localPayment.bookingNumber },
+      });
+
+      assert.doesNotThrow(() => assertPaymentMode({ id: moyasarId, status: 'paid' }));
+
+      Payment.findOne = async (q) => (q.providerReference === moyasarId ? { ...localPayment } : null);
+      Payment.findById = async () => ({ ...localPayment });
+      Payment.findOneAndUpdate = async (_filter, update) => {
+        Object.assign(localPayment, update.$set);
+        return { ...localPayment };
+      };
+      Booking.findById = async () => ({ ...bookingDoc });
+      Booking.findOneAndUpdate = async (_filter, update) => {
+        Object.assign(bookingDoc, update.$set);
+        return { ...bookingDoc };
+      };
+
+      const res = await moyasarProvider.verifyPayment(moyasarId);
+      assert.strictEqual(res.mappedStatus, 'PAID');
+      assert.strictEqual(res.booking.paymentStatus, 'PAID');
+      assert.strictEqual(res.booking.bookingStatus, 'CONFIRMED');
+    }
+
+    // Credential mismatch still fails closed even when `live` is omitted
+    setMoyasarMode('live');
+    process.env.MOYASAR_SECRET_KEY = 'sk_test_wrong_tier';
+    assert.throws(() => assertPaymentMode({ id: 'pay_any' }), /live mode requires/i);
+  });
+
+  // 28. Missing, invalid, or mismatched local payment metadata.env rejected with 409 before Booking lookup
+  await check('28. Missing or mismatched local metadata.env rejected with 409 in verifyPayment and attachReference', async () => {
+    setMoyasarMode('test');
+    const moyasarId = 'pay_bad_local_env';
+    stubMoyasar({
+      id: moyasarId,
+      status: 'paid',
+      amount: 18000,
+      currency: 'SAR',
+      metadata: { payment_id: PAY_ID, booking_number: 'NX-BAD-ENV' },
+    });
+
+    for (const badMeta of [undefined, {}, { env: '' }, { env: 'staging' }, { env: 'live' }]) {
+      const localPayment = {
+        _id: PAY_ID,
+        booking: BOOKING_ID,
+        bookingNumber: 'NX-BAD-ENV',
+        amount: 180,
+        currency: 'SAR',
+        provider: 'moyasar',
+        providerReference: moyasarId,
+        status: 'PENDING',
+        ...(badMeta !== undefined ? { metadata: badMeta } : {}),
+      };
+      let bookingTouched = false;
+      Payment.findOne = async (q) => (q.providerReference === moyasarId ? localPayment : null);
+      Payment.findById = async () => ({ ...localPayment, providerReference: '' });
+      Booking.findById = async () => { bookingTouched = true; return null; };
+
+      let verifyErr = null;
+      try {
+        await moyasarProvider.verifyPayment(moyasarId);
+      } catch (err) {
+        verifyErr = err;
+      }
+      assert.ok(verifyErr && verifyErr.statusCode === 409, 'verifyPayment must reject invalid/mismatched local metadata.env with 409');
+      assert.strictEqual(bookingTouched, false, 'must reject before Booking lookup');
+
+      let attachErr = null;
+      try {
+        await moyasarProvider.attachReference(PAY_ID, moyasarId);
+      } catch (err) {
+        attachErr = err;
+      }
+      assert.ok(attachErr && attachErr.statusCode === 409, 'attachReference must reject invalid/mismatched local metadata.env with 409');
+    }
+  });
+
+  // 29. Webhook mode validation strictly requires boolean `live` matching MOYASAR_ENV
+  await check('29. assertWebhookMode and handleWebhook reject missing, invalid, or mismatched live field with 409', async () => {
+    setMoyasarMode('test');
+    for (const badLive of [undefined, null, 'false', 'true', 0, 1, true]) {
+      const payload = {
+        type: 'payment_paid',
+        secret_token: 'whsec_hardening_test_secret',
+        ...(badLive !== undefined ? { live: badLive } : {}),
+        data: { id: 'pay_wh_mode_check', status: 'paid' },
+      };
+      assert.throws(
+        () => assertWebhookMode(payload),
+        (err) => err.statusCode === 409,
+        `assertWebhookMode must reject live=${String(badLive)} with 409`
+      );
+      let caught = null;
+      try {
+        await moyasarProvider.handleWebhook(payload);
+      } catch (err) {
+        caught = err;
+      }
+      assert.ok(caught && caught.statusCode === 409, `handleWebhook must reject live=${String(badLive)} with 409`);
+    }
+
+    // Valid live boolean in live mode accepted, false rejected
+    setMoyasarMode('live');
+    assert.doesNotThrow(() => assertWebhookMode({ live: true }));
+    assert.throws(() => assertWebhookMode({ live: false }), (err) => err.statusCode === 409);
+    assert.throws(() => assertWebhookMode({}), (err) => err.statusCode === 409);
   });
 
   const failed = results.filter((r) => !r.ok);

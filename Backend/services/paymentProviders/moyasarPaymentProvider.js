@@ -6,6 +6,7 @@ const {
   assertMoyasarCredentials,
   assertPaymentMode,
   assertWebhookMode,
+  moyasarMode,
   webhookSecretAccepted,
 } = require('./moyasarConfig');
 const { classifyVerification } = require('./paymentDecision');
@@ -164,6 +165,14 @@ function assertMoyasarOwnership(localPayment, moyasarPayment) {
 
   assertAmountMatch(localPayment, moyasarPayment);
   assertPaymentMode(moyasarPayment);
+  const expectedMode = moyasarMode();
+  const localEnv = String(localPayment?.metadata?.env || '').trim().toLowerCase();
+  if (!localEnv || (localEnv !== 'test' && localEnv !== 'live')) {
+    throw httpError(409, 'Local payment environment metadata is missing or invalid');
+  }
+  if (localEnv !== expectedMode) {
+    throw httpError(409, 'Local payment environment does not match server MOYASAR_ENV');
+  }
 }
 
 async function findLocalPayment(moyasarPayment) {

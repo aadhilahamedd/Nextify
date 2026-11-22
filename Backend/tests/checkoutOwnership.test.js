@@ -629,7 +629,7 @@ async function run() {
       provider: 'moyasar',
       providerReference: moyasarId,
       status: 'PENDING',
-      metadata: {},
+      metadata: { env: 'test' },
     };
 
     stubMoyasarRetrieve({
@@ -707,7 +707,7 @@ async function run() {
       provider: 'moyasar',
       providerReference: moyasarId,
       status: 'PENDING',
-      metadata: {},
+      metadata: { env: 'test' },
     };
 
     stubMoyasarRetrieve({
@@ -798,7 +798,7 @@ async function run() {
         provider: 'moyasar',
         providerReference: moyasarId,
         status: 'PENDING',
-        metadata: {},
+        metadata: { env: 'test' },
       };
 
       stubMoyasarRetrieve({

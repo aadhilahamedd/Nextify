@@ -403,6 +403,7 @@ async function runAllTests() {
         provider: 'moyasar',
         providerReference: 'pay_old_fail',
         status: 'PENDING',
+        metadata: { env: 'test' },
       };
 
       const attempt2 = {
@@ -505,6 +506,7 @@ async function runAllTests() {
         provider: 'moyasar',
         providerReference: 'pay_refund_test',
         status: 'PAID',
+        metadata: { env: 'test' },
       };
 
       const completedBooking = {
@@ -1140,7 +1142,7 @@ async function runAllTests() {
         provider: 'moyasar',
         providerReference: '',
         status: 'PENDING',
-        metadata: {},
+        metadata: { env: 'test' },
       };
       Payment.findById = async () => local;
       Payment.findOne = async () => null;
@@ -1387,6 +1389,7 @@ async function runAllTests() {
         provider: 'moyasar',
         providerReference: '',
         status: 'PENDING',
+        metadata: { env: 'test' },
       });
       Payment.findOne = async () => ({
         _id: 'pay_local_old',

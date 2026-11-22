@@ -56,7 +56,9 @@ function webhookSecretAccepted(provided) {
 }
 
 function assertWebhookMode(payload) {
-  if (typeof payload?.live !== 'boolean') return;
+  if (typeof payload?.live !== 'boolean') {
+    throw httpError(409, 'Webhook mode is missing or invalid');
+  }
   const eventIsLive = payload.live === true;
   const mode = moyasarMode();
   if ((mode === 'live') !== eventIsLive) {
@@ -65,10 +67,13 @@ function assertWebhookMode(payload) {
 }
 
 function assertPaymentMode(moyasarPayment) {
-  if (typeof moyasarPayment?.live !== 'boolean') {
-    throw httpError(409, 'Moyasar payment mode is missing or invalid');
+  const { mode } = assertMoyasarCredentials({ force: true });
+  if (moyasarPayment?.live === undefined) {
+    return;
   }
-  const mode = moyasarMode();
+  if (typeof moyasarPayment.live !== 'boolean') {
+    throw httpError(409, 'Moyasar payment mode is invalid');
+  }
   const expectLive = mode === 'live';
   if (moyasarPayment.live !== expectLive) {
     throw httpError(409, 'Moyasar payment environment does not match server MOYASAR_ENV');
