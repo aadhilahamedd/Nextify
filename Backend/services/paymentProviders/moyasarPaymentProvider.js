@@ -851,7 +851,11 @@ async function handleWebhook(payload) {
   if (payload?.type === 'webhook_verification') {
     const code = payload?.data?.verification_code;
     console.log('[payments] Moyasar webhook verification event accepted. This process does not register the webhook.');
-    if (process.env.NODE_ENV !== 'production' && code) {
+    if (
+      process.env.MOYASAR_ENV === 'test'
+      && process.env.MOYASAR_LOG_WEBHOOK_VERIFICATION_CODE === 'true'
+      && code
+    ) {
       console.log('[payments] Moyasar dashboard verification code:', code);
     }
     return { verification: true, mappedStatus: 'IGNORED' };

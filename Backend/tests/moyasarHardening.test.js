@@ -20,6 +20,7 @@ async function check(name, fn) {
     MOYASAR_SECRET_KEY: process.env.MOYASAR_SECRET_KEY,
     MOYASAR_PUBLISHABLE_KEY: process.env.MOYASAR_PUBLISHABLE_KEY,
     MOYASAR_WEBHOOK_SECRET: process.env.MOYASAR_WEBHOOK_SECRET,
+    MOYASAR_LOG_WEBHOOK_VERIFICATION_CODE: process.env.MOYASAR_LOG_WEBHOOK_VERIFICATION_CODE,
   };
   const origFetch = global.fetch;
   const origStartSession = mongoose.startSession;
@@ -1515,6 +1516,109 @@ async function run() {
     assert.strictEqual(updateOneCalls, 1);
     assert.strictEqual(bookingDoc.paymentStatus, 'PAID', 'concurrently PAID booking must never be overwritten');
     assert.strictEqual(bookingDoc.bookingStatus, 'CONFIRMED', 'concurrently CONFIRMED booking must never be overwritten');
+  });
+
+  // 26. webhook_verification logs code ONLY when MOYASAR_ENV=test, MOYASAR_LOG_WEBHOOK_VERIFICATION_CODE=true, and code exists
+  await check('26. handleWebhook logs webhook_verification code only when MOYASAR_ENV=test and explicit flag is true', async () => {
+    const verificationCode = 'VERIFY-CODE-84219';
+    const captureLogs = async (fn) => {
+      const logs = [];
+      const origLog = console.log;
+      console.log = (...args) => logs.push(args.join(' '));
+      try {
+        const res = await fn();
+        return { res, output: logs.join('\n') };
+      } finally {
+        console.log = origLog;
+      }
+    };
+
+    // Case 1: MOYASAR_ENV=test + flag=true + NODE_ENV=production -> logs code, never logs secret_token or payload
+    setMoyasarMode('test');
+    process.env.NODE_ENV = 'production';
+    process.env.MOYASAR_LOG_WEBHOOK_VERIFICATION_CODE = 'true';
+    const c1 = await captureLogs(() => moyasarProvider.handleWebhook({
+      type: 'webhook_verification',
+      secret_token: 'whsec_hardening_test_secret',
+      live: false,
+      data: { verification_code: verificationCode, extra_field: 'do_not_dump_payload' },
+    }));
+    assert.deepStrictEqual(c1.res, { verification: true, mappedStatus: 'IGNORED' });
+    assert.ok(c1.output.includes(verificationCode), 'must log verification code when test mode and explicit flag are enabled');
+    assert.ok(!c1.output.includes('whsec_hardening_test_secret'), 'must never log secret_token');
+    assert.ok(!c1.output.includes('do_not_dump_payload'), 'must never log full webhook payload');
+
+    // Case 2: MOYASAR_ENV=test + flag unset -> does NOT log code
+    delete process.env.MOYASAR_LOG_WEBHOOK_VERIFICATION_CODE;
+    const c2 = await captureLogs(() => moyasarProvider.handleWebhook({
+      type: 'webhook_verification',
+      secret_token: 'whsec_hardening_test_secret',
+      live: false,
+      data: { verification_code: verificationCode },
+    }));
+    assert.deepStrictEqual(c2.res, { verification: true, mappedStatus: 'IGNORED' });
+    assert.ok(!c2.output.includes(verificationCode), 'must not log code when flag is unset');
+
+    // Case 3: MOYASAR_ENV=test + flag='false' -> does NOT log code
+    process.env.MOYASAR_LOG_WEBHOOK_VERIFICATION_CODE = 'false';
+    const c3 = await captureLogs(() => moyasarProvider.handleWebhook({
+      type: 'webhook_verification',
+      secret_token: 'whsec_hardening_test_secret',
+      live: false,
+      data: { verification_code: verificationCode },
+    }));
+    assert.ok(!c3.output.includes(verificationCode), 'must not log code when flag is false');
+
+    // Case 4: MOYASAR_ENV=live + flag='true' -> does NOT log code
+    setMoyasarMode('live');
+    process.env.MOYASAR_LOG_WEBHOOK_VERIFICATION_CODE = 'true';
+    const c4 = await captureLogs(() => moyasarProvider.handleWebhook({
+      type: 'webhook_verification',
+      secret_token: 'whsec_hardening_test_secret',
+      live: true,
+      data: { verification_code: verificationCode },
+    }));
+    assert.deepStrictEqual(c4.res, { verification: true, mappedStatus: 'IGNORED' });
+    assert.ok(!c4.output.includes(verificationCode), 'must never log verification code in live mode');
+
+    // Case 5: MOYASAR_ENV=test + flag='true' + missing code -> does NOT log verification code line
+    setMoyasarMode('test');
+    process.env.MOYASAR_LOG_WEBHOOK_VERIFICATION_CODE = 'true';
+    const c5 = await captureLogs(() => moyasarProvider.handleWebhook({
+      type: 'webhook_verification',
+      secret_token: 'whsec_hardening_test_secret',
+      live: false,
+      data: {},
+    }));
+    assert.deepStrictEqual(c5.res, { verification: true, mappedStatus: 'IGNORED' });
+    assert.ok(!c5.output.includes('dashboard verification code'), 'must not log code line when verification_code is missing');
+
+    // Case 6: Existing secret validation and mode validation remain enforced
+    let badSecretErr = null;
+    try {
+      await moyasarProvider.handleWebhook({
+        type: 'webhook_verification',
+        secret_token: 'wrong_secret',
+        live: false,
+        data: { verification_code: verificationCode },
+      });
+    } catch (err) {
+      badSecretErr = err;
+    }
+    assert.ok(badSecretErr && badSecretErr.statusCode === 401);
+
+    let badModeErr = null;
+    try {
+      await moyasarProvider.handleWebhook({
+        type: 'webhook_verification',
+        secret_token: 'whsec_hardening_test_secret',
+        live: true,
+        data: { verification_code: verificationCode },
+      });
+    } catch (err) {
+      badModeErr = err;
+    }
+    assert.ok(badModeErr && badModeErr.statusCode === 409);
   });
 
   const failed = results.filter((r) => !r.ok);
