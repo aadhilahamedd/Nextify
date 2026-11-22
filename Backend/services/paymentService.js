@@ -81,8 +81,13 @@ async function createOrReuseCheckout(bookingDoc) {
     err.statusCode = 400;
     throw err;
   }
-  if (booking.paymentStatus === 'PAID') {
+  if (String(booking.paymentStatus || '').toUpperCase() === 'PAID') {
     const err = new Error('Booking already paid');
+    err.statusCode = 409;
+    throw err;
+  }
+  if (String(booking.paymentStatus || '').toUpperCase() === 'REFUNDED') {
+    const err = new Error('Booking has been refunded and is not eligible for checkout');
     err.statusCode = 409;
     throw err;
   }
@@ -147,7 +152,7 @@ async function createOrReuseCheckout(bookingDoc) {
       {
         _id: booking._id,
         customQuoteRequired: { $ne: true },
-        paymentStatus: { $nin: ['PAID', 'paid', 'NOT_REQUIRED', 'not_required'] },
+        paymentStatus: { $nin: ['PAID', 'paid', 'REFUNDED', 'refunded', 'NOT_REQUIRED', 'not_required'] },
         $or: [
           { bookingStatus: { $nin: ['CANCELLED', 'cancelled'] } },
           { paymentStatus: { $in: ['FAILED', 'failed'] } },
@@ -163,8 +168,14 @@ async function createOrReuseCheckout(bookingDoc) {
     );
     if (!reopened) {
       const latest = await Booking.findById(booking._id);
-      if (String(latest?.paymentStatus || '').toUpperCase() === 'PAID') {
+      const latestStatus = String(latest?.paymentStatus || '').toUpperCase();
+      if (latestStatus === 'PAID') {
         const err = new Error('Booking already paid');
+        err.statusCode = 409;
+        throw err;
+      }
+      if (latestStatus === 'REFUNDED') {
+        const err = new Error('Booking has been refunded and is not eligible for checkout');
         err.statusCode = 409;
         throw err;
       }
@@ -175,7 +186,8 @@ async function createOrReuseCheckout(bookingDoc) {
   }
 
   const refreshed = await Booking.findById(booking._id);
-  if (String(refreshed?.paymentStatus || '').toUpperCase() === 'PAID') {
+  const refreshedStatus = String(refreshed?.paymentStatus || '').toUpperCase();
+  if (refreshedStatus === 'PAID' || refreshedStatus === 'REFUNDED') {
     if (createdFreshPayment && payment?._id) {
       try {
         await Payment.deleteOne({
@@ -184,10 +196,14 @@ async function createOrReuseCheckout(bookingDoc) {
           providerReference: '',
         });
       } catch {
-        // Best-effort cleanup of unused orphaned attempt; never mask 409 already-paid.
+        // Best-effort cleanup of unused orphaned attempt; never mask 409.
       }
     }
-    const err = new Error('Booking already paid');
+    const err = new Error(
+      refreshedStatus === 'REFUNDED'
+        ? 'Booking has been refunded and is not eligible for checkout'
+        : 'Booking already paid'
+    );
     err.statusCode = 409;
     throw err;
   }

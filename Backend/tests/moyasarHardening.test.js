@@ -1791,6 +1791,60 @@ async function run() {
     assert.throws(() => assertWebhookMode({}), (err) => err.statusCode === 409);
   });
 
+  // 30. Refunded bookings cannot create or reuse a new payment checkout (Moyasar, mock, and paymentService)
+  await check('30. Refunded bookings (REFUNDED / refunded) are rejected in createPayment and createOrReuseCheckout', async () => {
+    const mockProvider = require('../services/paymentProviders/mockPaymentProvider');
+    const paymentService = require('../services/paymentService');
+
+    for (const statusValue of ['REFUNDED', 'refunded']) {
+      const refundedBooking = {
+        _id: BOOKING_ID,
+        bookingNumber: 'NX-REFUND-NO-PAY',
+        paymentStatus: statusValue,
+        bookingStatus: 'CONFIRMED',
+        customQuoteRequired: false,
+        pricing: { totalAmount: 200, currency: 'SAR' },
+      };
+
+      for (const [label, provider] of [['moyasar', moyasarProvider], ['mock', mockProvider]]) {
+        let created = false;
+        Booking.findOneAndUpdate = async (filter) => {
+          assert.ok(filter.paymentStatus.$nin.includes('REFUNDED'), `${label} filter must exclude REFUNDED`);
+          assert.ok(filter.paymentStatus.$nin.includes('refunded'), `${label} filter must exclude refunded`);
+          return null;
+        };
+        Booking.findById = async () => ({ ...refundedBooking });
+        Payment.create = async () => {
+          created = true;
+          throw new Error('Payment.create must not run for refunded booking');
+        };
+
+        let caught = null;
+        try {
+          await provider.createPayment({ booking: refundedBooking, amount: 200, currency: 'SAR' });
+        } catch (err) {
+          caught = err;
+        }
+        assert.ok(caught && caught.statusCode === 409, `${label} createPayment must reject ${statusValue} with 409`);
+        assert.match(caught.message, /refunded/i);
+        assert.strictEqual(created, false);
+      }
+
+      // createOrReuseCheckout rejects refunded bookings immediately before Payment lookup/creation
+      let paymentQueried = false;
+      Payment.findOne = async () => { paymentQueried = true; return null; };
+      let serviceErr = null;
+      try {
+        await paymentService.createOrReuseCheckout(refundedBooking);
+      } catch (err) {
+        serviceErr = err;
+      }
+      assert.ok(serviceErr && serviceErr.statusCode === 409, `createOrReuseCheckout must reject ${statusValue} with 409`);
+      assert.match(serviceErr.message, /refunded/i);
+      assert.strictEqual(paymentQueried, false, 'must reject refunded booking before querying or reusing payments');
+    }
+  });
+
   const failed = results.filter((r) => !r.ok);
   console.log(`\nResults: ${results.length - failed.length} passed, ${failed.length} failed`);
   if (failed.length) process.exitCode = 1;

@@ -796,7 +796,7 @@ async function runAllTests() {
       };
 
       Booking.findOneAndUpdate = async (filter, update) => {
-        assert.deepStrictEqual(filter.paymentStatus, { $nin: ['PAID', 'paid', 'NOT_REQUIRED', 'not_required'] });
+        assert.deepStrictEqual(filter.paymentStatus, { $nin: ['PAID', 'paid', 'REFUNDED', 'refunded', 'NOT_REQUIRED', 'not_required'] });
         atomicReopened = true;
         Object.assign(bookingDoc, update.$set);
         return bookingDoc;
@@ -864,7 +864,7 @@ async function runAllTests() {
 
       // Simulate DB rejecting the atomic reopen because booking concurrently became PAID.
       Booking.findOneAndUpdate = async (filter) => {
-        assert.deepStrictEqual(filter.paymentStatus, { $nin: ['PAID', 'paid', 'NOT_REQUIRED', 'not_required'] });
+        assert.deepStrictEqual(filter.paymentStatus, { $nin: ['PAID', 'paid', 'REFUNDED', 'refunded', 'NOT_REQUIRED', 'not_required'] });
         return null;
       };
       Booking.findById = async () => ({ ...dbBookingState });
@@ -909,7 +909,7 @@ async function runAllTests() {
           save: async () => { saveCalled = true; },
         };
         Booking.findOneAndUpdate = async (filter, update) => {
-          assert.deepStrictEqual(filter.paymentStatus, { $nin: ['PAID', 'paid', 'NOT_REQUIRED', 'not_required'] });
+          assert.deepStrictEqual(filter.paymentStatus, { $nin: ['PAID', 'paid', 'REFUNDED', 'refunded', 'NOT_REQUIRED', 'not_required'] });
           return { ...eligibleBooking, ...update.$set };
         };
         Payment.create = async (doc) => {

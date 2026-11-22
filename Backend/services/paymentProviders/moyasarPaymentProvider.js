@@ -81,7 +81,7 @@ async function createPayment({ booking, amount, currency = 'SAR' }) {
     {
       _id: booking._id,
       customQuoteRequired: { $ne: true },
-      paymentStatus: { $nin: ['PAID', 'paid', 'NOT_REQUIRED', 'not_required'] },
+      paymentStatus: { $nin: ['PAID', 'paid', 'REFUNDED', 'refunded', 'NOT_REQUIRED', 'not_required'] },
       'pricing.breakdown.quoteStatus': { $nin: ['rate_on_request', 'long_distance'] },
       $or: [
         { bookingStatus: { $nin: ['CANCELLED', 'cancelled'] } },
@@ -98,8 +98,12 @@ async function createPayment({ booking, amount, currency = 'SAR' }) {
   );
   if (!previousBooking) {
     const latest = await Booking.findById(booking._id);
-    if (String(latest?.paymentStatus || '').toUpperCase() === 'PAID') {
+    const latestStatus = String(latest?.paymentStatus || '').toUpperCase();
+    if (latestStatus === 'PAID') {
       throw httpError(409, 'Booking already paid');
+    }
+    if (latestStatus === 'REFUNDED') {
+      throw httpError(409, 'Booking has been refunded and is not eligible for checkout');
     }
     throw httpError(409, 'This booking is not eligible for checkout');
   }

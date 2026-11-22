@@ -52,8 +52,11 @@ exports.createPayment = async (req, res, next) => {
       return error(res, 400, 'This booking does not require online payment');
     }
 
-    if (booking.paymentStatus === 'PAID') {
+    if (String(booking.paymentStatus || '').toUpperCase() === 'PAID') {
       return error(res, 409, 'Booking already paid');
+    }
+    if (String(booking.paymentStatus || '').toUpperCase() === 'REFUNDED') {
+      return error(res, 409, 'Booking has been refunded and is not eligible for checkout');
     }
 
     const result = await paymentService.createOrReuseCheckout(booking);
