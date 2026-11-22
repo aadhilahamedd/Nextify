@@ -116,9 +116,11 @@ async function createOrReuseCheckout(bookingDoc) {
     $or: [{ providerReference: { $in: ['', null] } }, { providerReference: { $exists: false } }],
   }).sort({ createdAt: -1 });
 
+  let createdFreshPayment = false;
   if (!payment) {
     try {
       payment = await createPayment({ booking, amount, currency });
+      createdFreshPayment = true;
     } catch (err) {
       // Race: another request created the open PENDING attempt first.
       if (err.code === 11000) {
@@ -139,13 +141,56 @@ async function createOrReuseCheckout(bookingDoc) {
       || String(booking.paymentStatus || '').toUpperCase() === 'FAILED'
     )
   ) {
-    // Reused/created attempt after a failed/cancelled cycle: reopen checkout state.
-    booking.paymentStatus = 'PENDING';
-    booking.bookingStatus = 'PAYMENT_PENDING';
-    await booking.save();
+    // Reused/created attempt after a failed/cancelled cycle: atomically reopen checkout state
+    // only if the booking has not concurrently transitioned to PAID or become ineligible.
+    const reopened = await Booking.findOneAndUpdate(
+      {
+        _id: booking._id,
+        customQuoteRequired: { $ne: true },
+        paymentStatus: { $nin: ['PAID', 'paid', 'NOT_REQUIRED', 'not_required'] },
+        $or: [
+          { bookingStatus: { $nin: ['CANCELLED', 'cancelled'] } },
+          { paymentStatus: { $in: ['FAILED', 'failed'] } },
+        ],
+      },
+      {
+        $set: {
+          paymentStatus: 'PENDING',
+          bookingStatus: 'PAYMENT_PENDING',
+        },
+      },
+      { new: true }
+    );
+    if (!reopened) {
+      const latest = await Booking.findById(booking._id);
+      if (String(latest?.paymentStatus || '').toUpperCase() === 'PAID') {
+        const err = new Error('Booking already paid');
+        err.statusCode = 409;
+        throw err;
+      }
+      const err = new Error('This booking is not eligible for checkout');
+      err.statusCode = 409;
+      throw err;
+    }
   }
 
   const refreshed = await Booking.findById(booking._id);
+  if (String(refreshed?.paymentStatus || '').toUpperCase() === 'PAID') {
+    if (createdFreshPayment && payment?._id) {
+      try {
+        await Payment.deleteOne({
+          _id: payment._id,
+          status: 'PENDING',
+          providerReference: '',
+        });
+      } catch {
+        // Best-effort cleanup of unused orphaned attempt; never mask 409 already-paid.
+      }
+    }
+    const err = new Error('Booking already paid');
+    err.statusCode = 409;
+    throw err;
+  }
   return {
     payment,
     booking: refreshed,

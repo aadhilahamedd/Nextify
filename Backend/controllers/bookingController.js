@@ -3,13 +3,25 @@ const { isDriverAvailable } = require('../services/availabilityService');
 const { createBookingFromPayload } = require('../services/bookingCreateService');
 const { success, error } = require('../utils/apiResponse');
 const { toCheckoutBooking } = require('../utils/checkoutBooking');
+const {
+  CHECKOUT_UNAUTHORIZED_MESSAGE,
+  authorizeBookingCheckout,
+  isValidObjectIdString,
+} = require('../utils/checkoutToken');
+const {
+  MIN_PHONE_DIGITS,
+  normalizePhone,
+  canonicalizePhone,
+  phonesMatch,
+} = require('../utils/phoneMatch');
 
 exports.createBooking = async (req, res, next) => {
   try {
-    const { booking, quote } = await createBookingFromPayload(req.body, { userId: req.user?.userId || null });
+    const { booking, quote, checkoutToken } = await createBookingFromPayload(req.body, { userId: req.user?.userId || null });
     return success(res, 201, quote.customQuoteRequired ? 'Quote request submitted' : 'Booking created successfully', {
       booking: booking.toPublicJSON(),
       quote,
+      ...(checkoutToken ? { checkoutToken } : {}),
     });
   } catch (err) {
     if (err.statusCode && err.statusCode < 500) {
@@ -21,11 +33,17 @@ exports.createBooking = async (req, res, next) => {
 
 exports.getPublicPayBooking = async (req, res, next) => {
   try {
+    if (!isValidObjectIdString(req.params.id)) {
+      return error(res, 403, CHECKOUT_UNAUTHORIZED_MESSAGE);
+    }
     // Lean + no populate: avoid accidental driver/customer leakage via refs.
     const booking = await Booking.findById(req.params.id).select(
-      '_id bookingNumber serviceType vehicle vehicleName quotedPrice pricing paymentStatus bookingStatus customQuoteRequired'
+      '_id bookingNumber user serviceType vehicle vehicleName quotedPrice pricing paymentStatus bookingStatus customQuoteRequired +checkoutTokenHash +checkoutTokenExpiresAt'
     ).lean();
-    if (!booking) return error(res, 404, 'Booking not found');
+    const auth = await authorizeBookingCheckout(req, booking);
+    if (!auth.authorized) {
+      return error(res, auth.statusCode, auth.message);
+    }
     return success(res, 200, 'Booking fetched', { booking: toCheckoutBooking(booking) });
   } catch (err) {
     next(err);
@@ -53,42 +71,15 @@ exports.getBookingById = async (req, res, next) => {
 };
 
 const DRIVER_VISIBLE_STATUSES = ['DRIVER_ASSIGNED', 'DRIVER_ON_THE_WAY', 'IN_PROGRESS', 'COMPLETED'];
-const MIN_TRACK_PHONE_DIGITS = 9;
+const MIN_TRACK_PHONE_DIGITS = MIN_PHONE_DIGITS;
 
 function normalizeTrackEmail(value) {
   return String(value || '').trim().toLowerCase();
 }
 
-/** Strip spaces, punctuation, and all non-digit characters. */
-function normalizeTrackPhone(value) {
-  return String(value || '').replace(/\D/g, '');
-}
-
-/**
- * Controlled Saudi mobile canonical form: 9665XXXXXXXX.
- * Supports 05XXXXXXXX, 5XXXXXXXX, 9665XXXXXXXX, +9665…, and 96605…
- * Unrecognized shapes keep digits as-is (exact compare only; no suffix matching).
- */
-function canonicalizeTrackPhone(digits) {
-  if (!digits || digits.length < MIN_TRACK_PHONE_DIGITS) return null;
-  if (/^9665\d{8}$/.test(digits)) return digits;
-  if (/^96605\d{8}$/.test(digits)) return `966${digits.slice(4)}`;
-  if (/^05\d{8}$/.test(digits)) return `966${digits.slice(1)}`;
-  if (/^5\d{8}$/.test(digits)) return `966${digits}`;
-  return digits;
-}
-
-function phonesMatchForTracking(storedRaw, providedRaw) {
-  const storedDigits = normalizeTrackPhone(storedRaw);
-  const providedDigits = normalizeTrackPhone(providedRaw);
-  if (storedDigits.length < MIN_TRACK_PHONE_DIGITS) return false;
-  if (providedDigits.length < MIN_TRACK_PHONE_DIGITS) return false;
-
-  const stored = canonicalizeTrackPhone(storedDigits);
-  const provided = canonicalizeTrackPhone(providedDigits);
-  if (!stored || !provided) return false;
-  return stored === provided;
-}
+const normalizeTrackPhone = normalizePhone;
+const canonicalizeTrackPhone = canonicalizePhone;
+const phonesMatchForTracking = phonesMatch;
 
 /** Public tracking projection — only fields used by TrackBooking.jsx. */
 function toPublicTrackBooking(doc) {

@@ -1,12 +1,38 @@
 const { calculatePrice } = require('../pricingService');
 const { createBookingFromPayload } = require('../bookingCreateService');
 const { createOrReuseCheckout } = require('../paymentService');
+const { frontendBaseUrl } = require('../../config/publicUrls');
+const {
+  buildCheckoutPaymentUrl,
+  rotateBookingCheckoutToken,
+} = require('../../utils/checkoutToken');
+const { phonesMatch } = require('../../utils/phoneMatch');
+const Booking = require('../../models/Booking');
 const WhatsAppSession = require('../../models/WhatsAppSession');
 const {
   SERVICE_VEHICLE_OPTIONS,
   INTERCITY_ROUTES,
   GCC_ROUTES,
 } = require('../../utils/vehicleCategories');
+
+const DEFAULT_RETRY_COOLDOWN_MS = 15 * 1000;
+const MIN_RETRY_COOLDOWN_MS = 1000;
+const MAX_RETRY_COOLDOWN_MS = 5 * 60 * 1000;
+
+function getRetryCooldownMs(overrideMs) {
+  if (typeof overrideMs === 'number' && Number.isFinite(overrideMs) && overrideMs >= 0) {
+    return Math.floor(overrideMs);
+  }
+  const raw = process.env.WHATSAPP_RETRY_COOLDOWN_MS;
+  if (raw === undefined || raw === null || String(raw).trim() === '') {
+    return DEFAULT_RETRY_COOLDOWN_MS;
+  }
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed < MIN_RETRY_COOLDOWN_MS || parsed > MAX_RETRY_COOLDOWN_MS) {
+    return DEFAULT_RETRY_COOLDOWN_MS;
+  }
+  return Math.floor(parsed);
+}
 
 const SERVICE_LABELS = {
   airport_transfer: 'Airport Transfer',
@@ -86,9 +112,22 @@ function formatSummary(draft, quote) {
   return lines.join('\n');
 }
 
+async function rollbackRetryCooldown(sessionId, claimedSentAt, previousSentAt) {
+  if (!sessionId || !claimedSentAt) return false;
+  try {
+    const res = await WhatsAppSession.updateOne(
+      { _id: sessionId, lastPaymentLinkSentAt: claimedSentAt },
+      { $set: { lastPaymentLinkSentAt: previousSentAt ?? null } }
+    );
+    return Boolean(res && (res.modifiedCount === undefined || res.modifiedCount > 0));
+  } catch {
+    return false;
+  }
+}
+
 async function confirmSessionBooking(session) {
   const payload = draftToPayload(session.bookingDraft, session.phoneNumber);
-  const { booking, quote } = await createBookingFromPayload(payload);
+  const { booking, quote, checkoutToken } = await createBookingFromPayload(payload);
   session.bookingId = booking._id;
   session.bookingDraft.price = quote.price;
   session.bookingDraft.currency = quote.currency || 'SAR';
@@ -102,12 +141,150 @@ async function confirmSessionBooking(session) {
     return { booking, quote, paymentUrl: null };
   }
 
-  const checkout = await createOrReuseCheckout(booking);
+  try {
+    if (!checkoutToken) {
+      throw new Error('Checkout session could not be created');
+    }
+
+    const checkout = await createOrReuseCheckout(booking);
+    const paymentUrl = buildCheckoutPaymentUrl(frontendBaseUrl(), booking._id, checkoutToken);
+    session.paymentId = checkout.payment._id;
+    session.currentStep = 'PAYMENT';
+    session.status = 'PAYMENT';
+    session.lastPaymentLinkSentAt = new Date();
+    await session.save();
+    return { booking, quote, paymentUrl, payment: checkout.payment };
+  } catch (err) {
+    // Mark that the booking record was already persisted so callers do not reset CONFIRMATION.
+    err.bookingCreated = true;
+    err.bookingId = booking._id;
+    try {
+      if (session._id) {
+        await WhatsAppSession.updateOne(
+          { _id: session._id },
+          { $set: { bookingId: booking._id, currentStep: 'PAYMENT', status: 'PAYMENT' } }
+        );
+      }
+    } catch { /* best-effort persistence */ }
+    throw err;
+  }
+}
+
+async function retrySessionPayment(session, { now = Date.now(), cooldownMs } = {}) {
+  if (!session?.bookingId) {
+    return { ok: false, reason: 'no_booking' };
+  }
+
+  const booking = await Booking.findById(session.bookingId);
+  if (!booking) {
+    return { ok: false, reason: 'not_found' };
+  }
+
+  if (!phonesMatch(booking.customer?.mobile, session.phoneNumber)) {
+    return { ok: false, reason: 'phone_mismatch' };
+  }
+
+  const paymentStatus = String(booking.paymentStatus || '').toUpperCase();
+  const bookingStatus = String(booking.bookingStatus || '').toUpperCase();
+  const quoteStatus = booking.pricing?.breakdown?.quoteStatus;
+
+  if (paymentStatus === 'PAID') {
+    return { ok: false, reason: 'already_paid', booking };
+  }
+  if (
+    booking.customQuoteRequired
+    || paymentStatus === 'NOT_REQUIRED'
+    || quoteStatus === 'rate_on_request'
+    || quoteStatus === 'long_distance'
+  ) {
+    return { ok: false, reason: 'not_payable', booking };
+  }
+  if (bookingStatus === 'CANCELLED' && paymentStatus !== 'FAILED') {
+    return { ok: false, reason: 'cancelled', booking };
+  }
+
+  const resolvedCooldown = getRetryCooldownMs(cooldownMs);
+  const prevSentAt = session.lastPaymentLinkSentAt || null;
+  const sentAt = new Date(now);
+  let cooldownClaimed = false;
+
+  if (resolvedCooldown > 0 && session._id) {
+    const cutoff = new Date(now - resolvedCooldown);
+    const claimedSession = await WhatsAppSession.findOneAndUpdate(
+      {
+        _id: session._id,
+        bookingId: booking._id,
+        $or: [
+          { lastPaymentLinkSentAt: null },
+          { lastPaymentLinkSentAt: { $exists: false } },
+          { lastPaymentLinkSentAt: { $lte: cutoff } },
+        ],
+      },
+      { $set: { lastPaymentLinkSentAt: sentAt } },
+      { new: true }
+    );
+    if (!claimedSession) {
+      return { ok: false, reason: 'cooldown', booking };
+    }
+    cooldownClaimed = true;
+  }
+
+  let rotated;
+  try {
+    rotated = await rotateBookingCheckoutToken(booking._id, {
+      verifiedPhone: session.phoneNumber,
+      now,
+    });
+  } catch (err) {
+    if (cooldownClaimed) {
+      await rollbackRetryCooldown(session._id, sentAt, prevSentAt);
+    }
+    throw err;
+  }
+
+  if (!rotated.ok) {
+    if (cooldownClaimed && rotated.reason !== 'already_paid') {
+      await rollbackRetryCooldown(session._id, sentAt, prevSentAt);
+    }
+    return { ok: false, reason: rotated.reason, booking: rotated.booking || booking };
+  }
+
+  let checkout;
+  try {
+    checkout = await createOrReuseCheckout(rotated.booking);
+  } catch (err) {
+    if (err?.statusCode === 409 && /already paid/i.test(String(err.message || ''))) {
+      return { ok: false, reason: 'already_paid', booking: rotated.booking };
+    }
+    if (cooldownClaimed) {
+      await rollbackRetryCooldown(session._id, sentAt, prevSentAt);
+    }
+    throw err;
+  }
+
+  const paymentUrl = buildCheckoutPaymentUrl(
+    frontendBaseUrl(),
+    rotated.booking._id,
+    rotated.checkoutToken,
+  );
   session.paymentId = checkout.payment._id;
-  session.currentStep = 'PAYMENT';
-  session.status = 'PAYMENT';
-  await session.save();
-  return { booking, quote, paymentUrl: checkout.paymentUrl, payment: checkout.payment };
+  session.lastPaymentLinkSentAt = sentAt;
+  if (session._id) {
+    await WhatsAppSession.updateOne(
+      { _id: session._id },
+      { $set: { paymentId: checkout.payment._id, lastPaymentLinkSentAt: sentAt } }
+    );
+  }
+
+  return {
+    ok: true,
+    booking: rotated.booking,
+    payment: checkout.payment,
+    paymentUrl,
+    cooldownClaim: cooldownClaimed
+      ? { sessionId: session._id, claimedSentAt: sentAt, previousSentAt: prevSentAt }
+      : null,
+  };
 }
 
 async function notifyPaymentResult({ payment, booking, mappedStatus }) {
@@ -143,6 +320,7 @@ async function notifyPaymentResult({ payment, booking, mappedStatus }) {
 }
 
 module.exports = {
+  DEFAULT_RETRY_COOLDOWN_MS,
   SERVICE_LABELS,
   SERVICE_VEHICLE_OPTIONS,
   INTERCITY_ROUTES,
@@ -151,5 +329,7 @@ module.exports = {
   formatQuote,
   formatSummary,
   confirmSessionBooking,
+  retrySessionPayment,
+  rollbackRetryCooldown,
   notifyPaymentResult,
 };

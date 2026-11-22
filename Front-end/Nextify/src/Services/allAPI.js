@@ -9,6 +9,15 @@ const getAuthHeaders = () => {
   };
 };
 
+const getCheckoutHeaders = (checkoutToken) => {
+  const headers = getAuthHeaders();
+  const token = typeof checkoutToken === "string" ? checkoutToken.trim() : "";
+  if (token) {
+    headers["X-Checkout-Token"] = token;
+  }
+  return headers;
+};
+
 const unwrap = (response) => {
   if (response?.data?.success && response.data.data !== undefined) {
     return { ...response, data: response.data.data, message: response.data.message };
@@ -69,9 +78,14 @@ export const createBookingAPI = async (bookingData) => {
 
 export const addBookingAPI = createBookingAPI;
 
-export const getPublicPayBookingAPI = async (bookingId) => {
+export const getPublicPayBookingAPI = async (bookingId, checkoutToken) => {
   try {
-    const response = await commonAPI("GET", `${serverURL}/api/bookings/pay/${bookingId}`, "");
+    const response = await commonAPI(
+      "GET",
+      `${serverURL}/api/bookings/pay/${encodeURIComponent(bookingId)}`,
+      "",
+      getCheckoutHeaders(checkoutToken),
+    );
     return unwrap(response);
   } catch (err) {
     return handleError(err, "Failed to load booking for payment");
@@ -248,9 +262,14 @@ export const getAirportRoutesAPI = async () => {
 };
 
 // ====== PAYMENTS ======
-export const createPaymentAPI = async (bookingId) => {
+export const createPaymentAPI = async (bookingId, checkoutToken) => {
   try {
-    const response = await commonAPI("POST", `${serverURL}/api/payments/create`, { bookingId }, getAuthHeaders());
+    const response = await commonAPI(
+      "POST",
+      `${serverURL}/api/payments/create`,
+      { bookingId },
+      getCheckoutHeaders(checkoutToken),
+    );
     return unwrap(response);
   } catch (err) {
     return handleError(err, "Failed to create payment");

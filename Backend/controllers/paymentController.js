@@ -4,6 +4,11 @@ const paymentService = require('../services/paymentService');
 const { mockPaymentEndpointsEnabled } = require('../services/paymentProviders/mockPaymentGuard');
 const { success, error } = require('../utils/apiResponse');
 const { toCheckoutBooking, toPaymentConfirmationBooking } = require('../utils/checkoutBooking');
+const {
+  CHECKOUT_UNAUTHORIZED_MESSAGE,
+  authorizeBookingCheckout,
+  isValidObjectIdString,
+} = require('../utils/checkoutToken');
 
 function notifyWhatsAppPayment(result) {
   setImmediate(() => {
@@ -27,9 +32,15 @@ exports.createPayment = async (req, res, next) => {
   try {
     const { bookingId } = req.body;
     if (!bookingId) return error(res, 400, 'Booking id is required');
+    if (!isValidObjectIdString(String(bookingId))) {
+      return error(res, 403, CHECKOUT_UNAUTHORIZED_MESSAGE);
+    }
 
-    const booking = await Booking.findById(bookingId);
-    if (!booking) return error(res, 404, 'Booking not found');
+    const booking = await Booking.findById(bookingId).select('+checkoutTokenHash +checkoutTokenExpiresAt');
+    const auth = await authorizeBookingCheckout(req, booking);
+    if (!auth.authorized) {
+      return error(res, auth.statusCode, auth.message);
+    }
 
     const quoteStatus = booking.pricing?.breakdown?.quoteStatus;
     if (

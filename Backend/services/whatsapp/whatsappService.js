@@ -22,17 +22,19 @@ async function graphPost(path, payload) {
     console.error('[whatsapp] Graph API error', response.status, data?.error?.message || data?.message);
     const err = new Error(data?.error?.message || 'WhatsApp send failed');
     err.statusCode = 502;
+    err.httpStatus = response.status;
+    err.metaRejected = true;
     throw err;
   }
   return data;
 }
 
-async function sendText(to, body) {
+async function sendText(to, body, { previewUrl = true } = {}) {
   return graphPost(`${config.phoneNumberId}/messages`, {
     messaging_product: 'whatsapp',
     to,
     type: 'text',
-    text: { preview_url: true, body },
+    text: { preview_url: Boolean(previewUrl), body },
   });
 }
 
@@ -88,6 +90,7 @@ function extractIncomingMessages(payload) {
       for (const message of value.messages || []) {
         const contact = (value.contacts || []).find((c) => c.wa_id === message.from) || {};
         messages.push({
+          messageId: message.id || '',
           from: message.from,
           name: contact.profile?.name || '',
           type: message.type,

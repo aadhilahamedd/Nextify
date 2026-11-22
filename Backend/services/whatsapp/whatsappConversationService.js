@@ -1,3 +1,4 @@
+const crypto = require('crypto');
 const WhatsAppSession = require('../../models/WhatsAppSession');
 const { sendText, sendButtons, sendList } = require('./whatsappService');
 const {
@@ -9,10 +10,14 @@ const {
   formatQuote,
   formatSummary,
   confirmSessionBooking,
+  retrySessionPayment,
+  rollbackRetryCooldown,
 } = require('./whatsappBookingService');
-const { createOrReuseCheckout } = require('../paymentService');
-const Booking = require('../../models/Booking');
 const { DEFAULT_CONTACT } = require('../seedService');
+
+const MAX_PROCESSED_MESSAGE_IDS = 50;
+const MAX_PENDING_MESSAGES = 20;
+const PENDING_CLAIM_STALE_MS = 60 * 1000;
 
 const AIRPORTS = [
   { id: 'King Khalid International Airport', title: 'Riyadh' },
@@ -64,12 +69,19 @@ function emptyDraft() {
 async function getSession(phoneNumber, profileName) {
   let session = await WhatsAppSession.findOne({ phoneNumber });
   if (!session) {
-    session = await WhatsAppSession.create({
-      phoneNumber,
-      currentStep: 'WELCOME',
-      bookingDraft: { ...emptyDraft(), customerName: profileName || '', customerMobile: phoneNumber },
-      status: 'ACTIVE',
-    });
+    try {
+      session = await WhatsAppSession.create({
+        phoneNumber,
+        currentStep: 'WELCOME',
+        bookingDraft: { ...emptyDraft(), customerName: profileName || '', customerMobile: phoneNumber },
+        status: 'ACTIVE',
+      });
+    } catch (err) {
+      if (err && err.code === 11000) {
+        session = await WhatsAppSession.findOne({ phoneNumber });
+      }
+      if (!session) throw err;
+    }
   }
   session.lastMessageAt = new Date();
   if (!session.bookingDraft.customerMobile) session.bookingDraft.customerMobile = phoneNumber;
@@ -270,15 +282,122 @@ async function replayStep(session) {
   return sendWelcome(session.phoneNumber);
 }
 
-async function handleIncoming({ from, name, text, buttonId }) {
-  const session = await getSession(from, name);
-  const incoming = (buttonId || text || '').trim();
-  const command = incoming.toLowerCase();
+async function claimInboundMessage(phoneNumber, messageId, { now = Date.now(), staleMs = PENDING_CLAIM_STALE_MS } = {}) {
+  const id = typeof messageId === 'string' ? messageId.trim() : '';
+  if (!id) return { claimed: true, claimToken: '', session: null };
+  const claimToken = crypto.randomBytes(16).toString('hex');
+  const claimedAt = new Date(now);
+  const staleCutoff = new Date(now - staleMs);
 
-  if (['help', 'restart', 'cancel', 'back'].includes(command)) {
-    await handleCommand(session, command);
-    return;
+  // Atomic MongoDB pipeline update: reject if already processed or actively claimed;
+  // otherwise replace any stale entry for `id` with the new claim and keep array bounded.
+  const updated = await WhatsAppSession.findOneAndUpdate(
+    {
+      phoneNumber,
+      processedMessageIds: { $ne: id },
+      pendingMessages: { $not: { $elemMatch: { id, claimedAt: { $gt: staleCutoff } } } },
+    },
+    [
+      {
+        $set: {
+          pendingMessages: {
+            $slice: [
+              {
+                $concatArrays: [
+                  {
+                    $filter: {
+                      input: { $ifNull: ['$pendingMessages', []] },
+                      as: 'item',
+                      cond: { $ne: ['$$item.id', id] },
+                    },
+                  },
+                  [{ id, claimToken, claimedAt }],
+                ],
+              },
+              -MAX_PENDING_MESSAGES,
+            ],
+          },
+        },
+      },
+    ],
+    { new: true }
+  );
+  return {
+    claimed: Boolean(updated),
+    claimToken: updated ? claimToken : '',
+    session: updated,
+  };
+}
+
+async function completeInboundMessage(phoneNumber, messageId, claimToken) {
+  const id = typeof messageId === 'string' ? messageId.trim() : '';
+  const token = typeof claimToken === 'string' ? claimToken.trim() : '';
+  if (!id || !token) return false;
+  try {
+    const res = await WhatsAppSession.updateOne(
+      {
+        phoneNumber,
+        pendingMessages: { $elemMatch: { id, claimToken: token } },
+      },
+      {
+        $pull: { pendingMessages: { id, claimToken: token } },
+        $push: {
+          processedMessageIds: {
+            $each: [id],
+            $slice: -MAX_PROCESSED_MESSAGE_IDS,
+          },
+        },
+      }
+    );
+    return Boolean(res && (res.modifiedCount === undefined || res.modifiedCount > 0));
+  } catch {
+    // Best-effort completion marker.
+    return false;
   }
+}
+
+async function releaseInboundMessage(phoneNumber, messageId, claimToken) {
+  const id = typeof messageId === 'string' ? messageId.trim() : '';
+  const token = typeof claimToken === 'string' ? claimToken.trim() : '';
+  if (!id || !token) return false;
+  try {
+    const res = await WhatsAppSession.updateOne(
+      {
+        phoneNumber,
+        pendingMessages: { $elemMatch: { id, claimToken: token } },
+      },
+      { $pull: { pendingMessages: { id, claimToken: token } } }
+    );
+    return Boolean(res && (res.modifiedCount === undefined || res.modifiedCount > 0));
+  } catch {
+    // Best-effort rollback when handler fails before completing side effects.
+    return false;
+  }
+}
+
+async function handleIncoming({ messageId, from, name, text, buttonId }) {
+  const loadedSession = await getSession(from, name);
+  const claim = await claimInboundMessage(loadedSession.phoneNumber, messageId);
+  if (!claim.claimed) {
+    return { duplicate: true };
+  }
+  const claimToken = claim.claimToken;
+  const session = claim.session || loadedSession;
+  if (!session.bookingDraft?.customerMobile) {
+    session.bookingDraft.customerMobile = session.phoneNumber;
+  }
+
+  let sideEffectCompleted = false;
+  let releaseClaim = false;
+  let threw = false;
+  try {
+    const incoming = (buttonId || text || '').trim();
+    const command = incoming.toLowerCase();
+
+    if (['help', 'restart', 'cancel', 'back'].includes(command)) {
+      await handleCommand(session, command);
+      return;
+    }
 
   if (incoming === 'cancel:ask') {
     await handleCommand(session, 'cancel');
@@ -425,18 +544,49 @@ async function handleIncoming({ from, name, text, buttonId }) {
   }
 
   if (incoming === 'confirm:yes') {
+    const confirmLock = await WhatsAppSession.findOneAndUpdate(
+      { _id: session._id, currentStep: 'CONFIRMATION' },
+      { $set: { currentStep: 'CONFIRMING' } },
+      { new: true }
+    );
+    if (!confirmLock) {
+      await sendText(
+        session.phoneNumber,
+        session.bookingId
+          ? 'Your booking has already been submitted. Type retry if you need the payment link again.'
+          : 'Your booking confirmation is already in progress. Please wait a moment.'
+      );
+      return;
+    }
+
     try {
-      const result = await confirmSessionBooking(session);
+      const result = await confirmSessionBooking(confirmLock);
+      sideEffectCompleted = true;
       if (result.quote.customQuoteRequired) {
-        await sendText(session.phoneNumber, `Quote request submitted.\nBooking ID: ${result.booking.bookingNumber}\n\n${result.quote.message || 'Our team will contact you with the final fare.'}`);
+        await sendText(confirmLock.phoneNumber, `Quote request submitted.\nBooking ID: ${result.booking.bookingNumber}\n\n${result.quote.message || 'Our team will contact you with the final fare.'}`);
         return;
       }
       await sendText(
-        session.phoneNumber,
-        `Booking created.\nBooking ID: ${result.booking.bookingNumber}\nStatus: waiting for payment.\n\nPay securely here:\n${result.paymentUrl}\n\nYour booking is not confirmed until payment is verified.`
+        confirmLock.phoneNumber,
+        `Booking created.\nBooking ID: ${result.booking.bookingNumber}\nStatus: waiting for payment.\n\nPay securely here:\n${result.paymentUrl}\n\nYour booking is not confirmed until payment is verified.`,
+        { previewUrl: false }
       );
     } catch (err) {
-      await sendText(session.phoneNumber, err.message || 'Could not create this booking. Please try again or type restart.');
+      if (err?.bookingCreated || confirmLock.bookingId) {
+        sideEffectCompleted = true;
+      } else {
+        try {
+          await WhatsAppSession.updateOne(
+            { _id: confirmLock._id, currentStep: 'CONFIRMING', bookingId: null },
+            { $set: { currentStep: 'CONFIRMATION' } }
+          );
+        } catch { /* best-effort restore */ }
+      }
+      if (!sideEffectCompleted) {
+        releaseClaim = true;
+        await releaseInboundMessage(confirmLock.phoneNumber, messageId, claimToken);
+      }
+      await sendText(confirmLock.phoneNumber, err.message || 'Could not create this booking. Please try again or type restart.');
     }
     return;
   }
@@ -447,21 +597,42 @@ async function handleIncoming({ from, name, text, buttonId }) {
   }
 
   if (incoming === 'pay:retry' || command === 'retry') {
-    if (!session.bookingId) {
+    const retry = await retrySessionPayment(session);
+    if (retry.ok) {
+      sideEffectCompleted = true;
+      try {
+        await sendText(
+          session.phoneNumber,
+          `Try payment again:\n${retry.paymentUrl}`,
+          { previewUrl: false }
+        );
+      } catch (err) {
+        // Only roll back cooldown on definite Meta HTTP rejection; keep cooldown on ambiguous
+        // transport/timeout errors so a subsequent retry cannot invalidate a delivered link.
+        if (err?.metaRejected === true && retry.cooldownClaim) {
+          await rollbackRetryCooldown(
+            retry.cooldownClaim.sessionId,
+            retry.cooldownClaim.claimedSentAt,
+            retry.cooldownClaim.previousSentAt,
+          );
+        }
+        throw err;
+      }
+      return;
+    }
+    if (retry.reason === 'already_paid') {
+      await sendText(session.phoneNumber, `This booking is already paid.\nBooking ID: ${retry.booking?.bookingNumber || ''}`.trim());
+      return;
+    }
+    if (retry.reason === 'cooldown') {
+      await sendText(session.phoneNumber, 'A payment link was just sent. Please use the link above or wait a moment before trying again.');
+      return;
+    }
+    if (retry.reason === 'no_booking' || retry.reason === 'not_found') {
       await sendText(session.phoneNumber, 'No booking is waiting for payment. Type restart to begin.');
       return;
     }
-    const booking = await Booking.findById(session.bookingId);
-    if (!booking) {
-      await sendText(session.phoneNumber, 'That booking could not be found. Type restart to begin.');
-      return;
-    }
-    if (booking.paymentStatus === 'PAID') {
-      await sendText(session.phoneNumber, `This booking is already paid.\nBooking ID: ${booking.bookingNumber}`);
-      return;
-    }
-    const checkout = await createOrReuseCheckout(booking);
-    await sendText(session.phoneNumber, `Try payment again:\n${checkout.paymentUrl}`);
+    await sendText(session.phoneNumber, 'This booking is not eligible for online payment retry. Please contact support or type restart.');
     return;
   }
 
@@ -598,6 +769,28 @@ async function handleIncoming({ from, name, text, buttonId }) {
       await sendText(session.phoneNumber, 'I did not understand that. Type help, back, restart, or choose one of the options.');
       await replayStep(session);
   }
+  } catch (err) {
+    threw = true;
+    if (!sideEffectCompleted) {
+      await releaseInboundMessage(session.phoneNumber, messageId, claimToken);
+    } else {
+      await completeInboundMessage(session.phoneNumber, messageId, claimToken);
+    }
+    throw err;
+  } finally {
+    if (!threw && !releaseClaim) {
+      await completeInboundMessage(session.phoneNumber, messageId, claimToken);
+    }
+  }
 }
 
-module.exports = { handleIncoming };
+module.exports = {
+  handleIncoming,
+  _test: {
+    getSession,
+    claimInboundMessage,
+    completeInboundMessage,
+    releaseInboundMessage,
+    PENDING_CLAIM_STALE_MS,
+  },
+};

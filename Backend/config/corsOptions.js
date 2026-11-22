@@ -30,7 +30,7 @@ function buildCorsOptions() {
     origin: corsOrigin,
     credentials: true,
     methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'X-Checkout-Token'],
     optionsSuccessStatus: 204,
   };
 }

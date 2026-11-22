@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Container from 'react-bootstrap/Container';
 import {
@@ -13,10 +13,26 @@ import { SERVICE_LABELS } from '../components/booking/bookingConstants';
 import { useLanguage } from '../i18n/LanguageContext';
 import { translateService } from '../i18n/places';
 import { TEMP_WHATSAPP_BOOKING_INSTEAD_OF_MOYASAR } from '../utils/paymentMode';
+import {
+  CHECKOUT_TOKEN_MISSING_MESSAGE,
+  clearCheckoutToken,
+  consumeCheckoutTokenFromHash,
+  hasAuthSession,
+  normalizeCheckoutToken,
+  readCheckoutToken,
+  resolveCheckoutToken,
+} from '../utils/checkoutSession';
 import { buildWhatsAppConfirmationMessage, openCompanyWhatsApp } from '../utils/whatsapp';
 
 const MOYASAR_JS = 'https://cdn.moyasar.com/mpf/1.14.0/moyasar.js';
 const MOYASAR_CSS = 'https://cdn.moyasar.com/mpf/1.14.0/moyasar.css';
+
+function resolveMoyasarKeyMode(publishableKey) {
+  const key = String(publishableKey || '').trim();
+  if (key.startsWith('pk_live_')) return 'live';
+  if (key.startsWith('pk_test_')) return 'test';
+  return 'invalid';
+}
 
 function loadMoyasarAssets() {
   return new Promise((resolve, reject) => {
@@ -75,12 +91,61 @@ function MockPaymentCheckout() {
   const checkoutStartedFor = useRef(null);
   const bootstrapped = useRef(false);
 
+  const targetBookingId = queryBookingId || booking?._id || '';
+  const hasValidQueryBookingId = !queryBookingId || /^[a-fA-F0-9]{24}$/.test(queryBookingId);
+  const hashCtToken = location.hash
+    ? normalizeCheckoutToken(new URLSearchParams(location.hash.slice(1)).get('ct') || '')
+    : '';
+  const stateTokenMatches = Boolean(
+    location.state?.checkoutToken
+    && (!location.state?.booking?._id || String(location.state.booking._id).trim() === String(targetBookingId))
+    && normalizeCheckoutToken(location.state.checkoutToken)
+  );
+  const hasCheckoutAuth = Boolean(
+    TEMP_WHATSAPP_BOOKING_INSTEAD_OF_MOYASAR
+    || !targetBookingId
+    || !hasValidQueryBookingId
+    || hasAuthSession()
+    || hashCtToken
+    || stateTokenMatches
+    || readCheckoutToken(targetBookingId)
+  );
+  const derivedBootstrapError = !hasValidQueryBookingId
+    ? 'Invalid booking id'
+    : (!hasCheckoutAuth ? CHECKOUT_TOKEN_MISSING_MESSAGE : '');
+
+  const isMoyasar = checkout?.provider === 'moyasar';
+  const activePublishableKey = isMoyasar
+    ? (checkout?.publishableKey || import.meta.env.VITE_MOYASAR_PUBLISHABLE_KEY || '')
+    : '';
+  const moyasarKeyMode = isMoyasar ? resolveMoyasarKeyMode(activePublishableKey) : null;
+  const moyasarKeyError = isMoyasar && payment?._id
+    ? (!activePublishableKey
+      ? 'Moyasar publishable key is missing'
+      : (moyasarKeyMode === 'invalid' ? 'Moyasar publishable key is invalid' : ''))
+    : '';
+  const displayError = derivedBootstrapError || moyasarKeyError || error;
+
   useEffect(() => {
     if (bootstrapped.current) return;
     let cancelled = false;
 
-    const startCheckout = (current) => {
+    // Always strip any `#ct=` fragment immediately; only persist when queryBookingId is valid.
+    const fragmentToken = consumeCheckoutTokenFromHash(queryBookingId || '');
+
+    const startCheckout = (current, resolvedToken = '') => {
       if (!current?._id || checkoutStartedFor.current === current._id) return;
+
+      const checkoutToken = resolvedToken || resolveCheckoutToken({
+        bookingId: current._id,
+        stateToken: location.state?.checkoutToken,
+        stateBookingId: location.state?.booking?._id,
+      });
+
+      if (!TEMP_WHATSAPP_BOOKING_INSTEAD_OF_MOYASAR && !checkoutToken && !hasAuthSession()) {
+        return;
+      }
+
       checkoutStartedFor.current = current._id;
 
       try {
@@ -98,7 +163,7 @@ function MockPaymentCheckout() {
         return;
       }
 
-      createPaymentAPI(current._id).then((res) => {
+      createPaymentAPI(current._id, checkoutToken).then((res) => {
         if (cancelled) return;
         if (res?.status === 200 || res?.status === 201) {
           const paidBooking = res.data?.booking;
@@ -115,15 +180,25 @@ function MockPaymentCheckout() {
     if (queryBookingId) {
       bootstrapped.current = true;
       if (!/^[a-fA-F0-9]{24}$/.test(queryBookingId)) {
-        setError('Invalid booking id');
         return () => { cancelled = true; };
       }
-      getPublicPayBookingAPI(queryBookingId).then((res) => {
+
+      const retryToken = fragmentToken || resolveCheckoutToken({
+        bookingId: queryBookingId,
+        stateToken: location.state?.checkoutToken,
+        stateBookingId: location.state?.booking?._id,
+      });
+
+      if (!retryToken && !hasAuthSession()) {
+        return () => { cancelled = true; };
+      }
+
+      getPublicPayBookingAPI(queryBookingId, retryToken).then((res) => {
         if (cancelled) return;
         const fetched = res.data?.booking;
         if ((res?.status === 200 || res?.status === 201) && fetched?._id) {
           setBooking(fetched);
-          startCheckout(fetched);
+          startCheckout(fetched, retryToken);
         } else {
           setError(res?.data?.message || res?.error || 'Could not load this booking');
         }
@@ -139,15 +214,11 @@ function MockPaymentCheckout() {
 
     navigate('/booking');
     return () => { cancelled = true; };
-  }, [booking, navigate, queryBookingId]);
+  }, [booking, location.state, navigate, queryBookingId]);
 
   useEffect(() => {
     if (checkout?.provider !== 'moyasar' || !payment?._id || formReady.current) return;
-    const publishableKey = checkout.publishableKey || import.meta.env.VITE_MOYASAR_PUBLISHABLE_KEY;
-    if (!publishableKey) {
-      setError('Moyasar publishable key is missing');
-      return;
-    }
+    if (!activePublishableKey || moyasarKeyMode === 'invalid') return;
 
     let cancelled = false;
     loadMoyasarAssets()
@@ -159,7 +230,7 @@ function MockPaymentCheckout() {
           amount: checkout.amountHalalas,
           currency: checkout.currency || 'SAR',
           description: checkout.description,
-          publishable_api_key: publishableKey,
+          publishable_api_key: activePublishableKey,
           callback_url: checkout.callbackUrl,
           methods: ['creditcard'],
           supported_networks: ['mada', 'visa', 'mastercard'],
@@ -189,7 +260,7 @@ function MockPaymentCheckout() {
     return () => {
       cancelled = true;
     };
-  }, [checkout, payment]);
+  }, [activePublishableKey, checkout, moyasarKeyMode, payment]);
 
   const handleOutcome = async (success) => {
     if (!payment?._id) return;
@@ -200,7 +271,7 @@ function MockPaymentCheckout() {
     if (res?.status === 200) {
       const updatedBooking = res.data?.booking || booking;
       if (success) {
-        sessionStorage.removeItem('nextify_pending_booking');
+        clearCheckoutToken(updatedBooking?._id || booking?._id);
       } else if (updatedBooking?._id) {
         try {
           sessionStorage.setItem('nextify_pending_booking', JSON.stringify({
@@ -222,7 +293,7 @@ function MockPaymentCheckout() {
   if (!booking) {
     return (
       <div style={{ backgroundColor: '#0a0a0a', minHeight: '100vh', paddingTop: 140, color: 'white', textAlign: 'center' }}>
-        <p>{error || t('payment.loading')}</p>
+        <p>{displayError || t('payment.loading')}</p>
       </div>
     );
   }
@@ -230,7 +301,13 @@ function MockPaymentCheckout() {
   const serviceLabel = translateService(booking.serviceType, t) || SERVICE_LABELS[booking.serviceType] || booking.serviceType;
   const vehicleLabel = booking.vehicle?.name || booking.vehicleName || '—';
   const amount = booking.pricing?.totalAmount ?? booking.quotedPrice ?? checkout?.amount;
-  const isMoyasar = checkout?.provider === 'moyasar';
+  const subtitle = !isMoyasar
+    ? t('payment.demo')
+    : moyasarKeyMode === 'live'
+      ? t('payment.moyasarLive')
+      : moyasarKeyMode === 'test'
+        ? t('payment.moyasar')
+        : t('payment.unavailable');
 
   return (
     <div style={{ backgroundColor: '#0a0a0a', minHeight: '100vh', paddingTop: 120, paddingBottom: 80, color: 'white' }}>
@@ -239,7 +316,7 @@ function MockPaymentCheckout() {
           <p className="text-uppercase small mb-1" style={{ color: '#a88448', letterSpacing: 3 }}>NEXTIFY</p>
           <h3 className="mb-1" style={{ fontFamily: 'var(--font-heading)' }}>{t('payment.title')}</h3>
           <p className="text-muted small mb-4">
-            {isMoyasar ? t('payment.moyasar') : t('payment.demo')}
+            {subtitle}
           </p>
 
           <div className="mb-4" style={{ fontSize: '0.95rem', lineHeight: 1.8 }}>
@@ -251,12 +328,17 @@ function MockPaymentCheckout() {
 
           <PriceSummary quote={booking.pricing} />
 
-          {error && <div className="alert alert-danger mt-3">{error}</div>}
+          {displayError && <div className="alert alert-danger mt-3">{displayError}</div>}
 
           {isMoyasar ? (
             <div className="mt-4">
               <div className="mysr-form" />
-              <p className="text-muted small mt-3 mb-0">{t('payment.testCards')}</p>
+              {moyasarKeyMode === 'live' && (
+                <p className="text-muted small mt-3 mb-0">{t('payment.liveCards')}</p>
+              )}
+              {moyasarKeyMode === 'test' && (
+                <p className="text-muted small mt-3 mb-0">{t('payment.testCards')}</p>
+              )}
             </div>
           ) : (
             <>
