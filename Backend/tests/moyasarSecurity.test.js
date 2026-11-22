@@ -459,6 +459,35 @@ async function httpChecks() {
     assert.strictEqual(booking.pricing.totalAmount, 180);
     assert.notStrictEqual(booking.pricing.totalAmount, 1);
 
+    // OPTIONS preflight for /api/payments/create must allow X-Checkout-Token
+    const preflightRes = await fetch(`${base}/api/payments/create`, {
+      method: 'OPTIONS',
+      headers: {
+        Origin: 'http://localhost:5173',
+        'Access-Control-Request-Method': 'POST',
+        'Access-Control-Request-Headers': 'Content-Type, X-Checkout-Token',
+      },
+    });
+    assert.strictEqual(preflightRes.status, 204);
+    assert.strictEqual(preflightRes.headers.get('access-control-allow-origin'), 'http://localhost:5173');
+    const allowedHeaders = String(preflightRes.headers.get('access-control-allow-headers') || '').toLowerCase();
+    assert.ok(allowedHeaders.includes('x-checkout-token'), 'CORS preflight must allow X-Checkout-Token');
+
+    // POST /api/payments/create without X-Checkout-Token must return 403 and create/reuse no payment
+    const unauthPayRes = await fetch(`${base}/api/payments/create`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Origin: 'http://localhost:5173',
+      },
+      body: JSON.stringify({ bookingId: booking._id }),
+    });
+    const unauthPayJson = await unauthPayRes.json();
+    assert.strictEqual(unauthPayRes.status, 403);
+    assert.strictEqual(unauthPayJson.success, false);
+    assert.strictEqual(unauthPayJson.data?.payment, undefined);
+    assert.strictEqual(payments.size, 0, 'unauthorized POST /api/payments/create must not create or reuse a payment');
+
     const payRes = await fetch(`${base}/api/payments/create`, {
       method: 'POST',
       headers: {

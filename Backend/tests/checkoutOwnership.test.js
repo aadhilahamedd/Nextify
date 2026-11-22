@@ -266,6 +266,14 @@ async function run() {
     };
     Booking.findById = () => makeQuery(bookingA);
 
+    const resPay = createMockRes();
+    await bookingController.getPublicPayBooking(
+      { params: { id: idA }, headers: { 'x-checkout-token': issued.rawToken } },
+      resPay,
+      (err) => { if (err) throw err; },
+    );
+    assert.strictEqual(resPay.statusCode, 403);
+
     const res = createMockRes();
     await paymentController.createPayment(
       { body: { bookingId: idA }, headers: { 'x-checkout-token': issued.rawToken } },
@@ -912,6 +920,59 @@ async function run() {
       );
       assert.strictEqual(authRetry.authorized, true);
     }
+  });
+
+  // 18. Admin JWT with MongoDB lookup failure during authorizeBookingCheckout fails closed with 500
+  await check('18. Admin JWT with MongoDB lookup failure during authorizeBookingCheckout fails closed with 500', async () => {
+    const bookingA = {
+      _id: idA,
+      bookingNumber: 'NX-ADMIN-DB-ERR',
+      user: null,
+      paymentStatus: 'PENDING',
+      bookingStatus: 'PAYMENT_PENDING',
+      checkoutTokenHash: '',
+      checkoutTokenExpiresAt: null,
+    };
+    Booking.findById = () => makeQuery(bookingA);
+    User.findById = () => ({
+      select() {
+        return {
+          lean: async () => {
+            throw new Error('MongoNetworkError: ECONNREFUSED internal-atlas-host:27017');
+          },
+        };
+      },
+    });
+
+    let createOrReuseCalls = 0;
+    paymentService.createOrReuseCheckout = async () => {
+      createOrReuseCalls += 1;
+      throw new Error('createOrReuseCheckout must not be invoked when admin DB lookup fails');
+    };
+
+    const directAuth = await authorizeBookingCheckout(
+      { user: { userId: adminId, role: 'admin' }, headers: {} },
+      bookingA,
+    );
+    assert.strictEqual(directAuth.authorized, false);
+    assert.strictEqual(directAuth.statusCode, 500);
+    assert.ok(!String(directAuth.message).includes('MongoNetworkError'));
+    assert.ok(!String(directAuth.message).includes('ECONNREFUSED'));
+    assert.ok(!String(directAuth.message).includes('internal-atlas-host'));
+
+    const res = createMockRes();
+    await paymentController.createPayment(
+      { body: { bookingId: idA }, user: { userId: adminId, role: 'admin' }, headers: {} },
+      res,
+      (err) => { if (err) throw err; },
+    );
+    assert.strictEqual(res.statusCode, 500);
+    assert.strictEqual(res.body?.success, false);
+    const serialized = JSON.stringify(res.body);
+    assert.ok(!serialized.includes('MongoNetworkError'));
+    assert.ok(!serialized.includes('ECONNREFUSED'));
+    assert.ok(!serialized.includes('internal-atlas-host'));
+    assert.strictEqual(createOrReuseCalls, 0, 'payment creation service must not be invoked on DB error');
   });
 
   const failed = results.filter((r) => !r.ok);
