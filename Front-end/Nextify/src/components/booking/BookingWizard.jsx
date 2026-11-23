@@ -26,6 +26,12 @@ import { findAirport, toLocationPlace } from '../../data/saudiAirports';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { translatePlace, translateService } from '../../i18n/places';
 import { TEMP_WHATSAPP_BOOKING_INSTEAD_OF_MOYASAR } from '../../utils/paymentMode';
+import {
+  CHECKOUT_TOKEN_MISSING_MESSAGE,
+  hasAuthSession,
+  normalizeCheckoutToken,
+  saveCheckoutToken,
+} from '../../utils/checkoutSession';
 import { buildWhatsAppConfirmationMessage, openCompanyWhatsApp, reserveWhatsAppWindow } from '../../utils/whatsapp';
 import {
   buildTransferChatInquiry,
@@ -52,25 +58,86 @@ const SERVICE_ALT_KEYS = {
   gcc_transfer: 'rates.gccAlt',
 };
 
+function applyRoutePrefill(routeState, baseForm, baseStep, baseFilter) {
+  let nextForm = { ...baseForm };
+  let nextStep = baseStep;
+  let nextFilter = baseFilter;
+
+  const pre = routeState?.prefill;
+  const car = routeState?.car;
+  if (pre?.serviceType) {
+    nextForm = {
+      ...nextForm,
+      serviceType: pre.serviceType,
+      origin: isInquiryTransfer(pre.serviceType) ? (nextForm.origin || 'Riyadh') : nextForm.origin,
+      pickupLocation: isInquiryTransfer(pre.serviceType) ? (nextForm.pickupLocation || nextForm.origin || 'Riyadh') : nextForm.pickupLocation,
+    };
+    nextStep = 1;
+  }
+  if (routeState?.serviceType) {
+    nextForm = {
+      ...nextForm,
+      serviceType: routeState.serviceType,
+      origin: isInquiryTransfer(routeState.serviceType) ? (nextForm.origin || 'Riyadh') : nextForm.origin,
+      pickupLocation: isInquiryTransfer(routeState.serviceType) ? (nextForm.pickupLocation || nextForm.origin || 'Riyadh') : nextForm.pickupLocation,
+    };
+    nextStep = 1;
+  }
+  if (car) {
+    const fleet = findFleetVehicle(car);
+    if (fleet) {
+      nextForm = {
+        ...nextForm,
+        vehicleCategory: fleet.category,
+        vehicleName: fleet.label,
+        durationType: fleet.half == null ? 'full_day' : nextForm.durationType,
+      };
+      nextFilter = fleet.fleetClass;
+      nextStep = 1;
+    }
+  }
+
+  if (nextForm.vehicleCategory) {
+    const allowed = getVehiclesForService(nextForm.serviceType, 'All', nextForm.durationType);
+    if (!allowed.some((v) => v.category === nextForm.vehicleCategory)) {
+      nextForm = { ...nextForm, vehicleCategory: '', vehicleName: '' };
+    }
+  }
+
+  return { form: nextForm, step: nextStep, vehicleFilter: nextFilter };
+}
+
 function BookingWizard() {
   const location = useLocation();
   const navigate = useNavigate();
   const { t, lang, formatNumber } = useLanguage();
   const assistant = useBookingAssistant();
-  const [step, setStep] = useState(0);
-  const [form, setForm] = useState({ ...initialFormState });
-  const [quote, setQuote] = useState(null);
-  const [quoteLoading, setQuoteLoading] = useState(false);
+  const initialPrefill = applyRoutePrefill(location.state, initialFormState, 0, 'All');
+  const [step, setStep] = useState(initialPrefill.step);
+  const [form, setForm] = useState(initialPrefill.form);
+  const [vehicleFilter, setVehicleFilter] = useState(initialPrefill.vehicleFilter);
+  const [prevRouteState, setPrevRouteState] = useState(location.state);
+  const [serverQuoteState, setServerQuoteState] = useState({ key: '', quote: null });
+  const quoteLoading = false;
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [inquiryReady, setInquiryReady] = useState(false);
-  const [vehicleFilter, setVehicleFilter] = useState('All');
   const isRouteTransfer = isRouteTransferService(form.serviceType);
-  const isInquiry = quoteRequiresInquiry(quote, form);
   const wizardRef = useRef(null);
   const pageRef = useRef(null);
   const skipWizardScroll = useRef(true);
   const [inView, setInView] = useState(false);
+
+  if (location.state !== prevRouteState) {
+    setPrevRouteState(location.state);
+    if (location.state?.prefill?.serviceType || location.state?.serviceType || location.state?.car) {
+      const next = applyRoutePrefill(location.state, form, step, vehicleFilter);
+      setForm(next.form);
+      setStep(next.step);
+      setVehicleFilter(next.vehicleFilter);
+      setError('');
+    }
+  }
 
   const services = useMemo(
     () => Object.entries(SERVICE_TYPES).map(([, value]) => ({
@@ -100,56 +167,19 @@ function BookingWizard() {
     { id: FLEET_CLASS.COACHES, label: t('fleet.coaches') },
   ];
 
-  useEffect(() => {
-    const pre = location.state?.prefill;
-    const car = location.state?.car;
-    if (pre?.serviceType) {
-      setForm((f) => ({
-        ...f,
-        serviceType: pre.serviceType,
-        origin: isInquiryTransfer(pre.serviceType) ? (f.origin || 'Riyadh') : f.origin,
-        pickupLocation: isInquiryTransfer(pre.serviceType) ? (f.pickupLocation || f.origin || 'Riyadh') : f.pickupLocation,
-      }));
-      setStep(1);
-    }
-    if (location.state?.serviceType) {
-      setForm((f) => ({
-        ...f,
-        serviceType: location.state.serviceType,
-        origin: isInquiryTransfer(location.state.serviceType) ? (f.origin || 'Riyadh') : f.origin,
-        pickupLocation: isInquiryTransfer(location.state.serviceType) ? (f.pickupLocation || f.origin || 'Riyadh') : f.pickupLocation,
-      }));
-      setStep(1);
-    }
-    if (car) {
-      const fleet = findFleetVehicle(car);
-      if (fleet) {
-        setForm((f) => ({
-          ...f,
-          vehicleCategory: fleet.category,
-          vehicleName: fleet.label,
-          durationType: fleet.half == null ? 'full_day' : f.durationType,
-        }));
-        setVehicleFilter(fleet.fleetClass);
-        setStep(1);
-      }
-    }
-  }, [location.state]);
-
-  useEffect(() => {
-    if (!form.vehicleCategory) return;
-    const allowed = getVehiclesForService(form.serviceType, 'All', form.durationType);
-    if (!allowed.some((v) => v.category === form.vehicleCategory)) {
-      setForm((f) => ({ ...f, vehicleCategory: '', vehicleName: '' }));
-      setQuote(null);
-    }
-  }, [form.serviceType, form.durationType]);
-
   const update = (patch) => {
-    setForm((f) => ({ ...f, ...patch }));
-    if (Object.prototype.hasOwnProperty.call(patch, 'vehicleCategory') && !patch.vehicleCategory) {
-      setQuote(null);
-    }
+    setForm((f) => {
+      const next = { ...f, ...patch };
+      if (next.vehicleCategory && (patch.serviceType !== undefined || patch.durationType !== undefined)) {
+        const allowed = getVehiclesForService(next.serviceType, 'All', next.durationType);
+        if (!allowed.some((v) => v.category === next.vehicleCategory)) {
+          next.vehicleCategory = '';
+          next.vehicleName = '';
+        }
+      }
+      return next;
+    });
+    setError('');
   };
 
   const buildPricingPayload = useCallback(() => {
@@ -185,16 +215,30 @@ function BookingWizard() {
     return getOfficialQuote(buildPricingPayload());
   }, [buildPricingPayload, form.serviceType, form.vehicleCategory, form.durationType]);
 
+  const quoteKey = JSON.stringify([
+    form.serviceType,
+    form.vehicleCategory,
+    form.durationType,
+    form.intercityRoute,
+    form.gccDestination,
+    form.distanceKm,
+    form.airport,
+    form.origin,
+    form.destination,
+    form.otherDestination,
+    Boolean(form.returnTrip),
+  ]);
+  const quote = serverQuoteState.key === quoteKey && serverQuoteState.quote
+    ? serverQuoteState.quote
+    : localQuote;
+  const isInquiry = quoteRequiresInquiry(quote, form);
+
   useEffect(() => {
-    setQuote(localQuote);
-    setError('');
     if (step < 1 || !localQuote) {
-      setQuoteLoading(false);
       return undefined;
     }
 
     let cancelled = false;
-    setQuoteLoading(false);
     const timer = window.setTimeout(() => {
       calculatePriceAPI(buildPricingPayload()).then((res) => {
         if (cancelled) return;
@@ -213,7 +257,7 @@ function BookingWizard() {
           ) {
             return;
           }
-          setQuote(nextQuote);
+          setServerQuoteState({ key: quoteKey, quote: nextQuote });
         }
       });
     }, 200);
@@ -227,17 +271,7 @@ function BookingWizard() {
   }, [
     step,
     localQuote,
-    form.vehicleCategory,
-    form.durationType,
-    form.intercityRoute,
-    form.gccDestination,
-    form.distanceKm,
-    form.serviceType,
-    form.airport,
-    form.origin,
-    form.destination,
-    form.otherDestination,
-    form.returnTrip,
+    quoteKey,
   ]);
 
   useEffect(() => {
@@ -432,7 +466,21 @@ function BookingWizard() {
         return;
       }
 
-      navigate('/payment', { state: { booking } });
+      const checkoutToken = normalizeCheckoutToken(
+        res.data?.checkoutToken || res.data?.data?.checkoutToken || '',
+      );
+      if (!checkoutToken && !hasAuthSession()) {
+        closeReservedWhatsApp();
+        setError(CHECKOUT_TOKEN_MISSING_MESSAGE);
+        return;
+      }
+      if (checkoutToken && booking?._id) {
+        saveCheckoutToken(booking._id, checkoutToken);
+      }
+
+      navigate('/payment', {
+        state: checkoutToken ? { booking, checkoutToken } : { booking },
+      });
     } else {
       closeReservedWhatsApp();
       setError(res?.data?.message || res?.error || t('booking.errCreate'));
@@ -1013,12 +1061,6 @@ function BookingWizard() {
                             vehicleCategory: v.category,
                             vehicleName: v.label,
                           });
-                          const nextQuote = getOfficialQuote({
-                            ...buildPricingPayload(),
-                            vehicleCategory: v.category,
-                            vehicleName: v.label,
-                          });
-                          if (nextQuote) setQuote(nextQuote);
                         }}
                       />
                     )}

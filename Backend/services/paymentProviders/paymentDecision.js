@@ -16,7 +16,7 @@ function classifyVerification({
   if (mappedStatus === 'PAID' && localStatus === 'PAID' && sameReference) {
     return { action: 'idempotent_paid', confirmBooking: false, manualInterventionRequired: false };
   }
-  if (mappedStatus === 'PAID' && bookingAlreadyPaid && !sameReference) {
+  if (mappedStatus === 'PAID' && bookingAlreadyPaid && (localStatus !== 'PAID' || !sameReference)) {
     return { action: 'duplicate_charge', confirmBooking: false, manualInterventionRequired: true };
   }
   if (paidAlready && mappedStatus !== 'PAID' && !(mappedStatus === 'REFUNDED' && sameReference)) {

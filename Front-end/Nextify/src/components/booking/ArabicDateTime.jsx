@@ -46,11 +46,15 @@ export function LocaleDateInput({ value, min, onChange, className }) {
   const selected = parseDateValue(value);
   const minDate = parseDateValue(min);
   const [open, setOpen] = useState(false);
+  const [prevValue, setPrevValue] = useState(value);
   const [view, setView] = useState(() => selected || new Date());
 
-  useEffect(() => {
-    if (selected) setView(new Date(selected.getFullYear(), selected.getMonth(), 1));
-  }, [value]);
+  if (value !== prevValue) {
+    setPrevValue(value);
+    if (selected) {
+      setView(new Date(selected.getFullYear(), selected.getMonth(), 1));
+    }
+  }
 
   useEffect(() => {
     const onDoc = (event) => {

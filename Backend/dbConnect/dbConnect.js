@@ -19,8 +19,13 @@ async function runSeed() {
 }
 
 function resolveMongoUri() {
-  // Prefer MONGODB_URI; legacy Backend .env uses connectionString.
-  return process.env.MONGODB_URI || process.env.connectionString || '';
+  // Prefer MONGODB_URI; fall back to MONGO_URI or legacy connectionString.
+  return String(
+    process.env.MONGODB_URI ||
+    process.env.MONGO_URI ||
+    process.env.connectionString ||
+    ''
+  ).trim();
 }
 
 /**
@@ -30,7 +35,7 @@ function resolveMongoUri() {
 async function connectAndPrepareDatabase() {
   const uri = resolveMongoUri();
   if (!uri) {
-    const err = new Error('MONGODB_URI (or legacy connectionString) not found in environment');
+    const err = new Error('MONGODB_URI (or MONGO_URI / legacy connectionString) not found in environment');
     err.code = 'MONGO_URI_MISSING';
     throw err;
   }
@@ -42,7 +47,7 @@ async function connectAndPrepareDatabase() {
       maxPoolSize: 10,
     });
   }
-  console.log('✅ Successfully connected to MongoDB!');
+  console.log(`✅ Successfully connected to MongoDB (db: ${mongoose.connection.name || 'unknown'})`);
 
   await runSeed();
 

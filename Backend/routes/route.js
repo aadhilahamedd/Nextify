@@ -15,7 +15,14 @@ const reviewController = require('../controllers/reviewController');
 const jwtMiddleware = require('../middleware/jwtMiddleware');
 const optionalJwtMiddleware = require('../middleware/optionalJwtMiddleware');
 const adminMiddleware = require('../middleware/adminMiddleware');
-const { authLoginRegisterLimiter, authRefreshLimiter, trackBookingLimiter } = require('../middleware/rateLimiters');
+const {
+  authLoginRegisterLimiter,
+  authRefreshLimiter,
+  trackBookingLimiter,
+  paymentCreateLimiter,
+  paymentVerifyLimiter,
+  paymentReferenceLimiter,
+} = require('../middleware/rateLimiters');
 const Settings = require('../models/Settings');
 const { DEFAULT_CONTACT } = require('../services/seedService');
 const mapsController = require('../controllers/mapsController');
@@ -65,7 +72,7 @@ router.put('/api/pricing-rules/:id', jwtMiddleware, adminMiddleware, pricingCont
 
 // ====== Bookings (guest + optional auth) ======
 router.post('/api/bookings', optionalJwtMiddleware, bookingController.createBooking);
-router.get('/api/bookings/pay/:id', bookingController.getPublicPayBooking);
+router.get('/api/bookings/pay/:id', paymentCreateLimiter, optionalJwtMiddleware, bookingController.getPublicPayBooking);
 router.post('/api/bookings/track', trackBookingLimiter, bookingController.trackBooking);
 router.get('/api/bookings', jwtMiddleware, adminMiddleware, bookingController.getBookings);
 router.get('/api/bookings/stats', jwtMiddleware, adminMiddleware, bookingController.getDashboardStats);
@@ -88,12 +95,12 @@ router.put('/api/drivers/:id', jwtMiddleware, adminMiddleware, driverController.
 router.delete('/api/drivers/:id', jwtMiddleware, adminMiddleware, driverController.deleteDriver);
 
 // ====== Payments ======
-router.post('/api/payments/create', optionalJwtMiddleware, paymentController.createPayment);
+router.post('/api/payments/create', paymentCreateLimiter, optionalJwtMiddleware, paymentController.createPayment);
 router.post('/api/payments/mock/complete', paymentController.mockComplete);
 router.post('/api/payments/mock/fail', paymentController.mockFail);
-router.post('/api/payments/moyasar/reference', optionalJwtMiddleware, paymentController.attachMoyasarReference);
-router.get('/api/payments/verify/:id', optionalJwtMiddleware, paymentController.verifyPayment);
-router.get('/api/payment/verify/:paymentId', optionalJwtMiddleware, paymentController.verifyPayment);
+router.post('/api/payments/moyasar/reference', paymentReferenceLimiter, optionalJwtMiddleware, paymentController.attachMoyasarReference);
+router.get('/api/payments/verify/:id', paymentVerifyLimiter, optionalJwtMiddleware, paymentController.verifyPayment);
+router.get('/api/payment/verify/:paymentId', paymentVerifyLimiter, optionalJwtMiddleware, paymentController.verifyPayment);
 router.post('/api/payments/webhook', paymentController.webhook);
 router.post('/api/payment/webhook', paymentController.webhook);
 router.get('/api/payments/booking/:bookingId', jwtMiddleware, adminMiddleware, paymentController.getPaymentByBooking);

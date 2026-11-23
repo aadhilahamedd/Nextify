@@ -130,6 +130,9 @@ const bookingSchema = new mongoose.Schema(
     eventType: { type: String, default: '' },
     eventOther: { type: String, default: '' },
 
+    checkoutTokenHash: { type: String, default: '', select: false },
+    checkoutTokenExpiresAt: { type: Date, default: null, select: false },
+
     // Legacy flat fields kept for backward compatibility when reading old records
     name: { type: String, default: '' },
     mobile: { type: String, default: '' },
@@ -153,12 +156,16 @@ bookingSchema.index({ 'customer.mobile': 1 });
 
 bookingSchema.methods.toPublicJSON = function toPublicJSON() {
   const doc = this.toObject({ virtuals: true });
+  delete doc.checkoutTokenHash;
+  delete doc.checkoutTokenExpiresAt;
   return normalizeBooking(doc);
 };
 
 bookingSchema.statics.normalizeLegacy = normalizeBooking;
 
 function normalizeBooking(doc) {
+  delete doc.checkoutTokenHash;
+  delete doc.checkoutTokenExpiresAt;
   if (!doc.customer?.name && doc.name) {
     doc.customer = {
       name: doc.name,

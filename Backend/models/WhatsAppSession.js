@@ -34,6 +34,21 @@ const whatsAppSessionSchema = new mongoose.Schema(
     bookingDraft: { type: bookingDraftSchema, default: () => ({}) },
     bookingId: { type: mongoose.Schema.Types.ObjectId, ref: 'Booking', default: null },
     paymentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Payment', default: null },
+    processedMessageIds: { type: [String], default: [] },
+    pendingMessages: {
+      type: [
+        new mongoose.Schema(
+          {
+            id: { type: String, required: true },
+            claimToken: { type: String, default: '' },
+            claimedAt: { type: Date, required: true },
+          },
+          { _id: false }
+        ),
+      ],
+      default: [],
+    },
+    lastPaymentLinkSentAt: { type: Date, default: null },
     lastMessageAt: { type: Date, default: Date.now, index: true },
     status: {
       type: String,

@@ -12,6 +12,7 @@ const Payment = require('../models/Payment');
 const Driver = require('../models/Driver');
 const bookingController = require('../controllers/bookingController');
 const moyasarPaymentProvider = require('../services/paymentProviders/moyasarPaymentProvider');
+moyasarPaymentProvider._setAllowOfflineUnitTestTransactions(true);
 const paymentService = require('../services/paymentService');
 
 function createMockRes() {
@@ -402,6 +403,7 @@ async function runAllTests() {
         provider: 'moyasar',
         providerReference: 'pay_old_fail',
         status: 'PENDING',
+        metadata: { env: 'test' },
       };
 
       const attempt2 = {
@@ -427,7 +429,14 @@ async function runAllTests() {
           return {
             ok: true,
             status: 200,
-            json: async () => ({ id: 'pay_old_fail', status: 'failed', amount: 25000, currency: 'SAR' }),
+            json: async () => ({
+              id: 'pay_old_fail',
+              status: 'failed',
+              amount: 25000,
+              currency: 'SAR',
+              live: false,
+              metadata: { payment_id: 'attempt_old_1', booking_number: 'NX-999' },
+            }),
           };
         }
         return { ok: false, status: 404, json: async () => ({ message: 'Not found' }) };
@@ -497,6 +506,7 @@ async function runAllTests() {
         provider: 'moyasar',
         providerReference: 'pay_refund_test',
         status: 'PAID',
+        metadata: { env: 'test' },
       };
 
       const completedBooking = {
@@ -511,13 +521,23 @@ async function runAllTests() {
           return {
             ok: true,
             status: 200,
-            json: async () => ({ id: 'pay_refund_test', status: 'refunded', amount: 30000, currency: 'SAR' }),
+            json: async () => ({
+              id: 'pay_refund_test',
+              status: 'refunded',
+              amount: 30000,
+              currency: 'SAR',
+              live: false,
+              metadata: { payment_id: 'attempt_paid_1', booking_number: 'NX-888' },
+            }),
           };
         }
         return { ok: false, status: 404, json: async () => ({ message: 'Not found' }) };
       };
 
-      Payment.findOne = async () => paidAttempt;
+      Payment.findOne = async (query) => {
+        if (query?.providerReference === 'pay_refund_test') return paidAttempt;
+        return null;
+      };
       Payment.findById = async () => ({ ...paidAttempt, status: 'REFUNDED' });
       Booking.findById = async () => completedBooking;
 
@@ -550,8 +570,10 @@ async function runAllTests() {
 
   // 14. Public pay endpoint excludes sensitive booking fields
   await check('14. Public pay endpoint excludes customer PII, driver and admin fields', async () => {
+    const { generateCheckoutToken } = require('../utils/checkoutToken');
     const originalFindById = Booking.findById;
     try {
+      const issued = generateCheckoutToken();
       const leanDoc = {
         _id: '507f191e810c19729de860f1',
         bookingNumber: 'NX-PAY-1',
@@ -567,6 +589,8 @@ async function runAllTests() {
         paymentStatus: 'PENDING',
         bookingStatus: 'PAYMENT_PENDING',
         customQuoteRequired: false,
+        checkoutTokenHash: issued.tokenHash,
+        checkoutTokenExpiresAt: issued.expiresAt,
         customer: { name: 'Secret Name', email: 'secret@example.com', mobile: '0555123456' },
         driver: { name: 'Hidden Driver', phone: '0555000000' },
         specialRequests: 'VIP note',
@@ -582,7 +606,7 @@ async function runAllTests() {
 
       const res = createMockRes();
       await bookingController.getPublicPayBooking(
-        { params: { id: leanDoc._id } },
+        { params: { id: leanDoc._id }, headers: { 'x-checkout-token': issued.rawToken } },
         res,
         (err) => { if (err) throw err; }
       );
@@ -736,10 +760,11 @@ async function runAllTests() {
   await check('18. Cancelled booking checkout state is consistent when reusing empty-ref pending payment', async () => {
     const originalPaymentFindOne = Payment.findOne;
     const originalBookingFindById = Booking.findById;
+    const originalBookingFindOneAndUpdate = Booking.findOneAndUpdate;
 
     try {
       const bookingId = '507f191e810c19729de860f5';
-      let saved = false;
+      let atomicReopened = false;
       const bookingDoc = {
         _id: bookingId,
         bookingNumber: 'NX-CO-1',
@@ -747,7 +772,6 @@ async function runAllTests() {
         paymentStatus: 'FAILED',
         customQuoteRequired: false,
         pricing: { totalAmount: 200, currency: 'SAR', breakdown: { quoteStatus: 'priced' } },
-        save: async function save() { saved = true; },
       };
 
       const emptyPending = {
@@ -771,14 +795,19 @@ async function runAllTests() {
         };
       };
 
+      Booking.findOneAndUpdate = async (filter, update) => {
+        assert.deepStrictEqual(filter.paymentStatus, { $nin: ['PAID', 'paid', 'REFUNDED', 'refunded', 'NOT_REQUIRED', 'not_required'] });
+        atomicReopened = true;
+        Object.assign(bookingDoc, update.$set);
+        return bookingDoc;
+      };
+
       Booking.findById = async () => ({
         ...bookingDoc,
-        bookingStatus: 'PAYMENT_PENDING',
-        paymentStatus: 'PENDING',
       });
 
       const result = await paymentService.createOrReuseCheckout(bookingDoc);
-      assert.strictEqual(saved, true, 'Must reopen cancelled booking for checkout');
+      assert.strictEqual(atomicReopened, true, 'Must atomically reopen cancelled booking for checkout');
       assert.strictEqual(bookingDoc.bookingStatus, 'PAYMENT_PENDING');
       assert.strictEqual(bookingDoc.paymentStatus, 'PENDING');
       assert.strictEqual(result.payment._id, 'pay_empty_pending');
@@ -786,6 +815,224 @@ async function runAllTests() {
     } finally {
       Payment.findOne = originalPaymentFindOne;
       Booking.findById = originalBookingFindById;
+      Booking.findOneAndUpdate = originalBookingFindOneAndUpdate;
+    }
+  });
+
+  await check('18b. H1 regression: concurrent PAID transition during createOrReuseCheckout is never overwritten', async () => {
+    const originalPaymentFindOne = Payment.findOne;
+    const originalBookingFindById = Booking.findById;
+    const originalBookingFindOneAndUpdate = Booking.findOneAndUpdate;
+
+    try {
+      const bookingId = '507f191e810c19729de860f6';
+      const staleBookingDoc = {
+        _id: bookingId,
+        bookingNumber: 'NX-H1-RACE',
+        bookingStatus: 'CANCELLED',
+        paymentStatus: 'FAILED',
+        customQuoteRequired: false,
+        pricing: { totalAmount: 200, currency: 'SAR', breakdown: { quoteStatus: 'priced' } },
+      };
+      const dbBookingState = {
+        ...staleBookingDoc,
+        bookingStatus: 'CONFIRMED',
+        paymentStatus: 'PAID',
+        checkoutTokenHash: '',
+        checkoutTokenExpiresAt: null,
+      };
+      const emptyPending = {
+        _id: 'pay_h1_pending',
+        booking: bookingId,
+        bookingNumber: 'NX-H1-RACE',
+        amount: 200,
+        currency: 'SAR',
+        provider: 'moyasar',
+        providerReference: '',
+        status: 'PENDING',
+      };
+
+      Payment.findOne = (query) => {
+        const result = query.status === 'PAID'
+          ? null
+          : (query.status === 'PENDING' ? emptyPending : null);
+        return {
+          sort: async () => result,
+          then: (resolve, reject) => Promise.resolve(result).then(resolve, reject),
+        };
+      };
+
+      // Simulate DB rejecting the atomic reopen because booking concurrently became PAID.
+      Booking.findOneAndUpdate = async (filter) => {
+        assert.deepStrictEqual(filter.paymentStatus, { $nin: ['PAID', 'paid', 'REFUNDED', 'refunded', 'NOT_REQUIRED', 'not_required'] });
+        return null;
+      };
+      Booking.findById = async () => ({ ...dbBookingState });
+
+      let caught = null;
+      try {
+        await paymentService.createOrReuseCheckout(staleBookingDoc);
+      } catch (err) {
+        caught = err;
+      }
+      assert.ok(caught, 'Must reject checkout when booking concurrently became PAID');
+      assert.strictEqual(caught.statusCode, 409);
+      assert.match(caught.message, /already paid/i);
+      assert.strictEqual(dbBookingState.paymentStatus, 'PAID');
+      assert.strictEqual(dbBookingState.bookingStatus, 'CONFIRMED');
+      assert.strictEqual(dbBookingState.checkoutTokenHash, '');
+    } finally {
+      Payment.findOne = originalPaymentFindOne;
+      Booking.findById = originalBookingFindById;
+      Booking.findOneAndUpdate = originalBookingFindOneAndUpdate;
+    }
+  });
+
+  await check('18c. Fix 1 regression: both moyasar and mock createPayment use atomic Booking.findOneAndUpdate and never call booking.save()', async () => {
+    const moyasarProvider = require('../services/paymentProviders/moyasarPaymentProvider');
+    const mockProvider = require('../services/paymentProviders/mockPaymentProvider');
+    const origBookingFindOneAndUpdate = Booking.findOneAndUpdate;
+    const origBookingFindById = Booking.findById;
+    const origPaymentCreate = Payment.create;
+
+    try {
+      for (const [label, provider] of [['moyasar', moyasarProvider], ['mock', mockProvider]]) {
+        // 1) Eligible booking starts payment without calling booking.save()
+        let saveCalled = false;
+        let paymentCreateCalls = 0;
+        const eligibleBooking = {
+          _id: '507f191e810c19729de860f7',
+          bookingNumber: `NX-F1-OK-${label}`,
+          paymentStatus: 'FAILED',
+          bookingStatus: 'CANCELLED',
+          customQuoteRequired: false,
+          save: async () => { saveCalled = true; },
+        };
+        Booking.findOneAndUpdate = async (filter, update) => {
+          assert.deepStrictEqual(filter.paymentStatus, { $nin: ['PAID', 'paid', 'REFUNDED', 'refunded', 'NOT_REQUIRED', 'not_required'] });
+          return { ...eligibleBooking, ...update.$set };
+        };
+        Payment.create = async (doc) => {
+          paymentCreateCalls += 1;
+          return { _id: `pay_${label}_ok`, ...doc };
+        };
+
+        const created = await provider.createPayment({ booking: eligibleBooking, amount: 200, currency: 'SAR' });
+        assert.strictEqual(created._id, `pay_${label}_ok`);
+        assert.strictEqual(paymentCreateCalls, 1);
+        assert.strictEqual(saveCalled, false, `${label} createPayment must never call booking.save()`);
+
+        // 2) Concurrent PAID confirmation between read and atomic update throws 409, creates no payment, preserves PAID + cleared token
+        let concurrentSaveCalled = false;
+        let concurrentPaymentCreated = false;
+        const staleBooking = {
+          _id: '507f191e810c19729de860f8',
+          bookingNumber: `NX-F1-PAID-${label}`,
+          paymentStatus: 'FAILED',
+          bookingStatus: 'CANCELLED',
+          customQuoteRequired: false,
+          save: async () => { concurrentSaveCalled = true; },
+        };
+        const dbPaidBooking = {
+          ...staleBooking,
+          paymentStatus: 'PAID',
+          bookingStatus: 'CONFIRMED',
+          checkoutTokenHash: '',
+          checkoutTokenExpiresAt: null,
+        };
+        Booking.findOneAndUpdate = async () => null;
+        Booking.findById = async () => ({ ...dbPaidBooking });
+        Payment.create = async () => {
+          concurrentPaymentCreated = true;
+          throw new Error('Payment.create must not run when atomic booking guard fails');
+        };
+
+        let caught = null;
+        try {
+          await provider.createPayment({ booking: staleBooking, amount: 200, currency: 'SAR' });
+        } catch (err) {
+          caught = err;
+        }
+        assert.ok(caught, `${label} must throw 409 when booking concurrently became PAID`);
+        assert.strictEqual(caught.statusCode, 409);
+        assert.match(caught.message, /already paid/i);
+        assert.strictEqual(concurrentPaymentCreated, false);
+        assert.strictEqual(concurrentSaveCalled, false);
+        assert.strictEqual(dbPaidBooking.paymentStatus, 'PAID');
+        assert.strictEqual(dbPaidBooking.bookingStatus, 'CONFIRMED');
+        assert.strictEqual(dbPaidBooking.checkoutTokenHash, '');
+      }
+    } finally {
+      Booking.findOneAndUpdate = origBookingFindOneAndUpdate;
+      Booking.findById = origBookingFindById;
+      Payment.create = origPaymentCreate;
+    }
+  });
+
+  await check('18d. 3D.2 Fix 3: createOrReuseCheckout cleans up newly created orphaned empty-ref PENDING payment if booking became PAID', async () => {
+    const origPaymentFindOne = Payment.findOne;
+    const origPaymentCreate = Payment.create;
+    const origPaymentDeleteOne = Payment.deleteOne;
+    const origBookingFindOneAndUpdate = Booking.findOneAndUpdate;
+    const origBookingFindById = Booking.findById;
+
+    try {
+      const bookingId = '507f191e810c19729de860fa';
+      const bookingDoc = {
+        _id: bookingId,
+        bookingNumber: 'NX-ORPHAN-1',
+        bookingStatus: 'PAYMENT_PENDING',
+        paymentStatus: 'PENDING',
+        customQuoteRequired: false,
+        pricing: { totalAmount: 200, currency: 'SAR', breakdown: { quoteStatus: 'priced' } },
+      };
+
+      const deleteFilters = [];
+      Payment.findOne = () => ({ sort: async () => null, then: (r) => Promise.resolve(null).then(r) });
+      Booking.findOneAndUpdate = async () => ({ ...bookingDoc });
+      Payment.create = async (doc) => ({ _id: 'pay_fresh_orphan', ...doc });
+      // Booking becomes PAID between Payment.create and Booking.findById reread
+      Booking.findById = async () => ({ ...bookingDoc, paymentStatus: 'PAID', bookingStatus: 'CONFIRMED' });
+      Payment.deleteOne = async (filter) => {
+        deleteFilters.push(filter);
+        return { deletedCount: 1 };
+      };
+
+      let err1 = null;
+      try {
+        await paymentService.createOrReuseCheckout(bookingDoc);
+      } catch (e) {
+        err1 = e;
+      }
+      assert.ok(err1);
+      assert.strictEqual(err1.statusCode, 409);
+      assert.match(err1.message, /already paid/i);
+      assert.strictEqual(deleteFilters.length, 1);
+      assert.deepStrictEqual(deleteFilters[0], {
+        _id: 'pay_fresh_orphan',
+        status: 'PENDING',
+        providerReference: '',
+      });
+
+      // Even if cleanup throws, the 409 Booking already paid error must not be masked
+      Payment.deleteOne = async () => {
+        throw new Error('transient delete failure');
+      };
+      let err2 = null;
+      try {
+        await paymentService.createOrReuseCheckout(bookingDoc);
+      } catch (e) {
+        err2 = e;
+      }
+      assert.ok(err2);
+      assert.strictEqual(err2.statusCode, 409);
+      assert.match(err2.message, /already paid/i);
+    } finally {
+      Payment.findOne = origPaymentFindOne;
+      Payment.create = origPaymentCreate;
+      Payment.deleteOne = origPaymentDeleteOne;
+      Booking.findOneAndUpdate = origBookingFindOneAndUpdate;
+      Booking.findById = origBookingFindById;
     }
   });
 
@@ -895,7 +1142,7 @@ async function runAllTests() {
         provider: 'moyasar',
         providerReference: '',
         status: 'PENDING',
-        metadata: {},
+        metadata: { env: 'test' },
       };
       Payment.findById = async () => local;
       Payment.findOne = async () => null;
@@ -1142,6 +1389,7 @@ async function runAllTests() {
         provider: 'moyasar',
         providerReference: '',
         status: 'PENDING',
+        metadata: { env: 'test' },
       });
       Payment.findOne = async () => ({
         _id: 'pay_local_old',
@@ -1282,6 +1530,7 @@ async function runAllTests() {
   await check('33. Concurrent checkout: open-attempt unique index and duplicate-key reuse', async () => {
     const originalPaymentCreate = Payment.create;
     const originalPaymentFindOne = Payment.findOne;
+    const originalBookingFindOneAndUpdate = Booking.findOneAndUpdate;
     try {
       const indexes = Payment.schema.indexes();
       const openIdx = indexes.find((entry) => entry[1]?.name === 'uniq_open_checkout_attempt');
@@ -1295,7 +1544,7 @@ async function runAllTests() {
         bookingNumber: 'NX-CONC',
         paymentStatus: 'PENDING',
         bookingStatus: 'PAYMENT_PENDING',
-        save: async () => {},
+        save: async () => { throw new Error('must not call booking.save'); },
       };
       const openAttempt = {
         _id: 'open_pending',
@@ -1308,6 +1557,7 @@ async function runAllTests() {
         status: 'PENDING',
       };
 
+      Booking.findOneAndUpdate = async (filter, update) => ({ ...bookingDoc, ...update.$set });
       Payment.create = async () => {
         const err = new Error('E11000 duplicate key');
         err.code = 11000;
@@ -1335,6 +1585,7 @@ async function runAllTests() {
     } finally {
       Payment.create = originalPaymentCreate;
       Payment.findOne = originalPaymentFindOne;
+      Booking.findOneAndUpdate = originalBookingFindOneAndUpdate;
     }
   });
 

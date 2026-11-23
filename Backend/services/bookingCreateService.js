@@ -1,5 +1,6 @@
 const Booking = require('../models/Booking');
 const { generateBookingNumber } = require('../utils/bookingNumber');
+const { generateCheckoutToken } = require('../utils/checkoutToken');
 const { calculatePrice, normalizeServiceType } = require('./pricingService');
 const { findAirport } = require('../data/saudiAirports');
 const { resolveFixedRouteLocation } = require('../data/airportFixedRoutes');
@@ -117,6 +118,8 @@ async function createBookingFromPayload(body, { userId } = {}) {
     body.vehicleCategory ||
     '';
 
+  const issuedCheckoutToken = quote.customQuoteRequired ? null : generateCheckoutToken();
+
   const booking = new Booking({
     bookingNumber,
     customer: {
@@ -213,10 +216,16 @@ async function createBookingFromPayload(body, { userId } = {}) {
     paymentStatus: quote.customQuoteRequired ? 'NOT_REQUIRED' : 'PENDING',
     bookingStatus: quote.customQuoteRequired ? 'PENDING' : 'PAYMENT_PENDING',
     specialRequests: body.specialRequests || body.specialRequest || '',
+    checkoutTokenHash: issuedCheckoutToken ? issuedCheckoutToken.tokenHash : '',
+    checkoutTokenExpiresAt: issuedCheckoutToken ? issuedCheckoutToken.expiresAt : null,
   });
 
   await booking.save();
-  return { booking, quote };
+  return {
+    booking,
+    quote,
+    checkoutToken: issuedCheckoutToken ? issuedCheckoutToken.rawToken : null,
+  };
 }
 
 module.exports = { createBookingFromPayload };

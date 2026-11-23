@@ -297,6 +297,7 @@ async function httpChecks() {
 
   const origBookingFindOne = Booking.findOne;
   const origBookingFindById = Booking.findById;
+  const origBookingFindOneAndUpdate = Booking.findOneAndUpdate;
   const origBookingSave = Booking.prototype.save;
   const origPaymentFindOne = Payment.findOne;
   const origPaymentCreate = Payment.create;
@@ -318,7 +319,22 @@ async function httpChecks() {
       return null;
     };
 
-    Booking.findById = async (id) => bookings.get(String(id)) || null;
+    Booking.findById = (id) => {
+      const doc = bookings.get(String(id)) || null;
+      return {
+        select() {
+          return {
+            lean: async () => doc,
+            then(resolve, reject) {
+              return Promise.resolve(doc).then(resolve, reject);
+            },
+          };
+        },
+        then(resolve, reject) {
+          return Promise.resolve(doc).then(resolve, reject);
+        },
+      };
+    };
 
     Booking.prototype.save = async function saveStub() {
       const now = new Date();
@@ -326,6 +342,15 @@ async function httpChecks() {
       this.updatedAt = now;
       bookings.set(String(this._id), this);
       return this;
+    };
+
+    Booking.findOneAndUpdate = async (filter, update) => {
+      const doc = bookings.get(String(filter._id)) || null;
+      if (!doc) return null;
+      if (filter.paymentStatus?.$nin?.includes(doc.paymentStatus)) return null;
+      if (update?.$set) Object.assign(doc, update.$set);
+      doc.updatedAt = new Date();
+      return doc;
     };
 
     Payment.findOne = (query = {}) => {
@@ -428,13 +453,48 @@ async function httpChecks() {
     });
     const bookJson = await bookRes.json();
     const booking = bookJson?.data?.booking;
+    const checkoutToken = bookJson?.data?.checkoutToken;
     assert.strictEqual(bookRes.status, 201, bookJson.message || 'booking failed');
+    assert.ok(typeof checkoutToken === 'string' && checkoutToken.length >= 43, 'checkoutToken must be issued');
     assert.strictEqual(booking.pricing.totalAmount, 180);
     assert.notStrictEqual(booking.pricing.totalAmount, 1);
 
+    // OPTIONS preflight for /api/payments/create must allow X-Checkout-Token
+    const preflightRes = await fetch(`${base}/api/payments/create`, {
+      method: 'OPTIONS',
+      headers: {
+        Origin: 'http://localhost:5173',
+        'Access-Control-Request-Method': 'POST',
+        'Access-Control-Request-Headers': 'Content-Type, X-Checkout-Token',
+      },
+    });
+    assert.strictEqual(preflightRes.status, 204);
+    assert.strictEqual(preflightRes.headers.get('access-control-allow-origin'), 'http://localhost:5173');
+    const allowedHeaders = String(preflightRes.headers.get('access-control-allow-headers') || '').toLowerCase();
+    assert.ok(allowedHeaders.includes('x-checkout-token'), 'CORS preflight must allow X-Checkout-Token');
+
+    // POST /api/payments/create without X-Checkout-Token must return 403 and create/reuse no payment
+    const unauthPayRes = await fetch(`${base}/api/payments/create`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Origin: 'http://localhost:5173',
+      },
+      body: JSON.stringify({ bookingId: booking._id }),
+    });
+    const unauthPayJson = await unauthPayRes.json();
+    assert.strictEqual(unauthPayRes.status, 403);
+    assert.strictEqual(unauthPayJson.success, false);
+    assert.strictEqual(unauthPayJson.data?.payment, undefined);
+    assert.strictEqual(payments.size, 0, 'unauthorized POST /api/payments/create must not create or reuse a payment');
+
     const payRes = await fetch(`${base}/api/payments/create`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Origin: 'http://localhost:5173' },
+      headers: {
+        'Content-Type': 'application/json',
+        Origin: 'http://localhost:5173',
+        'X-Checkout-Token': checkoutToken,
+      },
       body: JSON.stringify({ bookingId: booking._id }),
     });
     const payJson = await payRes.json();
@@ -496,6 +556,7 @@ async function httpChecks() {
     global.fetch = origFetch;
     Booking.findOne = origBookingFindOne;
     Booking.findById = origBookingFindById;
+    Booking.findOneAndUpdate = origBookingFindOneAndUpdate;
     Booking.prototype.save = origBookingSave;
     Payment.findOne = origPaymentFindOne;
     Payment.create = origPaymentCreate;

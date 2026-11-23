@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useMemo } from 'react';
 
 import Container from 'react-bootstrap/Container';
 
@@ -11,6 +11,7 @@ import PaymentMethods from '../components/booking/PaymentMethods';
 import '../components/booking/Booking.css';
 
 import { buildConfirmedBookingWhatsAppMessage, buildWhatsAppConfirmationMessage, COMPANY_PHONE, getWhatsAppUrl } from '../utils/whatsapp';
+import { clearCheckoutToken } from '../utils/checkoutSession';
 import { useLanguage } from '../i18n/LanguageContext';
 import { translateService } from '../i18n/places';
 import { formatDateTimeForLang } from '../i18n/format';
@@ -25,7 +26,16 @@ function BookingConfirmation() {
 
   const location = useLocation();
 
-  const [booking, setBooking] = useState(location.state?.booking || null);
+  const booking = useMemo(() => {
+    if (location.state?.booking) return location.state.booking;
+    if (!bookingNumber) return null;
+    try {
+      const stored = sessionStorage.getItem(`booking_${bookingNumber}`);
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  }, [bookingNumber, location.state?.booking]);
 
   const paymentSuccess = location.state?.paymentSuccess;
 
@@ -41,26 +51,6 @@ function BookingConfirmation() {
 
   useEffect(() => {
 
-    if (booking?.bookingNumber) return;
-
-    if (!bookingNumber) return;
-
-
-
-    const stored = sessionStorage.getItem(`booking_${bookingNumber}`);
-
-    if (stored) {
-
-      setBooking(JSON.parse(stored));
-
-    }
-
-  }, [bookingNumber, booking]);
-
-
-
-  useEffect(() => {
-
     if (booking?.bookingNumber) {
 
       sessionStorage.setItem(`booking_${booking.bookingNumber}`, JSON.stringify(booking));
@@ -68,6 +58,15 @@ function BookingConfirmation() {
     }
 
   }, [booking]);
+
+  useEffect(() => {
+    const isPaid =
+      paymentSuccess === true ||
+      String(booking?.paymentStatus || '').toUpperCase() === 'PAID';
+    if (isPaid && booking?._id) {
+      clearCheckoutToken(booking._id);
+    }
+  }, [booking?._id, booking?.paymentStatus, paymentSuccess]);
 
   useEffect(() => {
     if (!booking?.bookingNumber || !location.state?.whatsappPending || whatsappOpened) return;

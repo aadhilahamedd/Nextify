@@ -50,12 +50,18 @@ export default function DestinationAutocomplete({
   const [query, setQuery] = useState('');
   const [typing, setTyping] = useState(false);
   const [active, setActive] = useState(0);
-  const [liveResults, setLiveResults] = useState([]);
-  const [loadingPlaces, setLoadingPlaces] = useState(false);
+  const [liveSearchState, setLiveSearchState] = useState({ key: '', places: [] });
 
   const isTransferSearch = variant === 'transfer' || variant === 'airportOrPlace';
   const isAirportSearch = variant === 'airports' || isTransferSearch;
   const includePlaces = variant !== 'airports';
+  const liveQuery = liveSearch && includePlaces && typing ? query.trim() : '';
+  const liveSearchKey = liveQuery.length >= 3 ? `${lang}:${liveQuery}` : '';
+  const liveResults = useMemo(
+    () => (liveSearchKey && liveSearchState.key === liveSearchKey ? liveSearchState.places : []),
+    [liveSearchKey, liveSearchState],
+  );
+  const loadingPlaces = Boolean(liveSearchKey) && liveSearchState.key !== liveSearchKey;
   const optionLabels = {
     airportType: t('booking.airportType'),
     neighbourhoodType: t('booking.neighbourhoodType'),
@@ -108,26 +114,29 @@ export default function DestinationAutocomplete({
   const selectableResults = useMemo(() => results.filter((item) => !item.group), [results]);
 
   useEffect(() => {
-    const q = typing ? query.trim() : '';
-    if (!liveSearch || !includePlaces || q.length < 3) {
-      setLiveResults([]);
-      setLoadingPlaces(false);
+    if (!liveSearchKey) {
       return undefined;
     }
     let cancelled = false;
-    setLoadingPlaces(true);
     const timer = window.setTimeout(() => {
-      searchPlacesAPI(q, lang).then((res) => {
-        if (cancelled) return;
-        setLoadingPlaces(false);
-        setLiveResults(Array.isArray(res?.data?.places) ? res.data.places : []);
-      });
+      searchPlacesAPI(liveQuery, lang)
+        .then((res) => {
+          if (cancelled) return;
+          setLiveSearchState({
+            key: liveSearchKey,
+            places: Array.isArray(res?.data?.places) ? res.data.places : [],
+          });
+        })
+        .catch(() => {
+          if (cancelled) return;
+          setLiveSearchState({ key: liveSearchKey, places: [] });
+        });
     }, 400);
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [liveSearch, includePlaces, typing, query, lang]);
+  }, [liveSearchKey, liveQuery, lang]);
 
   useEffect(() => {
     const onDoc = (event) => {
