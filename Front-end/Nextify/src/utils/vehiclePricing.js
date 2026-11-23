@@ -9,15 +9,7 @@ export function getVehiclePricingHints(_rules, car) {
   const fleet = findFleetVehicle(car);
   if (!fleet) return [];
 
-  const hints = [
-    { serviceType: 'airport_transfer', label: SERVICE_LABELS.airport_transfer, price: fleet.airport },
-  ];
-
-  if (fleet.city != null) {
-    hints.push({ serviceType: 'city_transfer', label: SERVICE_LABELS.city_transfer, price: fleet.city });
-  } else {
-    hints.push({ serviceType: 'city_transfer', label: SERVICE_LABELS.city_transfer, unavailable: true });
-  }
+  const hints = [];
 
   if (fleet.half != null) {
     hints.push({
