@@ -856,7 +856,7 @@ async function verifyPayment(moyasarPaymentId) {
 }
 
 async function handleWebhook(payload) {
-  if (!webhookSecretAccepted(payload?.secret_token)) {
+  if (!webhookSecretAccepted(payload?.secret_token, payload?.live)) {
     throw httpError(401, 'Invalid webhook');
   }
 
