@@ -163,6 +163,17 @@ check('missing mode-specific webhook secret fails closed without legacy fallback
   restoreEnv();
 });
 
+check('webhook verification events without live flag authenticate against either configured mode secret', () => {
+  process.env.MOYASAR_WEBHOOK_SECRET = '';
+  process.env.MOYASAR_TEST_WEBHOOK_SECRET = 'test-dashboard-token';
+  process.env.MOYASAR_LIVE_WEBHOOK_SECRET = 'live-dashboard-token';
+
+  assert.strictEqual(webhookSecretAccepted('test-dashboard-token'), true);
+  assert.strictEqual(webhookSecretAccepted('live-dashboard-token'), true);
+  assert.strictEqual(webhookSecretAccepted('not-a-dashboard-token'), false);
+  restoreEnv();
+});
+
 check('webhook live flag must match MOYASAR_ENV', () => {
   process.env.MOYASAR_ENV = 'test';
   assert.doesNotThrow(() => assertWebhookMode({ live: false }));
