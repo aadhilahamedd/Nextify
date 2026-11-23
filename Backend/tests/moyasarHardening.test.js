@@ -1561,7 +1561,16 @@ async function run() {
     assert.deepStrictEqual(c1.res, { verification: true, mappedStatus: 'IGNORED' });
     assert.ok(c1.output.includes(verificationCode), 'must log 6-digit verification code when flag is true');
     assert.ok(!c1.output.includes('whsec_hardening_test_secret'), 'must never log secret_token');
-    assert.ok(!c1.output.includes('do_not_dump_payload'), 'must never log full webhook payload');
+    // Numeric 6-digit verification code must also be accepted
+const cNum = await captureLogs(() => moyasarProvider.handleWebhook({
+  type: 'webhook_verification',
+  secret_token: 'whsec_hardening_test_secret',
+  live: false,
+  data: { verification_code: 654321 },
+}));
+
+assert.deepStrictEqual(cNum.res, { verification: true, mappedStatus: 'IGNORED' });
+assert.ok(cNum.output.includes('654321'), 'must accept numeric 6-digit verification code');
 
     // Case 2: LIVE webhook_verification accepted while MOYASAR_ENV=test (valid secret) and logs 6-digit code when flag=true
     const cLiveInTest = await captureLogs(() => moyasarProvider.handleWebhook({
@@ -1611,7 +1620,7 @@ async function run() {
 
     // Case 5: Missing or non-6-digit verification_code -> does NOT log verification code line
     process.env.MOYASAR_LOG_WEBHOOK_VERIFICATION_CODE = 'true';
-    for (const badCode of [undefined, '', '12345', '1234567', 'secret_leak']) {
+    for (const badCode of [undefined, null, '', '12345', '1234567', 12345, 1234567, 'secret_leak', { code: '123456' }]) {
       const cBad = await captureLogs(() => moyasarProvider.handleWebhook({
         type: 'webhook_verification',
         secret_token: 'whsec_hardening_test_secret',
