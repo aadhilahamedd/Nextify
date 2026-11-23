@@ -416,7 +416,7 @@ async function run() {
 
     // Simulate atomic filter rejecting because paymentStatus became PAID concurrently
     Booking.findOneAndUpdate = async (filter) => {
-      assert.deepStrictEqual(filter.paymentStatus, { $nin: ['PAID', 'paid', 'NOT_REQUIRED', 'not_required'] });
+      assert.deepStrictEqual(filter.paymentStatus, { $nin: ['PAID', 'paid', 'REFUNDED', 'refunded', 'NOT_REQUIRED', 'not_required'] });
       assert.deepStrictEqual(filter['pricing.breakdown.quoteStatus'], { $nin: ['rate_on_request', 'long_distance'] });
       bookingDoc.paymentStatus = 'PAID';
       bookingDoc.bookingStatus = 'CONFIRMED';
@@ -1073,6 +1073,64 @@ async function run() {
     const matches = pending.filter((p) => p.id === 'wamid.legacy.1');
     assert.strictEqual(matches.length, 1);
     assert.strictEqual(matches[0].claimToken, reclaimed.claimToken);
+  });
+
+  // 18. REFUNDED bookings cannot receive a newly rotated checkout token (direct + concurrent guard)
+  await check('18. REFUNDED bookings cannot receive a newly rotated checkout token', async () => {
+    for (const status of ['REFUNDED', 'refunded']) {
+      let updateCalled = false;
+      const doc = {
+        _id: ID_A,
+        bookingNumber: `NX-${status}`,
+        customer: { mobile: '966555992937' },
+        paymentStatus: status,
+        bookingStatus: 'CONFIRMED',
+        customQuoteRequired: false,
+        checkoutTokenHash: '',
+        checkoutTokenExpiresAt: null,
+      };
+      Booking.findById = () => makeQuery(doc);
+      Booking.findOneAndUpdate = async () => {
+        updateCalled = true;
+        return doc;
+      };
+
+      const res = await rotateBookingCheckoutToken(ID_A, { verifiedPhone: '966555992937' });
+      assert.strictEqual(res.ok, false, `${status} must fail`);
+      assert.strictEqual(res.reason, 'ineligible', `${status} must return ineligible`);
+      assert.strictEqual(res.checkoutToken, undefined, `${status} must not issue a token`);
+      assert.strictEqual(updateCalled, false, `${status} must not attempt DB update`);
+      assert.strictEqual(doc.checkoutTokenHash, '');
+    }
+
+    // Concurrent transition to REFUNDED between initial lookup and atomic update
+    let findCalls = 0;
+    let capturedFilter = null;
+    Booking.findById = () => {
+      findCalls += 1;
+      return makeQuery({
+        _id: ID_A,
+        bookingNumber: 'NX-RACE-REFUNDED',
+        customer: { mobile: '966555992937' },
+        paymentStatus: findCalls === 1 ? 'PENDING' : 'REFUNDED',
+        bookingStatus: 'CONFIRMED',
+        customQuoteRequired: false,
+        checkoutTokenHash: '',
+        checkoutTokenExpiresAt: null,
+      });
+    };
+    Booking.findOneAndUpdate = async (filter) => {
+      capturedFilter = filter;
+      return null;
+    };
+
+    const raceRes = await rotateBookingCheckoutToken(ID_A, { verifiedPhone: '966555992937' });
+    assert.strictEqual(raceRes.ok, false);
+    assert.strictEqual(raceRes.reason, 'ineligible');
+    assert.strictEqual(raceRes.checkoutToken, undefined);
+    assert.ok(capturedFilter && capturedFilter.paymentStatus && Array.isArray(capturedFilter.paymentStatus.$nin));
+    assert.ok(capturedFilter.paymentStatus.$nin.includes('REFUNDED'));
+    assert.ok(capturedFilter.paymentStatus.$nin.includes('refunded'));
   });
 
   const failed = results.filter((r) => !r.ok);

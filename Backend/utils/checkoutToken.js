@@ -178,6 +178,9 @@ async function rotateBookingCheckoutToken(bookingId, { verifiedPhone, now = Date
   if (paymentStatus === 'PAID') {
     return { ok: false, reason: 'already_paid', booking };
   }
+  if (paymentStatus === 'REFUNDED') {
+    return { ok: false, reason: 'ineligible', booking };
+  }
   if (
     booking.customQuoteRequired
     || paymentStatus === 'NOT_REQUIRED'
@@ -197,7 +200,7 @@ async function rotateBookingCheckoutToken(bookingId, { verifiedPhone, now = Date
       _id: booking._id,
       'customer.mobile': registeredMobile,
       customQuoteRequired: { $ne: true },
-      paymentStatus: { $nin: ['PAID', 'paid', 'NOT_REQUIRED', 'not_required'] },
+      paymentStatus: { $nin: ['PAID', 'paid', 'REFUNDED', 'refunded', 'NOT_REQUIRED', 'not_required'] },
       'pricing.breakdown.quoteStatus': { $nin: ['rate_on_request', 'long_distance'] },
       $or: [
         { bookingStatus: { $nin: ['CANCELLED', 'cancelled'] } },

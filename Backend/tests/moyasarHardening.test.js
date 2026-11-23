@@ -1845,6 +1845,263 @@ async function run() {
     }
   });
 
+  // 31. Duplicate payment_refunded webhook through handleWebhook() is idempotent with no extra booking writes
+  await check('31. Duplicate payment_refunded webhook through handleWebhook() is idempotent with zero extra booking writes', async () => {
+    setMoyasarMode('test');
+    const moyasarId = 'pay_wh_dup_refund';
+    const paymentDoc = {
+      _id: PAY_ID,
+      booking: BOOKING_ID,
+      bookingNumber: 'NX-WH-REF-DUP',
+      amount: 180,
+      currency: 'SAR',
+      provider: 'moyasar',
+      providerReference: moyasarId,
+      status: 'PAID',
+      metadata: { env: 'test' },
+    };
+    const bookingDoc = {
+      _id: BOOKING_ID,
+      bookingNumber: 'NX-WH-REF-DUP',
+      paymentStatus: 'PAID',
+      bookingStatus: 'CONFIRMED',
+    };
+
+    stubMoyasar({
+      id: moyasarId,
+      status: 'refunded',
+      amount: 18000,
+      currency: 'SAR',
+      live: false,
+      metadata: { payment_id: PAY_ID, booking_number: 'NX-WH-REF-DUP' },
+    });
+
+    let bookingUpdateWrites = 0;
+    Payment.findOne = async (q) => (q.providerReference === moyasarId ? { ...paymentDoc } : null);
+    Payment.findById = async () => ({ ...paymentDoc });
+    Payment.findOneAndUpdate = async (filter, update) => {
+      if (filter.status === 'PAID' && paymentDoc.status !== 'PAID') return null;
+      Object.assign(paymentDoc, { status: update.$set.status });
+      return { ...paymentDoc };
+    };
+    Booking.findById = async () => ({ ...bookingDoc });
+    Booking.updateOne = async (filter, update) => {
+      if (filter.paymentStatus === bookingDoc.paymentStatus) {
+        bookingUpdateWrites += 1;
+        Object.assign(bookingDoc, update.$set);
+        return { modifiedCount: 1 };
+      }
+      return { modifiedCount: 0 };
+    };
+
+    const webhookPayload = {
+      type: 'payment_refunded',
+      secret_token: 'whsec_hardening_test_secret',
+      live: false,
+      data: { id: moyasarId, status: 'refunded' },
+    };
+
+    const first = await moyasarProvider.handleWebhook(webhookPayload);
+    assert.strictEqual(first.mappedStatus, 'REFUNDED');
+    assert.strictEqual(first.reused, false);
+    assert.strictEqual(paymentDoc.status, 'REFUNDED');
+    assert.strictEqual(bookingDoc.paymentStatus, 'REFUNDED');
+    assert.strictEqual(bookingUpdateWrites, 1);
+
+    const second = await moyasarProvider.handleWebhook(webhookPayload);
+    assert.strictEqual(second.mappedStatus, 'REFUNDED');
+    assert.strictEqual(second.reused, true);
+    assert.strictEqual(paymentDoc.status, 'REFUNDED');
+    assert.strictEqual(bookingDoc.paymentStatus, 'REFUNDED');
+    assert.strictEqual(bookingUpdateWrites, 1, 'repeated refund webhook must not perform additional booking writes');
+  });
+
+  // 32. Invalid payment details (amount, currency, booking_number, payment_id) through handleWebhook() reject with 409 and zero mutations
+  await check('32. handleWebhook(payment_paid) rejects wrong amount, currency, booking_number, and payment_id with 409 and zero DB mutations', async () => {
+    setMoyasarMode('test');
+    const moyasarId = 'pay_wh_bad_details';
+    const localPayment = {
+      _id: PAY_ID,
+      booking: BOOKING_ID,
+      bookingNumber: 'NX-WH-OWN',
+      amount: 180,
+      currency: 'SAR',
+      provider: 'moyasar',
+      providerReference: moyasarId,
+      status: 'PENDING',
+      metadata: { env: 'test' },
+    };
+
+    const invalidCases = [
+      { label: 'wrong amount', amount: 100, currency: 'SAR', metadata: { payment_id: PAY_ID, booking_number: 'NX-WH-OWN' } },
+      { label: 'wrong currency', amount: 18000, currency: 'USD', metadata: { payment_id: PAY_ID, booking_number: 'NX-WH-OWN' } },
+      { label: 'wrong booking_number', amount: 18000, currency: 'SAR', metadata: { payment_id: PAY_ID, booking_number: 'NX-OTHER' } },
+      { label: 'wrong payment_id', amount: 18000, currency: 'SAR', metadata: { payment_id: '507f191e810c19729de861ff', booking_number: 'NX-WH-OWN' } },
+    ];
+
+    for (const c of invalidCases) {
+      let mutated = false;
+      stubMoyasar({
+        id: moyasarId,
+        status: 'paid',
+        amount: c.amount,
+        currency: c.currency,
+        live: false,
+        metadata: c.metadata,
+      });
+      Payment.findOne = async (q) => (q.providerReference === moyasarId ? { ...localPayment } : null);
+      Payment.findById = async () => ({ ...localPayment });
+      Payment.findOneAndUpdate = async () => { mutated = true; return null; };
+      Payment.updateOne = async () => { mutated = true; return { modifiedCount: 0 }; };
+      Booking.findOneAndUpdate = async () => { mutated = true; return null; };
+      Booking.updateOne = async () => { mutated = true; return { modifiedCount: 0 }; };
+
+      let caught = null;
+      try {
+        await moyasarProvider.handleWebhook({
+          type: 'payment_paid',
+          secret_token: 'whsec_hardening_test_secret',
+          live: false,
+          data: { id: moyasarId, status: 'paid' },
+        });
+      } catch (err) {
+        caught = err;
+      }
+      assert.ok(caught && caught.statusCode === 409, `handleWebhook must reject ${c.label} with 409`);
+      assert.strictEqual(mutated, false, `must not mutate Payment or Booking on ${c.label}`);
+    }
+  });
+
+  // 33. Webhook envelope edge cases: missing data.id -> 400; unknown event (invoice_created) -> safely ignored with zero API/DB calls
+  await check('33. Webhook envelope edge cases: missing data.id returns 400 and unknown event invoice_created is safely ignored', async () => {
+    setMoyasarMode('test');
+    const paymentController = require('../controllers/paymentController');
+    const paymentService = require('../services/paymentService');
+    const origHandleWebhook = paymentService.handleWebhook;
+    const origFetch = global.fetch;
+
+    let fetchCalls = 0;
+    let dbTouched = false;
+    global.fetch = async () => { fetchCalls += 1; throw new Error('Moyasar API must not be called'); };
+    Payment.findOne = async () => { dbTouched = true; return null; };
+    Payment.findById = async () => { dbTouched = true; return null; };
+    Payment.updateOne = async () => { dbTouched = true; return { modifiedCount: 0 }; };
+    Booking.updateOne = async () => { dbTouched = true; return { modifiedCount: 0 }; };
+
+    const makeMockRes = () => ({
+      statusCode: 200,
+      body: null,
+      status(code) { this.statusCode = code; return this; },
+      json(payload) { this.body = payload; return this; },
+    });
+
+    try {
+      paymentService.handleWebhook = (payload) => moyasarProvider.handleWebhook(payload);
+
+      // A) Missing data.id -> 400 forwarded to Express error handler via next(err)
+      let nextErr = null;
+      await paymentController.webhook(
+        {
+          body: {
+            type: 'payment_paid',
+            secret_token: 'whsec_hardening_test_secret',
+            live: false,
+            data: {},
+          },
+        },
+        makeMockRes(),
+        (err) => { nextErr = err; }
+      );
+      assert.ok(nextErr && nextErr.statusCode === 400, 'missing data.id must reject with 400');
+      assert.strictEqual(fetchCalls, 0);
+      assert.strictEqual(dbTouched, false);
+
+      // B) Unknown event invoice_created -> safely ignored (200) with zero Moyasar or DB calls
+      const ignoredRes = makeMockRes();
+      let ignoredErr = null;
+      await paymentController.webhook(
+        {
+          body: {
+            type: 'invoice_created',
+            secret_token: 'whsec_hardening_test_secret',
+            live: false,
+            data: { id: 'inv_12345' },
+          },
+        },
+        ignoredRes,
+        (err) => { ignoredErr = err; }
+      );
+      assert.strictEqual(ignoredErr, null);
+      assert.strictEqual(ignoredRes.statusCode, 200);
+      assert.strictEqual(ignoredRes.body?.success, true);
+      assert.strictEqual(ignoredRes.body?.data?.ignored, true);
+      assert.strictEqual(fetchCalls, 0, 'unknown event must not call Moyasar API');
+      assert.strictEqual(dbTouched, false, 'unknown event must not touch DB');
+    } finally {
+      paymentService.handleWebhook = origHandleWebhook;
+      global.fetch = origFetch;
+    }
+  });
+
+  // 34. paymentController.webhook suppresses WhatsApp notifications for reused/duplicateCharge and notifies for fresh success
+  await check('34. paymentController.webhook suppresses WhatsApp notification on reused and duplicateCharge but notifies on fresh PAID', async () => {
+    const paymentController = require('../controllers/paymentController');
+    const paymentService = require('../services/paymentService');
+    const whatsappBookingService = require('../services/whatsapp/whatsappBookingService');
+
+    const origHandleWebhook = paymentService.handleWebhook;
+    const origNotify = whatsappBookingService.notifyPaymentResult;
+
+    let notifyCalls = 0;
+    const flushAsync = async () => {
+      await new Promise((resolve) => setImmediate(resolve));
+      await Promise.resolve();
+    };
+    const makeMockRes = () => ({
+      statusCode: 200,
+      body: null,
+      status(code) { this.statusCode = code; return this; },
+      json(payload) { this.body = payload; return this; },
+    });
+
+    const baseResult = {
+      payment: { _id: PAY_ID, booking: BOOKING_ID, bookingNumber: 'NX-WH-NTF', status: 'PAID' },
+      booking: { _id: BOOKING_ID, bookingNumber: 'NX-WH-NTF', paymentStatus: 'PAID', bookingStatus: 'CONFIRMED' },
+      mappedStatus: 'PAID',
+    };
+
+    try {
+      whatsappBookingService.notifyPaymentResult = async () => { notifyCalls += 1; };
+
+      // 1) reused: true -> must NOT notify
+      paymentService.handleWebhook = async () => ({ ...baseResult, reused: true, duplicateCharge: false });
+      const resReused = makeMockRes();
+      await paymentController.webhook({ body: {} }, resReused, (err) => { if (err) throw err; });
+      await flushAsync();
+      assert.strictEqual(resReused.statusCode, 200);
+      assert.strictEqual(notifyCalls, 0, 'must not notify WhatsApp when result.reused === true');
+
+      // 2) duplicateCharge: true -> must NOT notify
+      paymentService.handleWebhook = async () => ({ ...baseResult, reused: false, duplicateCharge: true, manualInterventionRequired: true, message: 'Duplicate' });
+      const resDup = makeMockRes();
+      await paymentController.webhook({ body: {} }, resDup, (err) => { if (err) throw err; });
+      await flushAsync();
+      assert.strictEqual(resDup.statusCode, 200);
+      assert.strictEqual(notifyCalls, 0, 'must not notify WhatsApp when result.duplicateCharge === true');
+
+      // 3) fresh successful payment -> MUST notify once
+      paymentService.handleWebhook = async () => ({ ...baseResult, reused: false, duplicateCharge: false });
+      const resFresh = makeMockRes();
+      await paymentController.webhook({ body: {} }, resFresh, (err) => { if (err) throw err; });
+      await flushAsync();
+      assert.strictEqual(resFresh.statusCode, 200);
+      assert.strictEqual(notifyCalls, 1, 'must notify WhatsApp once for a genuinely new successful payment');
+    } finally {
+      paymentService.handleWebhook = origHandleWebhook;
+      whatsappBookingService.notifyPaymentResult = origNotify;
+    }
+  });
+
   const failed = results.filter((r) => !r.ok);
   console.log(`\nResults: ${results.length - failed.length} passed, ${failed.length} failed`);
   if (failed.length) process.exitCode = 1;
