@@ -460,6 +460,20 @@ async function reconcilePaidBooking(bookingId, session = null) {
 async function verifyPayment(moyasarPaymentId) {
   assertMoyasarCredentials({ force: true });
   const moyasarPayment = await retrievePayment(moyasarPaymentId);
+  console.log('[payments][webhook-retrieval-diagnostic]', {
+    hasRequestedId: Boolean(moyasarPaymentId),
+    hasRetrievedId: Boolean(moyasarPayment?.id),
+    idsMatch: Boolean(
+      moyasarPaymentId
+      && moyasarPayment?.id != null
+      && String(moyasarPayment.id) === String(moyasarPaymentId)
+    ),
+    hasMetadata: Boolean(moyasarPayment?.metadata && typeof moyasarPayment.metadata === 'object'),
+    hasMetadataPaymentId: Boolean(moyasarPayment?.metadata?.payment_id),
+    hasMetadataBookingNumber: Boolean(moyasarPayment?.metadata?.booking_number),
+    hasStatus: Boolean(moyasarPayment?.status),
+    hasBooleanLive: typeof moyasarPayment?.live === 'boolean',
+  });
   if (moyasarPayment?.id != null && String(moyasarPayment.id) !== String(moyasarPaymentId)) {
     throw httpError(409, 'Moyasar payment id mismatch');
   }
