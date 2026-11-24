@@ -1,0 +1,90 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  backend:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Backend
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: Backend/package-lock.json
+
+      - name: Install backend dependencies
+        run: npm ci
+
+      - name: Run backend security and domain test suite
+        env:
+          NODE_ENV: test
+          PAYMENT_PROVIDER: moyasar
+          MOYASAR_ENV: test
+        run: npm test
+
+      - name: Run offline airport and service pricing test suite
+        env:
+          NODE_ENV: test
+        run: node tests/pricing.test.js
+
+  frontend:
+    name: Frontend Tests, Lint & Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Front-end/Nextify
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: Front-end/Nextify/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Run frontend unit tests
+        run: |
+          node tests/whatsappAirportBooking.test.mjs
+          node tests/checkoutSession.test.mjs
+          node tests/serverURL.test.mjs
+
+      - name: Run ESLint on booking, pricing, and checkout modules
+        run: |
+          npx eslint \
+            src/Services/allAPI.js \
+            src/Services/serverURL.js \
+            src/components/booking/BookingWizard.jsx \
+            src/data/airportFixedRoutes.js \
+            src/data/fleetVehicles.js \
+            src/data/saudiDestinations.js \
+            src/data/transferLocations.js \
+            src/i18n/translations/ar.js \
+            src/i18n/translations/en.js \
+            src/pages/BookingConfirmation.jsx \
+            src/pages/MockPaymentCheckout.jsx \
+            src/pages/PaymentResult.jsx \
+            src/utils/checkoutSession.js \
+            src/utils/paymentMode.js \
+            src/utils/whatsapp.js
+
+      - name: Run Vite production build
+        run: npm run build

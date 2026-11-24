@@ -59,22 +59,26 @@ describe('WhatsApp booking switch and airport pricing rules', () => {
     });
     assert.equal(riyadhBahrainGmc.price, 1500);
 
-    // New approved Bahrain one-way routes
-    assert.equal(getOfficialQuote({ serviceType: 'airport_transfer', origin: 'Bahrain', destination: 'Dammam', vehicleCategory: 'gmc' }).price, 650);
-    assert.equal(getOfficialQuote({ serviceType: 'airport_transfer', origin: 'Bahrain', destination: 'Dammam', vehicleCategory: 'ford_taurus' }).price, 550);
-    assert.equal(getOfficialQuote({ serviceType: 'airport_transfer', origin: 'Bahrain', destination: 'Al Khobar', vehicleCategory: 'gmc' }).price, 650);
-    assert.equal(getOfficialQuote({ serviceType: 'airport_transfer', origin: 'Bahrain', destination: 'Al Khobar', vehicleCategory: 'lexus_es' }).price, 550);
-    const bahrainRiyadh = getOfficialQuote({ serviceType: 'airport_transfer', origin: 'Bahrain', destination: 'Riyadh', vehicleCategory: 'gmc' });
-    assert.equal(bahrainRiyadh.price, 1800);
-    assert.equal(bahrainRiyadh.totalAmount, 1800);
-    assert.equal(bahrainRiyadh.taxIncluded, true);
+    // New approved Bahrain one-way routes (including Bahrain Airport / BAH / Manama aliases)
+    for (const origin of ['Bahrain', 'Manama', 'Bahrain Airport', 'Bahrain International Airport', 'BAH']) {
+      assert.equal(getOfficialQuote({ serviceType: 'airport_transfer', origin, destination: 'Dammam', vehicleCategory: 'gmc' }).price, 650);
+      assert.equal(getOfficialQuote({ serviceType: 'airport_transfer', origin, destination: 'Dammam', vehicleCategory: 'ford_taurus' }).price, 550);
+      assert.equal(getOfficialQuote({ serviceType: 'airport_transfer', origin, destination: 'Al Khobar', vehicleCategory: 'gmc' }).price, 650);
+      assert.equal(getOfficialQuote({ serviceType: 'airport_transfer', origin, destination: 'Al Khobar', vehicleCategory: 'lexus_es' }).price, 550);
+      const bahrainRiyadh = getOfficialQuote({ serviceType: 'airport_transfer', origin, destination: 'Riyadh', vehicleCategory: 'gmc' });
+      assert.equal(bahrainRiyadh.price, 1800);
+      assert.equal(bahrainRiyadh.totalAmount, 1800);
+      assert.equal(bahrainRiyadh.taxIncluded, true);
+    }
   });
 
   test('new Bahrain reverse directions and unsupported vehicles return Price on request', () => {
     for (const payload of [
       { origin: 'Dammam', destination: 'Bahrain', vehicleCategory: 'gmc' },
+      { origin: 'Dammam', destination: 'Bahrain Airport', vehicleCategory: 'gmc' },
       { origin: 'Al Khobar', destination: 'Bahrain', vehicleCategory: 'ford_taurus' },
-      { origin: 'Bahrain', destination: 'Dammam', vehicleCategory: 'bmw_5' },
+      { origin: 'Al Khobar', destination: 'Bahrain Airport', vehicleCategory: 'ford_taurus' },
+      { origin: 'Bahrain Airport', destination: 'Dammam', vehicleCategory: 'bmw_5' },
       { origin: 'Bahrain', destination: 'Al Khobar', vehicleCategory: 'mercedes_s' },
       { origin: 'Bahrain', destination: 'Riyadh', vehicleCategory: 'toyota_hiace' },
     ]) {

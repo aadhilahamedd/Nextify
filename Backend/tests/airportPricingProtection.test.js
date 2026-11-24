@@ -314,8 +314,24 @@ async function run() {
       assert.strictEqual(q.message, 'Price on request');
     }
 
-    // Reverse Dammam -> Bahrain and Al Khobar -> Bahrain must NOT be priced and must reject payment checkout
-    for (const [origin, destination] of [['Dammam', 'Bahrain'], ['Al Khobar', 'Bahrain']]) {
+    // Bahrain Airport / BAH / Manama aliases resolve to Bahrain hub for all 3 approved routes
+    for (const origin of ['Bahrain Airport', 'Bahrain International Airport', 'BAH', 'Manama']) {
+      const qDammam = await calculatePrice({ serviceType: 'airport_transfer', origin, destination: 'Dammam', vehicleCategory: 'gmc' });
+      assert.strictEqual(qDammam.price, 650, `${origin} -> Dammam GMC must be 650`);
+      const qKhobar = await calculatePrice({ serviceType: 'airport_transfer', origin, destination: 'Al Khobar', vehicleCategory: 'ford_taurus' });
+      assert.strictEqual(qKhobar.price, 550, `${origin} -> Al Khobar Sedan must be 550`);
+      const qRiyadh = await calculatePrice({ serviceType: 'airport_transfer', origin, destination: 'Riyadh', vehicleCategory: 'gmc' });
+      assert.strictEqual(qRiyadh.price, 1800, `${origin} -> Riyadh must be 1800`);
+      assert.strictEqual(qRiyadh.taxIncluded, true);
+    }
+
+    // Reverse Dammam -> Bahrain (and Bahrain Airport) and Al Khobar -> Bahrain (and Bahrain Airport) must NOT be priced
+    for (const [origin, destination] of [
+      ['Dammam', 'Bahrain'],
+      ['Dammam', 'Bahrain Airport'],
+      ['Al Khobar', 'Bahrain'],
+      ['Al Khobar', 'Bahrain Airport'],
+    ]) {
       const rev = await calculatePrice({ serviceType: 'airport_transfer', origin, destination, vehicleCategory: 'gmc' });
       assert.strictEqual(rev.price, null, `${origin} -> ${destination} must not have an auto-reversed price`);
       assert.strictEqual(rev.customQuoteRequired, true);
