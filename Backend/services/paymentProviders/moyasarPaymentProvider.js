@@ -215,7 +215,7 @@ async function findLocalPayment(moyasarPayment) {
   // Temporary, PII-free diagnostics for staging webhook investigation.
   // Never log webhook secrets, customer details, or the raw Moyasar payload.
   if (incomingId || metadata.payment_id || metadata.booking_number) {
-    console.error('[payments][webhook-diagnostic] local payment lookup miss', {
+    console.error('[payments][payment-lookup-diagnostic] local payment lookup miss', {
       incomingMoyasarId: incomingId || null,
       metadataPaymentIdPresent: Boolean(metadata.payment_id),
       metadataBookingNumberPresent: Boolean(metadata.booking_number),
