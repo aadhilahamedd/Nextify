@@ -1,4 +1,3 @@
-import React from 'react';
 import Container from 'react-bootstrap/Container';
 import { useLanguage } from '../i18n/LanguageContext';
 

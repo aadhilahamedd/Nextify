@@ -1,11 +1,11 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { deleteContactMessageAPI, getContactMessagesAPI, markMessageReadAPI } from '../../Services/allAPI';
 import {
   getLocalContactMessages,
   markLocalContactMessageRead,
   removeLocalContactMessage,
 } from '../../utils/contactMessagesStorage';
-import { formatDate, refreshBtnStyle, sectionCardStyle } from './adminShared';
+import { formatDate, refreshBtnStyle, sectionCardStyle } from './adminHelpers';
 
 export default function AdminMessages() {
   const [messages, setMessages] = useState([]);
@@ -48,8 +48,37 @@ export default function AdminMessages() {
   }, []);
 
   useEffect(() => {
-    fetchMessages();
-  }, [fetchMessages]);
+    let cancelled = false;
+    getContactMessagesAPI().then((response) => {
+      if (cancelled) return;
+      const localMessages = getLocalContactMessages();
+      if (response?.status === 200) {
+        const serverMessages = response.data || [];
+        const localOnly = localMessages.filter(
+          (local) => !serverMessages.some((server) => server._id === local._id)
+        );
+        setMessages([...serverMessages, ...localOnly]);
+        setError('');
+      } else if (localMessages.length > 0) {
+        setMessages(localMessages);
+        setError(
+          response?.status === 404
+            ? 'Server API not deployed yet. Showing messages saved from this browser until the backend is updated on Render.'
+            : response?.error || 'Could not reach server. Showing locally saved messages.'
+        );
+      } else {
+        setMessages([]);
+        setError(
+          response?.error ||
+            (response?.status === 404
+              ? 'Messages API not found. Deploy the latest Backend folder to Render (includes /api/messages).'
+              : 'Failed to load messages.')
+        );
+      }
+      setLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   const handleToggleMessage = async (msg) => {
     const isExpanded = expandedMessageId === msg._id;

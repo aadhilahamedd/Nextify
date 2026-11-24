@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { findDestination, resolveDestinationValue, searchSaudiDestinations } from '../../data/saudiDestinations';
 import { displayAirportName, searchSaudiAirports, toLocationPlace } from '../../data/saudiAirports';
 import { describeTransferOption, formatTransferLocation, searchTransferLocations } from '../../data/transferLocations';
@@ -119,15 +119,17 @@ export default function DestinationAutocomplete({
       .filter(Boolean)
       .some((field) => String(field).trim().toLowerCase() === qLower);
   });
-  const customOption = trimmedQuery && !hasExactMatch
-    ? {
-        id: '__custom__',
-        kind: 'custom',
-        nameEn: trimmedQuery,
-        address: trimmedQuery,
-        isCustomOption: true,
-      }
-    : null;
+  const customOption = useMemo(() => (
+    trimmedQuery && !hasExactMatch
+      ? {
+          id: '__custom__',
+          kind: 'custom',
+          nameEn: trimmedQuery,
+          address: trimmedQuery,
+          isCustomOption: true,
+        }
+      : null
+  ), [trimmedQuery, hasExactMatch]);
   const allSelectableResults = useMemo(
     () => (customOption ? [...selectableResults, customOption] : selectableResults),
     [selectableResults, customOption],

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Container from 'react-bootstrap/Container';
 import QRCode from 'qrcode';
 import jsQR from 'jsqr';
@@ -105,35 +105,36 @@ export default function QrCodePage() {
 
   useEffect(() => () => stopScan(), [stopScan]);
 
-  const tick = useCallback(() => {
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    if (!video || !canvas || video.readyState < 2) {
-      rafRef.current = requestAnimationFrame(tick);
-      return;
-    }
-
-    const ctx = canvas.getContext('2d', { willReadFrequently: true });
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const image = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const result = jsQR(image.data, image.width, image.height, { inversionAttempts: 'dontInvert' });
-
-    if (result?.data && !handledRef.current) {
-      handledRef.current = true;
-      setStatus(isWhatsAppValue(result.data) ? t('qr.foundWa') : t('qr.found'));
-      stopScan();
-      openScannedValue(result.data);
-      return;
-    }
-
-    rafRef.current = requestAnimationFrame(tick);
-  }, [stopScan, t]);
-
   const startScan = async () => {
     setStatus('');
     handledRef.current = false;
+
+    const tick = () => {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      if (!video || !canvas || video.readyState < 2) {
+        rafRef.current = requestAnimationFrame(tick);
+        return;
+      }
+
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const image = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const result = jsQR(image.data, image.width, image.height, { inversionAttempts: 'dontInvert' });
+
+      if (result?.data && !handledRef.current) {
+        handledRef.current = true;
+        setStatus(isWhatsAppValue(result.data) ? t('qr.foundWa') : t('qr.found'));
+        stopScan();
+        openScannedValue(result.data);
+        return;
+      }
+
+      rafRef.current = requestAnimationFrame(tick);
+    };
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: { ideal: 'environment' } },

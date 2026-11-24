@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Container from 'react-bootstrap/Container'
 import { useNavigate } from 'react-router-dom'
 import { ensureAuthToken, isAuthExpiredMessage } from '../utils/authSession'
@@ -127,19 +127,25 @@ function Carlist() {
     event.target.value = ''
   }
 
-  const fetchCars = async () => {
+  const fetchCars = useCallback(async () => {
     const response = await getCarsAPI()
     if (response && Array.isArray(response.data)) {
       setCars(applyLocalCarImages(response.data, { collapseGmc: !isAdmin }))
     }
-  }
+  }, [isAdmin])
 
   useEffect(() => {
-    fetchCars()
-    getPricingRulesAPI().then((res) => {
-      if (res?.status === 200) setPricingRules(res.data?.rules || [])
+    let cancelled = false
+    getCarsAPI().then((response) => {
+      if (!cancelled && response && Array.isArray(response.data)) {
+        setCars(applyLocalCarImages(response.data, { collapseGmc: !isAdmin }))
+      }
     })
-  }, [])
+    getPricingRulesAPI().then((res) => {
+      if (!cancelled && res?.status === 200) setPricingRules(res.data?.rules || [])
+    })
+    return () => { cancelled = true }
+  }, [isAdmin])
 
   const saveAdd = async () => {
     const trimmedName = editData.name.trim()
@@ -227,7 +233,7 @@ function Carlist() {
     setPendingDelete(car)
   }
 
-  const deleteCar = async (car) => {
+  const deleteCar = useCallback(async (car) => {
     const carId = getCarListId(car)
     if (!carId) {
       setPendingDelete(null)
@@ -247,14 +253,16 @@ function Carlist() {
     } else {
       setActionError(getApiMessage(response, 'Failed to delete car. Sign in as admin and try again.'))
     }
-  }
+  }, [fetchCars])
 
   useEffect(() => {
     if (!pendingDelete || deleting || !isAuthExpiredMessage(actionError) || retriedExpiredDelete.current) return undefined
     retriedExpiredDelete.current = true
-    deleteCar(pendingDelete)
-    return undefined
-  }, [pendingDelete, actionError, deleting])
+    const timer = window.setTimeout(() => {
+      deleteCar(pendingDelete)
+    }, 0)
+    return () => window.clearTimeout(timer)
+  }, [pendingDelete, actionError, deleting, deleteCar])
 
   const getCarCategory = (car) => {
     const fleetClass = getFleetClass(car)

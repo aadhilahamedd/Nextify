@@ -252,15 +252,6 @@ export const deletePricingRuleAPI = async (id) => {
   }
 };
 
-export const getAirportRoutesAPI = async () => {
-  try {
-    const response = await commonAPI("GET", `${serverURL}/api/airport-routes`, "");
-    return unwrap(response);
-  } catch (err) {
-    return handleError(err, "Failed to fetch airport routes");
-  }
-};
-
 // ====== PAYMENTS ======
 export const createPaymentAPI = async (bookingId, checkoutToken) => {
   try {

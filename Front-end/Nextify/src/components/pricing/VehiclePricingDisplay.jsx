@@ -1,4 +1,3 @@
-import React from 'react';
 import { getVehiclePricingHints } from '../../utils/vehiclePricing';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { translateService } from '../../i18n/places';

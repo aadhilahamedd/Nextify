@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { registerAPI, userLoginAPI } from '../Services/allAPI';
 import { persistSession } from '../utils/authSession';
@@ -63,7 +63,7 @@ function Login() {
       } else {
         showAlert('error', response.error || response.data?.message || t('login.fail'));
       }
-    } catch (err) {
+    } catch {
       showAlert('error', t('login.error'));
     }
     setLoading(false);
@@ -104,7 +104,7 @@ function Login() {
       } else {
         showAlert('error', response.error || response.data?.message || t('login.regFail'));
       }
-    } catch (err) {
+    } catch {
       showAlert('error', t('login.error'));
     }
     setLoading(false);

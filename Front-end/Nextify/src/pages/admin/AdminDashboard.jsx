@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useOutletContext } from 'react-router-dom';
 import { getBookingStatsAPI, getBookingsAPI, getContactMessagesAPI, getPaymentsAPI } from '../../Services/allAPI';
 import { getLocalContactMessages } from '../../utils/contactMessagesStorage';
@@ -10,34 +10,29 @@ export default function AdminDashboard() {
   const [bookingCount, setBookingCount] = useState(0);
   const [paymentCount, setPaymentCount] = useState(0);
 
-  const load = useCallback(async () => {
-    const [statsRes, bookingsRes, messagesRes, paymentsRes] = await Promise.all([
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([
       getBookingStatsAPI(),
       getBookingsAPI(),
       getContactMessagesAPI(),
       getPaymentsAPI(),
-    ]);
-
-    if (statsRes?.status === 200) setStats(statsRes.data?.stats || statsRes.data);
-
-    const bookings = bookingsRes?.status === 200 ? bookingsRes.data || [] : [];
-    setBookingCount(bookings.length);
-
-    const serverMessages = messagesRes?.status === 200 ? messagesRes.data || [] : [];
-    const localMessages = getLocalContactMessages();
-    const localOnly = localMessages.filter(
-      (local) => !serverMessages.some((server) => server._id === local._id)
-    );
-    const messages = [...serverMessages, ...localOnly];
-    setNewMessages(messages.filter((m) => m.status === 'new').length);
-
-    const payments = paymentsRes?.status === 200 ? paymentsRes.data?.payments || [] : [];
-    setPaymentCount(payments.length);
+    ]).then(([statsRes, bookingsRes, messagesRes, paymentsRes]) => {
+      if (cancelled) return;
+      if (statsRes?.status === 200) setStats(statsRes.data?.stats || statsRes.data);
+      const bookings = bookingsRes?.status === 200 ? bookingsRes.data || [] : [];
+      setBookingCount(bookings.length);
+      const serverMessages = messagesRes?.status === 200 ? messagesRes.data || [] : [];
+      const localMessages = getLocalContactMessages();
+      const localOnly = localMessages.filter(
+        (local) => !serverMessages.some((server) => server._id === local._id)
+      );
+      setNewMessages([...serverMessages, ...localOnly].filter((m) => m.status === 'new').length);
+      const payments = paymentsRes?.status === 200 ? paymentsRes.data?.payments || [] : [];
+      setPaymentCount(payments.length);
+    });
+    return () => { cancelled = true; };
   }, []);
-
-  useEffect(() => {
-    load();
-  }, [load]);
 
   const pendingBookings = stats?.pendingBookings ?? 0;
 

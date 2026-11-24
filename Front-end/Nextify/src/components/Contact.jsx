@@ -104,11 +104,7 @@ function Contact() {
       }
     }
     fetchContact()
-  }, [hasCachedContact])
-
-  useEffect(() => {
-    setContactDraft(contactInfo)
-  }, [contactInfo])
+  }, [hasCachedContact, t])
 
   useEffect(() => {
     const previousTitle = document.title
@@ -170,7 +166,7 @@ function Contact() {
         setFormData({ name: '', email: '', phone: '', subject: '', message: '' })
         setTimeout(() => setStatus(''), 7000)
       }
-    } catch (err) {
+    } catch {
       setStatusType('danger')
       setStatus(t('contact.sendFail'))
     } finally {

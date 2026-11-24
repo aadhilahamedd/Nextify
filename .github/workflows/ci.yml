@@ -65,29 +65,10 @@ jobs:
         run: npm ci
 
       - name: Run frontend unit tests
-        run: |
-          node tests/whatsappAirportBooking.test.mjs
-          node tests/checkoutSession.test.mjs
-          node tests/serverURL.test.mjs
+        run: npm test
 
-      - name: Run ESLint on booking, pricing, and checkout modules
-        run: |
-          npx eslint \
-            src/Services/allAPI.js \
-            src/Services/serverURL.js \
-            src/components/booking/BookingWizard.jsx \
-            src/data/airportFixedRoutes.js \
-            src/data/fleetVehicles.js \
-            src/data/saudiDestinations.js \
-            src/data/transferLocations.js \
-            src/i18n/translations/ar.js \
-            src/i18n/translations/en.js \
-            src/pages/BookingConfirmation.jsx \
-            src/pages/MockPaymentCheckout.jsx \
-            src/pages/PaymentResult.jsx \
-            src/utils/checkoutSession.js \
-            src/utils/paymentMode.js \
-            src/utils/whatsapp.js
+      - name: Run ESLint
+        run: npm run lint
 
       - name: Run Vite production build
         run: npm run build

@@ -5,7 +5,8 @@ import { getPricingSummaryAPI } from '../../Services/allAPI';
 import { sarToUsd } from '../../utils/currency';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { translateService } from '../../i18n/places';
-import { ArrowRightIcon, SERVICE_ICONS } from '../icons';
+import { ArrowRightIcon } from '../icons';
+import { SERVICE_ICONS } from '../serviceIcons';
 
 const CARDS = [
   {

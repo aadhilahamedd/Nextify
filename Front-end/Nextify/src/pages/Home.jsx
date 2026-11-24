@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import Container from 'react-bootstrap/Container'
 import { applyLocalCarImages, getCarImageUrl, getEliteCollectionCars, initialCars } from '../utils/carsStorage'
@@ -31,7 +31,11 @@ const HERO_IMAGE_MOBILE = '/images/hero/mercedes-s-class-premium-mobile.webp';
 function CountUpStat({ value, suffix, formatNumber }) {
   const ref = useRef(null);
   const started = useRef(false);
-  const [shown, setShown] = useState(1);
+  const [shown, setShown] = useState(() => (
+    typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches
+      ? value
+      : 1
+  ));
 
   useEffect(() => {
     const el = ref.current;
@@ -39,7 +43,6 @@ function CountUpStat({ value, suffix, formatNumber }) {
 
     const reduceMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches;
     if (reduceMotion) {
-      setShown(value);
       return undefined;
     }
 

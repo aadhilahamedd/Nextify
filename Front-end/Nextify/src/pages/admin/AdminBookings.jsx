@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   assignDriverAPI,
   deleteBookingAPI,
@@ -7,8 +7,8 @@ import {
   getDriversAPI,
   updateBookingAPI,
 } from '../../Services/allAPI';
+import { DetailField } from './adminShared';
 import {
-  DetailField,
   SERVICE_LABELS,
   STATUS_COLORS,
   formatDate,
@@ -16,7 +16,7 @@ import {
   getBookingVehicle,
   refreshBtnStyle,
   sectionCardStyle,
-} from './adminShared';
+} from './adminHelpers';
 
 export default function AdminBookings() {
   const [bookings, setBookings] = useState([]);
@@ -45,9 +45,22 @@ export default function AdminBookings() {
   }, []);
 
   useEffect(() => {
-    fetchBookings();
-    fetchDrivers();
-  }, [fetchBookings, fetchDrivers]);
+    let cancelled = false;
+    Promise.all([getBookingsAPI(), getDriversAPI()]).then(([bookingsRes, driversRes]) => {
+      if (cancelled) return;
+      if (bookingsRes?.status === 200) {
+        setBookings(bookingsRes.data || []);
+        setError('');
+      } else {
+        setError(bookingsRes?.response?.data?.message || bookingsRes?.error || 'Failed to load bookings.');
+      }
+      if (driversRes?.status === 200) {
+        setDrivers(Array.isArray(driversRes.data) ? driversRes.data : []);
+      }
+      setLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   const handleToggleBooking = (bookingId) => {
     setExpandedBookingId((prev) => (prev === bookingId ? null : bookingId));

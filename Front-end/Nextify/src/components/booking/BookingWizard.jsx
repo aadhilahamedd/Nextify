@@ -19,7 +19,8 @@ import DestinationAutocomplete from './DestinationAutocomplete';
 import VehiclePicker from './VehiclePicker';
 import InquiryVehicleGrid from './InquiryVehicleGrid';
 import { useBookingAssistant } from './BookingAssistant';
-import { LocaleDateInput, LocaleTimeInput, getLocalDateValue, isTravelDateTimePast } from './ArabicDateTime';
+import { LocaleDateInput, LocaleTimeInput } from './ArabicDateTime';
+import { getLocalDateValue, isTravelDateTimePast } from './dateTimeUtils';
 import { FLEET_CLASS, findFleetVehicle, getOfficialQuote, getVehiclesForService } from '../../data/fleetVehicles';
 import { calculatePriceAPI, createBookingAPI } from '../../Services/allAPI';
 import { findAirport, toLocationPlace } from '../../data/saudiAirports';
@@ -40,7 +41,8 @@ import {
   resolveInquiryDestination,
 } from '../../utils/inquiryTransfer';
 import './Booking.css';
-import { CheckCircleIcon, CoinsIcon, SERVICE_ICONS, ShieldIcon, UserIcon } from '../icons';
+import { CheckCircleIcon, CoinsIcon, ShieldIcon, UserIcon } from '../icons';
+import { SERVICE_ICONS } from '../serviceIcons';
 
 const SERVICE_IMAGES = {
   airport_transfer: '/images/services/service-airport.jpg?v=4',

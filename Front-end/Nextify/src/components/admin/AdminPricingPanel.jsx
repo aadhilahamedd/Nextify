@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   createPricingRuleAPI,
   deletePricingRuleAPI,
@@ -46,8 +46,16 @@ export default function AdminPricingPanel() {
   }, [filterService, search]);
 
   useEffect(() => {
-    fetchRules();
-  }, [fetchRules]);
+    let cancelled = false;
+    getPricingRulesAPI({ serviceType: filterService || undefined, search: search || undefined }).then((res) => {
+      if (cancelled) return;
+      if (res?.status === 200) {
+        setRules(res.data?.rules || []);
+      }
+      setLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [filterService, search]);
 
   const grouped = useMemo(() => {
     const map = {};
@@ -126,6 +134,22 @@ export default function AdminPricingPanel() {
           </p>
         </div>
         <button type="button" onClick={openCreate} style={btnGold}>Add Rule</button>
+      </div>
+
+      <div
+        role="note"
+        className="mb-4"
+        style={{
+          padding: '12px 16px',
+          borderRadius: 10,
+          background: 'rgba(238, 176, 18, 0.1)',
+          border: '1px solid rgba(238, 176, 18, 0.3)',
+          color: 'rgba(255,255,255,0.85)',
+          fontSize: 13,
+        }}
+      >
+        <strong style={{ color: '#f6d26e' }}>Airport Transfer Fixed Routes:</strong>{' '}
+        Approved airport fixed-route rates (including Bahrain routes) are managed in code and cannot be edited from this Pricing Rules panel. Any unapproved or custom airport route is quoted via WhatsApp.
       </div>
 
       <div className="d-flex flex-wrap gap-2 mb-4">
