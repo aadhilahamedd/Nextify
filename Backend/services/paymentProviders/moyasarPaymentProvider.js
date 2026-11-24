@@ -182,41 +182,51 @@ function assertMoyasarOwnership(localPayment, moyasarPayment) {
 async function findLocalPayment(moyasarPayment) {
   const metadata = moyasarPayment?.metadata || {};
   const incomingId = moyasarPayment?.id ? String(moyasarPayment.id) : '';
+  let byRef = null;
+  let byId = null;
+  let rejectedMetadataMatch = null;
 
   // 1) Exact Moyasar id already attached to an attempt (preferred).
   if (incomingId) {
-    const byRef = await Payment.findOne({ providerReference: incomingId, provider: 'moyasar' });
+    byRef = await Payment.findOne({ providerReference: incomingId, provider: 'moyasar' });
     if (byRef) return byRef;
   }
 
   // 2) Server-issued checkout metadata — require both payment_id and booking_number.
   if (metadata.payment_id && metadata.booking_number) {
-    const byId = await Payment.findById(metadata.payment_id);
+    byId = await Payment.findById(metadata.payment_id);
     if (byId) {
       const ref = String(byId.providerReference || '');
       const providerOk = byId.provider === 'moyasar';
       const refOk = !ref || ref === incomingId;
       const bookingMeta = String(metadata.booking_number) === String(byId.bookingNumber);
-      if (providerOk && refOk && bookingMeta) {
-        return byId;
-      }
-      console.error('[payments] rejected payment_id metadata match', {
-        moyasarId: incomingId || null,
-        paymentId: String(metadata.payment_id),
+      if (providerOk && refOk && bookingMeta) return byId;
+      rejectedMetadataMatch = {
         providerOk,
         refOk,
         bookingMeta,
-        bookingNumber: byId.bookingNumber,
-      });
+        localProvider: byId.provider || null,
+        localReferencePresent: Boolean(ref),
+        localBookingNumberMatches: bookingMeta,
+      };
     }
   }
 
-  // Do not fall back to booking_number + empty providerReference.
+  // Temporary, PII-free diagnostics for staging webhook investigation.
+  // Never log webhook secrets, customer details, or the raw Moyasar payload.
   if (incomingId || metadata.payment_id || metadata.booking_number) {
-    console.error('[payments] unmatched Moyasar payment; refusing unsafe booking_number fallback', {
-      moyasarId: incomingId || null,
-      paymentId: metadata.payment_id || null,
-      bookingNumber: metadata.booking_number || null,
+    console.error('[payments][webhook-diagnostic] local payment lookup miss', {
+      incomingMoyasarId: incomingId || null,
+      metadataPaymentIdPresent: Boolean(metadata.payment_id),
+      metadataBookingNumberPresent: Boolean(metadata.booking_number),
+      providerReferenceLookupFound: Boolean(byRef),
+      metadataIdLookupFound: Boolean(byId),
+      rejectedMetadataMatch,
+      modelDatabase: Payment.db?.name || null,
+      modelCollection: Payment.collection?.name || null,
+      modelConnectionState: Payment.db?.readyState ?? null,
+      defaultConnectionDatabase: mongoose.connection?.name || null,
+      defaultConnectionState: mongoose.connection?.readyState ?? null,
     });
   }
   return null;
