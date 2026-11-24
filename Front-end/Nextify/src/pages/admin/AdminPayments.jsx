@@ -1,6 +1,6 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { getPaymentsAPI } from '../../Services/allAPI';
-import { PAYMENT_STATUS_COLORS, formatDate, refreshBtnStyle, sectionCardStyle } from './adminShared';
+import { PAYMENT_STATUS_COLORS, formatDate, refreshBtnStyle, sectionCardStyle } from './adminHelpers';
 
 export default function AdminPayments() {
   const [payments, setPayments] = useState([]);
@@ -20,8 +20,18 @@ export default function AdminPayments() {
   }, []);
 
   useEffect(() => {
-    fetchPayments();
-  }, [fetchPayments]);
+    let cancelled = false;
+    getPaymentsAPI().then((res) => {
+      if (cancelled) return;
+      if (res?.status === 200) {
+        setPayments(res.data?.payments || []);
+      } else {
+        setError(res?.error || 'Failed to load payments.');
+      }
+      setLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   return (
     <div>

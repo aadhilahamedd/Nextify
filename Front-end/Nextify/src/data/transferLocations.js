@@ -1,21 +1,18 @@
-import { SAUDI_AIRPORTS, displayAirportName, findAirport, searchSaudiAirports } from './saudiAirports';
-import { SAUDI_DESTINATIONS, displayDestinationName, findDestination, searchSaudiDestinations } from './saudiDestinations';
+import { SAUDI_AIRPORTS, displayAirportName, findAirport, searchSaudiAirports } from './saudiAirports.js';
+import { SAUDI_DESTINATIONS, displayDestinationName, findDestination, searchSaudiDestinations } from './saudiDestinations.js';
 import {
   CITY_NEIGHBOURHOODS,
   findNeighbourhood,
   formatNeighbourhoodLabel,
   neighbourhoodToDestination,
   searchCityNeighbourhoods,
-} from './cityNeighbourhoods';
+} from './cityNeighbourhoods.js';
 
 export const FEATURED_AIRPORT_IDS = [
   'riyadh-airport',
   'jeddah-airport',
   'dammam-airport',
   'medina-airport',
-  'abha-airport',
-  'taif-airport',
-  'tabuk-airport',
   'gassim-airport',
 ];
 
@@ -26,11 +23,7 @@ export const FEATURED_CITY_IDS = [
   'medina',
   'dammam',
   'khobar',
-  'al-qassim',
   'bahrain',
-  'abha',
-  'taif',
-  'tabuk',
 ];
 
 function byId(list, ids) {
@@ -67,6 +60,10 @@ function asText(value) {
 
 export function describeTransferOption(value, lang = 'en', labels = {}) {
   if (!value) return null;
+  if (typeof value === 'object' && value.kind === 'custom') {
+    const title = asText(value.address || value.nameEn || value.label);
+    return title ? { kind: 'custom', title, region: '', iata: '' } : null;
+  }
   const neighbourhood = findNeighbourhood(value)
     || (value?.kind === 'neighbourhood' ? value : null);
   if (neighbourhood) {
@@ -107,6 +104,9 @@ export function describeTransferOption(value, lang = 'en', labels = {}) {
 
 export function formatTransferLocation(value, lang = 'en') {
   if (!value) return '';
+  if (typeof value === 'object' && value.kind === 'custom') {
+    return asText(value.address || value.nameEn || value.label);
+  }
   const neighbourhood = findNeighbourhood(value)
     || (value?.kind === 'neighbourhood' ? value : null);
   if (neighbourhood) return formatNeighbourhoodLabel(neighbourhood, lang) || '';
@@ -146,19 +146,18 @@ export function searchTransferLocations(query) {
       neighbourhoods: featuredTransferNeighbourhoods(),
     };
   }
-  const searchedAirports = searchSaudiAirports(q, 10).map((item) => ({ ...item, kind: 'airport' }));
-  const featuredAirHits = featuredTransferAirports().filter((item) => (
-    searchedAirports.some((airport) => airport.id === item.id)
-  ));
-  const airports = uniqueById([...featuredAirHits, ...searchedAirports]).slice(0, 8);
+  const approvedAirportIds = new Set(FEATURED_AIRPORT_IDS);
+  const approvedCityIds = new Set(FEATURED_CITY_IDS);
+
+  const searchedAirports = searchSaudiAirports(q, 10)
+    .filter((item) => approvedAirportIds.has(item.id))
+    .map((item) => ({ ...item, kind: 'airport' }));
+  const airports = uniqueById(searchedAirports).slice(0, 8);
 
   const searchedCities = searchSaudiDestinations(q, 12)
-    .filter((item) => !String(item.id || '').endsWith('-airport') && item.kind !== 'neighbourhood')
+    .filter((item) => approvedCityIds.has(item.id) && !String(item.id || '').endsWith('-airport') && item.kind !== 'neighbourhood')
     .map((item) => ({ ...item, kind: item.kind || 'place' }));
-  const featuredCityHits = featuredTransferCities().filter((item) => (
-    searchedCities.some((city) => city.id === item.id)
-  ));
-  const cities = uniqueById([...featuredCityHits, ...searchedCities]).slice(0, 8);
+  const cities = uniqueById(searchedCities).slice(0, 8);
 
   const neighbourhoods = uniqueById(searchCityNeighbourhoods(q, 12));
 

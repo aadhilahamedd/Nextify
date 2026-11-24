@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { resolveCarImage } from '../utils/carsStorage';
 import Container from 'react-bootstrap/Container';

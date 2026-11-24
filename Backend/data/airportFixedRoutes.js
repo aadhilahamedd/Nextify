@@ -183,7 +183,29 @@ const LOCATIONS = [
     label: 'Bahrain',
     displayLabel: 'Bahrain',
     destIds: ['bahrain'],
+    airportHubId: 'bahrain_airport',
     aliases: ['bahrain', 'manama', 'kingdom of bahrain', 'البحرين'],
+  },
+  {
+    id: 'bahrain_airport',
+    kind: 'airport',
+    cityHubId: 'bahrain',
+    label: 'Bahrain Airport',
+    displayLabel: 'Bahrain International Airport – Bahrain',
+    iata: ['BAH'],
+    ident: ['OBBI'],
+    airportIds: ['bahrain-airport'],
+    aliases: [
+      'bahrain airport',
+      'bahrain intl',
+      'bahrain international',
+      'bahrain international airport',
+      'bah',
+      'obbi',
+      'bahrain-airport',
+      'مطار البحرين',
+      'مطار البحرين الدولي',
+    ],
   },
   ...neighbourhoodLocationsForRoutes(),
 ];
@@ -199,6 +221,10 @@ const AIRPORT_FIXED_ROUTES = [
   { id: 'riyadh_jeddah', originId: 'riyadh', destinationId: 'jeddah', distanceKm: 980, gmc: 3200, sedan: 2500 },
   { id: 'riyadh_makkah', originId: 'riyadh', destinationId: 'makkah', distanceKm: 850, gmc: 3000, sedan: 2500 },
   { id: 'riyadh_madinah', originId: 'riyadh', destinationId: 'madinah', distanceKm: 850, gmc: 2900, sedan: 2500 },
+  // Approved Bahrain one-way routes (do not auto-approve reverse directions)
+  { id: 'bahrain_dammam', originId: 'bahrain', destinationId: 'dammam', distanceKm: 90, gmc: 650, sedan: 550, allowReverse: false },
+  { id: 'bahrain_khobar', originId: 'bahrain', destinationId: 'khobar', distanceKm: 70, gmc: 650, sedan: 550, allowReverse: false },
+  { id: 'bahrain_riyadh', originId: 'bahrain', destinationId: 'riyadh', distanceKm: 480, gmc: 1800, sedan: 1800, allowReverse: false, taxIncluded: true },
 ];
 
 const LOCATION_BY_ID = Object.fromEntries(LOCATIONS.map((loc) => [loc.id, loc]));
@@ -285,6 +311,7 @@ function resolveFixedRouteLocation(value) {
   if (value == null || value === '') return null;
 
   if (typeof value === 'object') {
+    if (value.kind === 'custom') return null;
     const direct = LOCATIONS.find((location) => objectMatchesLocation(value, location));
     if (direct) return direct;
     if (value.kind === 'airport' || value.iata || value.ident) {
@@ -368,7 +395,7 @@ function matchAirportFixedRoute(pickup, dropoff) {
   for (const origin of origins) {
     for (const destination of destinations) {
       const reverse = AIRPORT_FIXED_ROUTES.find(
-        (item) => item.originId === destination.id && item.destinationId === origin.id,
+        (item) => item.allowReverse !== false && item.originId === destination.id && item.destinationId === origin.id,
       );
       if (reverse) return decorateMatchedRoute(reverse, pickupLoc, dropoffLoc, true);
     }
@@ -425,6 +452,7 @@ function quoteAirportFixedRoute(route, vehicleCategory, extra = {}) {
     pricingModel: 'airport_fixed_route',
     serviceType: 'airport_transfer',
     displayLabel: extra.displayLabel || extra.vehicleName || labeled.displayLabel,
+    ...(labeled.taxIncluded ? { taxIncluded: true } : {}),
   };
   if (price == null) {
     return {
@@ -454,6 +482,7 @@ module.exports = {
   GMC_CATEGORIES,
   SEDAN_CATEGORIES,
   resolveFixedRouteLocation,
+  locationCandidates,
   matchAirportFixedRoute,
   fixedRoutePriceForVehicle,
   quoteAirportFixedRoute,

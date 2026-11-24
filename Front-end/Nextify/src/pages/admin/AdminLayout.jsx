@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   AUTH_SESSION_EVENT,
@@ -14,6 +14,7 @@ const NAV_ITEMS = [
   { to: '/admin', label: 'Overview', end: true },
   { to: '/admin/messages', label: 'Messages' },
   { to: '/admin/bookings', label: 'Bookings' },
+  { to: '/admin/fleet', label: 'Fleet' },
   { to: '/admin/pricing', label: 'Pricing' },
   { to: '/admin/drivers', label: 'Drivers' },
   { to: '/admin/payments', label: 'Payments' },
@@ -30,7 +31,13 @@ export default function AdminLayout() {
   const location = useLocation();
   const [user, setUser] = useState(getValidAdminUser);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [prevPathname, setPrevPathname] = useState(location.pathname);
   const loggingOutRef = useRef(false);
+
+  if (location.pathname !== prevPathname) {
+    setPrevPathname(location.pathname);
+    if (menuOpen) setMenuOpen(false);
+  }
 
   useEffect(() => {
     const loginTarget = `/login?next=${encodeURIComponent(location.pathname + location.search)}`;
@@ -63,10 +70,6 @@ export default function AdminLayout() {
       window.removeEventListener('storage', handleSessionChange);
     };
   }, [navigate, location.pathname, location.search]);
-
-  useEffect(() => {
-    setMenuOpen(false);
-  }, [location.pathname]);
 
   const handleLogout = () => {
     loggingOutRef.current = true;

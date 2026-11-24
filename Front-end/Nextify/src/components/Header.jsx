@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom';
 import Container from 'react-bootstrap/Container';
 import Nav from 'react-bootstrap/Nav';
@@ -19,9 +19,15 @@ function Header() {
   const navigate = useNavigate();
   const { lang, setLang, t } = useLanguage();
   const [expanded, setExpanded] = useState(false);
+  const [prevPathname, setPrevPathname] = useState(location.pathname);
   const [user, setUser] = useState(() => (readToken() ? readStoredUser() : null));
   const isLogin = location.pathname === '/login';
   const isAdmin = user?.role === 'admin';
+
+  if (location.pathname !== prevPathname) {
+    setPrevPathname(location.pathname);
+    if (expanded) setExpanded(false);
+  }
 
   useEffect(() => {
     const syncUser = () => {
@@ -34,10 +40,6 @@ function Header() {
       window.removeEventListener('storage', syncUser);
     };
   }, []);
-
-  useEffect(() => {
-    setExpanded(false);
-  }, [location.pathname]);
 
   useEffect(() => {
     document.body.classList.toggle('nav-open', expanded);

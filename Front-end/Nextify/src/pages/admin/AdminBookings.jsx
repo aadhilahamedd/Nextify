@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   assignDriverAPI,
   deleteBookingAPI,
@@ -7,8 +7,8 @@ import {
   getDriversAPI,
   updateBookingAPI,
 } from '../../Services/allAPI';
+import { DetailField } from './adminShared';
 import {
-  DetailField,
   SERVICE_LABELS,
   STATUS_COLORS,
   formatDate,
@@ -16,7 +16,7 @@ import {
   getBookingVehicle,
   refreshBtnStyle,
   sectionCardStyle,
-} from './adminShared';
+} from './adminHelpers';
 
 export default function AdminBookings() {
   const [bookings, setBookings] = useState([]);
@@ -45,9 +45,22 @@ export default function AdminBookings() {
   }, []);
 
   useEffect(() => {
-    fetchBookings();
-    fetchDrivers();
-  }, [fetchBookings, fetchDrivers]);
+    let cancelled = false;
+    Promise.all([getBookingsAPI(), getDriversAPI()]).then(([bookingsRes, driversRes]) => {
+      if (cancelled) return;
+      if (bookingsRes?.status === 200) {
+        setBookings(bookingsRes.data || []);
+        setError('');
+      } else {
+        setError(bookingsRes?.response?.data?.message || bookingsRes?.error || 'Failed to load bookings.');
+      }
+      if (driversRes?.status === 200) {
+        setDrivers(Array.isArray(driversRes.data) ? driversRes.data : []);
+      }
+      setLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   const handleToggleBooking = (bookingId) => {
     setExpandedBookingId((prev) => (prev === bookingId ? null : bookingId));
@@ -132,6 +145,12 @@ export default function AdminBookings() {
             {bookings.map((booking) => {
               const isExpanded = expandedBookingId === booking._id;
               const status = booking.bookingStatus || 'pending';
+              const isCustomQuote = Boolean(
+                booking.customQuoteRequired
+                || booking.pricingType === 'custom_quote'
+                || booking.pricing?.breakdown?.quoteStatus === 'rate_on_request'
+              );
+              const isPaid = String(booking.paymentStatus || '').toUpperCase() === 'PAID';
               const eventLabel =
                 booking.eventType === 'Other' && booking.eventOther
                   ? `${booking.eventType} (${booking.eventOther})`
@@ -181,11 +200,45 @@ export default function AdminBookings() {
                         >
                           {status}
                         </span>
+                        {isCustomQuote && (
+                          <span
+                            style={{
+                              fontSize: '10px',
+                              fontWeight: '700',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.5px',
+                              padding: '3px 8px',
+                              borderRadius: '20px',
+                              background: 'rgba(238, 176, 18, 0.18)',
+                              color: '#f6d26e',
+                            }}
+                          >
+                            QUOTE REQUEST
+                          </span>
+                        )}
+                        {!isCustomQuote && isPaid && (
+                          <span
+                            style={{
+                              fontSize: '10px',
+                              fontWeight: '700',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.5px',
+                              padding: '3px 8px',
+                              borderRadius: '20px',
+                              background: 'rgba(46, 204, 113, 0.18)',
+                              color: '#2ecc71',
+                            }}
+                          >
+                            PAID
+                          </span>
+                        )}
                       </div>
                       <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: '13px' }}>
                         {booking.bookingNumber && `${booking.bookingNumber} · `}
                         {getBookingVehicle(booking)} • {SERVICE_LABELS[booking.serviceType] || booking.serviceType}
-                        {booking.pricing?.totalAmount ? ` · ${booking.pricing.totalAmount} ${booking.pricing.currency || 'SAR'}` : ''}
+                        {isCustomQuote
+                          ? ' · Price on request'
+                          : (booking.pricing?.totalAmount ? ` · ${booking.pricing.totalAmount} ${booking.pricing.currency || 'SAR'}` : '')}
                       </div>
                       <div style={{ color: 'rgba(255,255,255,0.35)', fontSize: '12px', marginTop: '4px' }}>
                         {formatDate(booking.createdAt)}
@@ -215,7 +268,14 @@ export default function AdminBookings() {
                         <DetailField label="Email" value={booking.customer?.email || booking.email} />
                         <DetailField label="Booking Status" value={status} />
                         <DetailField label="Payment Status" value={booking.paymentStatus || '—'} />
-                        <DetailField label="Total" value={booking.pricing?.totalAmount ? `${booking.pricing.totalAmount} ${booking.pricing.currency || 'SAR'}` : '—'} />
+                        <DetailField
+                          label="Total"
+                          value={
+                            isCustomQuote
+                              ? 'Price on request'
+                              : (booking.pricing?.totalAmount ? `${booking.pricing.totalAmount} ${booking.pricing.currency || 'SAR'}` : '—')
+                          }
+                        />
                         {eventLabel && <DetailField label="Event" value={eventLabel} />}
                         {(booking.flight?.flightNumber || booking.flightNumber) && (
                           <DetailField label="Flight Number" value={booking.flight?.flightNumber || booking.flightNumber} />

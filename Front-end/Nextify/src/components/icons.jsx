@@ -1,5 +1,3 @@
-import React from 'react';
-
 function Svg({ size = 20, strokeWidth = 1.5, className = '', children, ...rest }) {
   return (
     <svg
@@ -239,11 +237,3 @@ export const CoinsIcon = (p) => (
     <path d="m16.71 13.88.7.71-2.82 2.82" />
   </Svg>
 );
-
-export const SERVICE_ICONS = {
-  airport_transfer: PlaneIcon,
-  city_transfer: MapPinIcon,
-  chauffeur: ClockIcon,
-  intercity_transfer: RouteIcon,
-  gcc_transfer: GlobeIcon,
-};

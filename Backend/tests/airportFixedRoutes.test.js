@@ -6,7 +6,7 @@ const {
   fixedRoutePriceForVehicle,
 } = require('../data/airportFixedRoutes');
 
-assert.strictEqual(AIRPORT_FIXED_ROUTES.length, 10);
+assert.strictEqual(AIRPORT_FIXED_ROUTES.length, 13);
 
 assert.strictEqual(resolveFixedRouteLocation('Jeddah Airport').id, 'jeddah_airport');
 assert.strictEqual(resolveFixedRouteLocation('King Abdulaziz International Airport').id, 'jeddah_airport');
@@ -20,6 +20,12 @@ assert.strictEqual(resolveFixedRouteLocation('Jeda').id, 'jeddah');
 assert.strictEqual(resolveFixedRouteLocation('Al Qassim Airport').id, 'al_qassim_airport');
 assert.strictEqual(resolveFixedRouteLocation('ELQ').id, 'al_qassim_airport');
 assert.strictEqual(resolveFixedRouteLocation('Bahrain').id, 'bahrain');
+assert.strictEqual(resolveFixedRouteLocation('Manama').id, 'bahrain');
+assert.strictEqual(resolveFixedRouteLocation('Bahrain Airport').id, 'bahrain_airport');
+assert.strictEqual(resolveFixedRouteLocation('Bahrain International Airport').id, 'bahrain_airport');
+assert.strictEqual(resolveFixedRouteLocation('BAH').id, 'bahrain_airport');
+assert.strictEqual(resolveFixedRouteLocation('OBBI').id, 'bahrain_airport');
+assert.strictEqual(resolveFixedRouteLocation('Bahrain Airport').cityHubId, 'bahrain');
 assert.strictEqual(resolveFixedRouteLocation('Al Khobar').id, 'khobar');
 assert.strictEqual(resolveFixedRouteLocation('Khobar').id, 'khobar');
 
@@ -104,11 +110,76 @@ for (const [pickup, dropoff, gmc, sedan, km] of expected) {
   assert.strictEqual(route.gmc, gmc, `${pickup} → ${dropoff} GMC`);
   assert.strictEqual(route.sedan, sedan, `${pickup} → ${dropoff} Sedan`);
   assert.strictEqual(route.distanceKm, km, `${pickup} → ${dropoff} km`);
+  if (pickup === 'Riyadh' && dropoff === 'Bahrain') {
+    // Bahrain → Riyadh has its own explicit one-way approved route (SAR 1,800, tax-inclusive)
+    const bahrainToRiyadh = matchAirportFixedRoute('Bahrain', 'Riyadh');
+    assert.ok(bahrainToRiyadh);
+    assert.strictEqual(bahrainToRiyadh.id, 'bahrain_riyadh');
+    assert.strictEqual(bahrainToRiyadh.gmc, 1800);
+    assert.strictEqual(bahrainToRiyadh.sedan, 1800);
+    assert.strictEqual(bahrainToRiyadh.taxIncluded, true);
+    assert.strictEqual(bahrainToRiyadh.reversed, false);
+    continue;
+  }
   const reverse = matchAirportFixedRoute(dropoff, pickup);
   assert.ok(reverse, `missing reverse ${dropoff} → ${pickup}`);
   assert.strictEqual(reverse.gmc, gmc, `reverse ${dropoff} → ${pickup} GMC`);
   assert.strictEqual(reverse.sedan, sedan, `reverse ${dropoff} → ${pickup} Sedan`);
   assert.strictEqual(reverse.reversed, true);
 }
+
+// New approved Bahrain one-way routes
+const bahrainDammam = matchAirportFixedRoute('Bahrain', 'Dammam');
+assert.strictEqual(bahrainDammam?.id, 'bahrain_dammam');
+assert.strictEqual(fixedRoutePriceForVehicle(bahrainDammam, 'gmc'), 650);
+assert.strictEqual(fixedRoutePriceForVehicle(bahrainDammam, 'gmc_yukon'), 650);
+assert.strictEqual(fixedRoutePriceForVehicle(bahrainDammam, 'ford_taurus'), 550);
+assert.strictEqual(fixedRoutePriceForVehicle(bahrainDammam, 'lexus_es'), 550);
+assert.strictEqual(fixedRoutePriceForVehicle(bahrainDammam, 'bmw_5'), null);
+assert.strictEqual(fixedRoutePriceForVehicle(bahrainDammam, 'mercedes_s'), null);
+assert.strictEqual(matchAirportFixedRoute('Dammam', 'Bahrain'), null, 'Dammam → Bahrain must NOT auto-reverse');
+assert.strictEqual(matchAirportFixedRoute('Dammam Airport', 'Bahrain'), null, 'Dammam Airport → Bahrain must NOT auto-reverse');
+
+const bahrainKhobar = matchAirportFixedRoute('Bahrain', 'Al Khobar');
+assert.strictEqual(bahrainKhobar?.id, 'bahrain_khobar');
+assert.strictEqual(fixedRoutePriceForVehicle(bahrainKhobar, 'gmc'), 650);
+assert.strictEqual(fixedRoutePriceForVehicle(bahrainKhobar, 'ford_taurus'), 550);
+assert.strictEqual(fixedRoutePriceForVehicle(bahrainKhobar, 'toyota_hiace'), null);
+assert.strictEqual(matchAirportFixedRoute('Al Khobar', 'Bahrain'), null, 'Al Khobar → Bahrain must NOT auto-reverse');
+
+const bahrainRiyadh = matchAirportFixedRoute('Bahrain', 'Riyadh');
+assert.strictEqual(bahrainRiyadh?.id, 'bahrain_riyadh');
+assert.strictEqual(fixedRoutePriceForVehicle(bahrainRiyadh, 'gmc'), 1800);
+assert.strictEqual(fixedRoutePriceForVehicle(bahrainRiyadh, 'ford_taurus'), 1800);
+assert.strictEqual(fixedRoutePriceForVehicle(bahrainRiyadh, 'mercedes_v_class'), null);
+assert.strictEqual(bahrainRiyadh.taxIncluded, true);
+assert.strictEqual(matchAirportFixedRoute('Riyadh', 'Bahrain')?.id, 'riyadh_bahrain');
+assert.strictEqual(matchAirportFixedRoute('Riyadh', 'Bahrain')?.gmc, 1500);
+assert.strictEqual(matchAirportFixedRoute('Riyadh', 'Bahrain')?.sedan, 1300);
+
+// Bahrain International Airport aliases resolve to Bahrain hub for all 3 approved routes (one-way only)
+for (const bahrainInput of ['Bahrain', 'Manama', 'Bahrain Airport', 'Bahrain International Airport', 'BAH']) {
+  const toDammam = matchAirportFixedRoute(bahrainInput, 'Dammam');
+  assert.strictEqual(toDammam?.id, 'bahrain_dammam', `${bahrainInput} → Dammam must match bahrain_dammam`);
+  assert.strictEqual(fixedRoutePriceForVehicle(toDammam, 'gmc'), 650);
+  assert.strictEqual(fixedRoutePriceForVehicle(toDammam, 'ford_taurus'), 550);
+
+  const toKhobar = matchAirportFixedRoute(bahrainInput, 'Al Khobar');
+  assert.strictEqual(toKhobar?.id, 'bahrain_khobar', `${bahrainInput} → Al Khobar must match bahrain_khobar`);
+  assert.strictEqual(fixedRoutePriceForVehicle(toKhobar, 'gmc'), 650);
+  assert.strictEqual(fixedRoutePriceForVehicle(toKhobar, 'lexus_es'), 550);
+
+  const toRiyadh = matchAirportFixedRoute(bahrainInput, 'Riyadh');
+  assert.strictEqual(toRiyadh?.id, 'bahrain_riyadh', `${bahrainInput} → Riyadh must match bahrain_riyadh`);
+  assert.strictEqual(fixedRoutePriceForVehicle(toRiyadh, 'gmc'), 1800);
+  assert.strictEqual(fixedRoutePriceForVehicle(toRiyadh, 'ford_taurus'), 1800);
+  assert.strictEqual(toRiyadh.taxIncluded, true);
+}
+assert.strictEqual(matchAirportFixedRoute('Dammam', 'Bahrain Airport'), null, 'Dammam → Bahrain Airport must NOT auto-reverse');
+assert.strictEqual(matchAirportFixedRoute('Al Khobar', 'Bahrain Airport'), null, 'Al Khobar → Bahrain Airport must NOT auto-reverse');
+assert.strictEqual(matchAirportFixedRoute('Bahrain Airport', 'Bahrain'), null, 'Bahrain Airport → Bahrain must NOT match');
+assert.strictEqual(matchAirportFixedRoute('Riyadh', 'Bahrain Airport')?.id, 'riyadh_bahrain');
+assert.strictEqual(matchAirportFixedRoute('Riyadh', 'Bahrain Airport')?.gmc, 1500);
+assert.strictEqual(matchAirportFixedRoute('Riyadh', 'Bahrain Airport')?.sedan, 1300);
 
 console.log('airportFixedRoutes tests passed');

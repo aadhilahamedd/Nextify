@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { findFleetVehicle, getOfficialQuote } from '../../data/fleetVehicles';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { translateVehicle } from '../../i18n/places';

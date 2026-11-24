@@ -1,20 +1,15 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { getReviewsAPI, submitReviewAPI } from '../Services/allAPI';
 import { useLanguage } from '../i18n/LanguageContext';
-
-const FEATURED = [
-  { name: 'Corporate guest', quote: 'Punctual, discreet, and a flawless airport transfer in Riyadh.', rating: 5 },
-  { name: 'Wedding planner, Khobar', quote: 'Our event fleet arrived on time and looked impeccable.', rating: 5 },
-];
 
 const emptyForm = { name: '', role: '', quote: '', rating: 5 };
 
 export default function AboutReviews() {
   const { t, formatNumber } = useLanguage();
-  const featured = [
+  const featured = useMemo(() => [
     { name: t('reviews.featured1Name'), quote: t('reviews.featured1'), rating: 5 },
     { name: t('reviews.featured2Name'), quote: t('reviews.featured2'), rating: 5 },
-  ];
+  ], [t]);
   const [reviews, setReviews] = useState(featured);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(emptyForm);
@@ -37,7 +32,7 @@ export default function AboutReviews() {
         ].slice(0, 4));
       }
     })();
-  }, []);
+  }, [featured]);
 
   const average = useMemo(() => {
     if (!reviews.length) return '5.0';

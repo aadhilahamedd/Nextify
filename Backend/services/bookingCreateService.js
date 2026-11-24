@@ -1,4 +1,6 @@
+const mongoose = require('mongoose');
 const Booking = require('../models/Booking');
+const Car = require('../models/Car');
 const { generateBookingNumber } = require('../utils/bookingNumber');
 const { generateCheckoutToken } = require('../utils/checkoutToken');
 const { calculatePrice, normalizeServiceType } = require('./pricingService');
@@ -7,6 +9,9 @@ const { resolveFixedRouteLocation } = require('../data/airportFixedRoutes');
 const { findNeighbourhood, formatNeighbourhoodLabel } = require('../data/cityNeighbourhoods');
 
 function bookingLocationAddress(place, fallback = '') {
+  if (place?.kind === 'custom') {
+    return String(place.address || place.nameEn || fallback || '').trim();
+  }
   const neighbourhood = findNeighbourhood(place);
   if (neighbourhood) return formatNeighbourhoodLabel(neighbourhood);
   const loc = resolveFixedRouteLocation(place);
@@ -55,10 +60,10 @@ async function createBookingFromPayload(body, { userId } = {}) {
   const dropoffPlace = body.dropoffPlace || (typeof body.destination === 'object' ? body.destination : null);
   let airportMatch = null;
 
-  const dropoffAirport = serviceType === 'airport_transfer'
+  const dropoffAirport = serviceType === 'airport_transfer' && dropoffPlace?.kind !== 'custom'
     ? findAirport(dropoffPlace || destination)
     : null;
-  if (serviceType === 'airport_transfer') {
+  if (serviceType === 'airport_transfer' && pickupPlace?.kind !== 'custom') {
     const pickupValue = pickupPlace || origin || body.airport;
     const pickupLocation = resolveFixedRouteLocation(pickupValue);
     if (pickupLocation?.kind !== 'city' && pickupLocation?.kind !== 'neighbourhood') {
@@ -66,10 +71,22 @@ async function createBookingFromPayload(body, { userId } = {}) {
     }
   }
 
+  const airportPickupText = String(
+    airportMatch?.nameEn || origin || pickupPlace?.address || pickupPlace?.nameEn || body.airport || '',
+  ).trim();
+  const airportDropoffText = String(
+    destination || dropoffPlace?.address || dropoffPlace?.nameEn || '',
+  ).trim();
+  if (serviceType === 'airport_transfer' && (!airportPickupText || !airportDropoffText)) {
+    throw httpError(400, 'Please select a pickup and drop-off location');
+  }
+
   // Never trust a client-submitted price. Recalculate on the server.
   const quote = await calculatePrice({
     serviceType,
     vehicleCategory: body.vehicleCategory,
+    vehicleId: body.vehicleId || body.vehicleCategory,
+    vehicleCarId: body.vehicleCarId ?? body.vehicle?.carId ?? null,
     vehicleName: body.vehicleName || body.vehicle?.label || body.vehicle?.name,
     airport: airportMatch?.nameEn || body.airport,
     origin: airportMatch?.nameEn || origin || pickupPlace?.nameEn || pickupPlace?.address || body.airport,
@@ -89,6 +106,28 @@ async function createBookingFromPayload(body, { userId } = {}) {
     && !quote.customQuoteRequired
   ) {
     throw httpError(400, 'Please select a pickup and drop-off location');
+  }
+
+  const requestedCarId = body.vehicle?.carId ?? body.vehicleCarId ?? null;
+  if (requestedCarId !== '' && requestedCarId != null && mongoose.connection.readyState === 1) {
+    const rawCarId = String(requestedCarId).trim();
+    const numericCarId = Number(rawCarId);
+    let carQuery = null;
+    if (Number.isInteger(numericCarId) && numericCarId > 0 && String(numericCarId) === rawCarId) {
+      carQuery = { id: numericCarId };
+    } else if (/^[a-fA-F0-9]{24}$/.test(rawCarId)) {
+      carQuery = { _id: rawCarId };
+    } else {
+      throw httpError(400, 'Selected vehicle is invalid.');
+    }
+
+    const fleetCar = await Car.findOne(carQuery).select('id available name category').lean();
+    if (!fleetCar) {
+      throw httpError(400, 'Selected vehicle does not exist.');
+    }
+    if (fleetCar.available === false) {
+      throw httpError(400, 'Selected vehicle is currently unavailable.');
+    }
   }
 
   if (body.vehicle?.carId && !quote.customQuoteRequired) {
@@ -211,6 +250,7 @@ async function createBookingFromPayload(body, { userId } = {}) {
         originLabel: quote.originLabel || null,
         destinationLabel: quote.destinationLabel || null,
         routeType: quote.routeType || null,
+        ...(quote.taxIncluded ? { taxIncluded: true } : {}),
       },
     },
     paymentStatus: quote.customQuoteRequired ? 'NOT_REQUIRED' : 'PENDING',

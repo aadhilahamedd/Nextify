@@ -121,17 +121,12 @@ const NORMALIZED_RATES = APPROVED_RATES.map((r) => ({
 }));
 
 async function seedApprovedPricing() {
-  const versionDoc = await Settings.findOne({ key: 'pricingVersion' });
-  const count = await PricingRule.countDocuments({ active: true });
-  const storedVersion = Number(versionDoc?.value || 0);
-  if (storedVersion > PRICING_VERSION) {
-    return { seeded: false, count };
-  }
-  if (storedVersion === PRICING_VERSION && count === NORMALIZED_RATES.length) {
+  const count = await PricingRule.countDocuments();
+  if (count > 0) {
+    // Preserve existing admin-configured and approved pricing records; never wipe collection.
     return { seeded: false, count };
   }
 
-  await PricingRule.deleteMany({});
   await PricingRule.insertMany(NORMALIZED_RATES);
   await Settings.findOneAndUpdate(
     { key: 'pricingVersion' },

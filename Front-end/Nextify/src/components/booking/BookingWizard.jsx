@@ -19,9 +19,19 @@ import DestinationAutocomplete from './DestinationAutocomplete';
 import VehiclePicker from './VehiclePicker';
 import InquiryVehicleGrid from './InquiryVehicleGrid';
 import { useBookingAssistant } from './BookingAssistant';
-import { LocaleDateInput, LocaleTimeInput, getLocalDateValue, isTravelDateTimePast } from './ArabicDateTime';
-import { FLEET_CLASS, findFleetVehicle, getOfficialQuote, getVehiclesForService } from '../../data/fleetVehicles';
-import { calculatePriceAPI, createBookingAPI } from '../../Services/allAPI';
+import { LocaleDateInput, LocaleTimeInput } from './ArabicDateTime';
+import { getLocalDateValue, isTravelDateTimePast } from './dateTimeUtils';
+import {
+  FLEET_CLASS,
+  buildManagedFleetVehicles,
+  filterManagedVehiclesForService,
+  findFleetVehicle,
+  getOfficialQuote,
+  getVehiclesForService,
+  normalizeVehicleCategory,
+} from '../../data/fleetVehicles';
+import { resolveCarImage } from '../../utils/carsStorage';
+import { calculatePriceAPI, createBookingAPI, getCarsAPI } from '../../Services/allAPI';
 import { findAirport, toLocationPlace } from '../../data/saudiAirports';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { translatePlace, translateService } from '../../i18n/places';
@@ -40,7 +50,8 @@ import {
   resolveInquiryDestination,
 } from '../../utils/inquiryTransfer';
 import './Booking.css';
-import { CheckCircleIcon, CoinsIcon, SERVICE_ICONS, ShieldIcon, UserIcon } from '../icons';
+import { CheckCircleIcon, CoinsIcon, ShieldIcon, UserIcon } from '../icons';
+import { SERVICE_ICONS } from '../serviceIcons';
 
 const SERVICE_IMAGES = {
   airport_transfer: '/images/services/service-airport.jpg?v=4',
@@ -122,10 +133,14 @@ function BookingWizard() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [inquiryReady, setInquiryReady] = useState(false);
+  const [managedVehicles, setManagedVehicles] = useState(null);
+  const [fleetLoading, setFleetLoading] = useState(true);
+  const [fleetError, setFleetError] = useState(false);
   const isRouteTransfer = isRouteTransferService(form.serviceType);
   const wizardRef = useRef(null);
   const pageRef = useRef(null);
   const skipWizardScroll = useRef(true);
+  const submittingRef = useRef(false);
   const [inView, setInView] = useState(false);
 
   if (location.state !== prevRouteState) {
@@ -148,11 +163,43 @@ function BookingWizard() {
     [t]
   );
 
-  const vehicles = useMemo(
-    () => getVehiclesForService(form.serviceType, vehicleFilter, form.durationType),
-    [form.serviceType, vehicleFilter, form.durationType]
-  );
-  const selectedVehicle = findFleetVehicle({ category: form.vehicleCategory, name: form.vehicleName });
+  useEffect(() => {
+    let cancelled = false;
+    getCarsAPI()
+      .then((res) => {
+        if (cancelled) return;
+        if (res?.status === 200 && Array.isArray(res.data)) {
+          const built = buildManagedFleetVehicles(res.data, resolveCarImage);
+          setManagedVehicles(built || []);
+          setFleetError(false);
+        } else {
+          setFleetError(true);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setFleetError(true);
+      })
+      .finally(() => {
+        if (!cancelled) setFleetLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  const vehicles = useMemo(() => {
+    if (fleetLoading) return [];
+    return filterManagedVehiclesForService(managedVehicles, form.serviceType, vehicleFilter, form.durationType);
+  }, [fleetLoading, managedVehicles, form.serviceType, vehicleFilter, form.durationType]);
+  const selectedVehicle = useMemo(() => {
+    const normalizedCat = normalizeVehicleCategory(form.vehicleCategory);
+    if (Array.isArray(managedVehicles)) {
+      const fromManaged = managedVehicles.find(
+        (v) => (normalizedCat && v.category === normalizedCat)
+          || (form.vehicleName && v.label.toLowerCase() === String(form.vehicleName).toLowerCase())
+      );
+      if (fromManaged) return fromManaged;
+    }
+    return findFleetVehicle({ category: form.vehicleCategory, name: form.vehicleName });
+  }, [managedVehicles, form.vehicleCategory, form.vehicleName]);
   const today = getLocalDateValue();
   const minTravelTime = form.travelDate === today
     ? `${String(new Date().getHours()).padStart(2, '0')}:${String(new Date().getMinutes()).padStart(2, '0')}`
@@ -171,8 +218,9 @@ function BookingWizard() {
     setForm((f) => {
       const next = { ...f, ...patch };
       if (next.vehicleCategory && (patch.serviceType !== undefined || patch.durationType !== undefined)) {
-        const allowed = getVehiclesForService(next.serviceType, 'All', next.durationType);
-        if (!allowed.some((v) => v.category === next.vehicleCategory)) {
+        const allowed = filterManagedVehiclesForService(managedVehicles, next.serviceType, 'All', next.durationType);
+        const normalizedSelected = normalizeVehicleCategory(next.vehicleCategory);
+        if (!allowed.some((v) => v.category === normalizedSelected)) {
           next.vehicleCategory = '';
           next.vehicleName = '';
         }
@@ -183,25 +231,30 @@ function BookingWizard() {
   };
 
   const buildPricingPayload = useCallback(() => {
-    const airportPlace = (form.pickupPlace?.kind === 'place' && !form.pickupPlace?.iata)
+    const isCustomPickup = form.pickupPlace?.kind === 'custom';
+    const isCustomDropoff = form.dropoffPlace?.kind === 'custom';
+    const airportPlace = (isCustomPickup || (form.pickupPlace?.kind === 'place' && !form.pickupPlace?.iata))
       ? null
       : findAirport(form.pickupPlace || form.airport);
     const origin = form.serviceType === 'airport_transfer'
-      ? (airportPlace?.nameEn || form.airport)
+      ? (isCustomPickup ? (form.pickupPlace?.address || form.pickupLocation || form.origin || form.airport) : (airportPlace?.nameEn || form.airport || form.pickupLocation))
       : form.origin === 'Other'
         ? form.otherOrigin
         : (form.origin || form.pickupLocation || 'Riyadh');
-    const destination = form.destination === 'Other' || form.gccDestination === 'Other'
-      ? form.otherDestination
-      : (form.destination || form.gccDestination || form.dropoffLocation);
+    const destination = isCustomDropoff
+      ? (form.dropoffPlace?.address || form.destination || form.dropoffLocation)
+      : (form.destination === 'Other' || form.gccDestination === 'Other'
+        ? form.otherDestination
+        : (form.destination || form.gccDestination || form.dropoffLocation));
     return {
       serviceType: form.serviceType,
       vehicleCategory: form.vehicleCategory,
+      vehicleCarId: selectedVehicle?.carId ?? undefined,
       vehicleName: selectedVehicle?.label || form.vehicleName,
-      airport: airportPlace?.nameEn || form.airport,
+      airport: isCustomPickup ? '' : (airportPlace?.nameEn || form.airport),
       origin,
       destination,
-      pickupPlace: form.pickupPlace || toLocationPlace(airportPlace, form.airport),
+      pickupPlace: isCustomPickup ? form.pickupPlace : (form.pickupPlace || toLocationPlace(airportPlace, form.airport)),
       dropoffPlace: form.dropoffPlace,
       durationType: form.durationType,
       distanceKm: form.distanceKm !== '' && form.distanceKm != null ? Number(form.distanceKm) : undefined,
@@ -217,7 +270,8 @@ function BookingWizard() {
 
   const quoteKey = JSON.stringify([
     form.serviceType,
-    form.vehicleCategory,
+    normalizeVehicleCategory(form.vehicleCategory),
+    selectedVehicle?.carId ?? '',
     form.durationType,
     form.intercityRoute,
     form.gccDestination,
@@ -225,7 +279,18 @@ function BookingWizard() {
     form.airport,
     form.origin,
     form.destination,
+    form.pickupLocation,
+    form.dropoffLocation,
+    form.otherOrigin,
     form.otherDestination,
+    form.pickupPlace?.kind || '',
+    form.pickupPlace?.id || '',
+    form.pickupPlace?.address || '',
+    form.pickupPlace?.nameEn || '',
+    form.dropoffPlace?.kind || '',
+    form.dropoffPlace?.id || '',
+    form.dropoffPlace?.address || '',
+    form.dropoffPlace?.nameEn || '',
     Boolean(form.returnTrip),
   ]);
   const quote = serverQuoteState.key === quoteKey && serverQuoteState.quote
@@ -234,7 +299,10 @@ function BookingWizard() {
   const isInquiry = quoteRequiresInquiry(quote, form);
 
   useEffect(() => {
-    if (step < 1 || !localQuote) {
+    if (step < 1 || !form.vehicleCategory) {
+      return undefined;
+    }
+    if (form.serviceType === 'chauffeur' && !form.durationType) {
       return undefined;
     }
 
@@ -244,17 +312,9 @@ function BookingWizard() {
         if (cancelled) return;
         const nextQuote = res?.data?.quote || (res?.data?.price != null ? res.data : null);
         if (res?.status === 200 && nextQuote) {
-          const quotedVehicle = String(nextQuote.vehicleCategory || '').trim();
-          if (quotedVehicle && form.vehicleCategory && quotedVehicle !== form.vehicleCategory) {
-            return;
-          }
-          const localCityPrice = selectedVehicle?.city ?? selectedVehicle?.airport;
-          if (
-            form.serviceType === 'city_transfer'
-            && localCityPrice != null
-            && nextQuote.price != null
-            && nextQuote.price !== localCityPrice
-          ) {
+          const quotedVehicle = normalizeVehicleCategory(nextQuote.vehicleCategory);
+          const selectedCategory = normalizeVehicleCategory(form.vehicleCategory);
+          if (quotedVehicle && selectedCategory && quotedVehicle !== selectedCategory) {
             return;
           }
           setServerQuoteState({ key: quoteKey, quote: nextQuote });
@@ -270,7 +330,9 @@ function BookingWizard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     step,
-    localQuote,
+    form.serviceType,
+    form.vehicleCategory,
+    form.durationType,
     quoteKey,
   ]);
 
@@ -320,11 +382,11 @@ function BookingWizard() {
       return false;
     }
     if (form.serviceType === 'airport_transfer') {
-      if (!String(form.airport || '').trim()) {
+      if (!String(form.pickupPlace?.address || form.airport || form.pickupLocation || '').trim()) {
         setError(t('booking.errPickup'));
         return false;
       }
-      if (!form.destination?.trim()) {
+      if (!String(form.dropoffPlace?.address || form.destination || form.dropoffLocation || '').trim()) {
         setError(t('booking.errDest'));
         return false;
       }
@@ -367,7 +429,7 @@ function BookingWizard() {
 
   const validate = () => {
     if (!validateTrip()) return false;
-    if (isInquiry) {
+    if (isInquiry && !TEMP_WHATSAPP_BOOKING_INSTEAD_OF_MOYASAR) {
       if (!form.customer.name || !form.customer.mobile) {
         setError(t('booking.errInquiryGuest'));
         return false;
@@ -390,7 +452,9 @@ function BookingWizard() {
   };
 
   const handleSubmit = async () => {
+    if (submittingRef.current) return;
     if (!validate()) return;
+    submittingRef.current = true;
     setLoading(true);
     setError('');
 
@@ -398,92 +462,111 @@ function BookingWizard() {
       ? reserveWhatsAppWindow()
       : null;
 
-    const payload = {
-      ...buildPricingPayload(),
-      vehicleName: selectedVehicle?.label || form.vehicleName,
-      travelDate: form.travelDate,
-      travelTime: form.travelTime,
-      schedule: { pickupDateTime: `${form.travelDate}T${form.travelTime}` },
-      flightNumber: form.flightNumber,
-      pickupLocation: form.pickupLocation || form.origin || form.serviceLocation || form.airport,
-      dropoffLocation: form.dropoffLocation || form.destination,
-      pickupPlace: form.pickupPlace,
-      dropoffPlace: form.dropoffPlace,
-      passengers: form.passengers,
-      luggage: form.luggage,
-      passengerCount: form.passengers,
-      luggageCount: form.luggage,
-      customer: form.customer,
-      specialRequests: form.specialRequests,
-      returnTrip: Boolean(form.returnTrip),
-      returnDate: form.returnDate,
-      returnTime: form.returnTime,
-    };
-
-    const res = await createBookingAPI(payload);
-    setLoading(false);
-
     const closeReservedWhatsApp = () => {
       if (waWindow && !waWindow.closed) {
         try { waWindow.close(); } catch { /* ignore */ }
       }
     };
 
-    if (res?.status === 201 || res?.status === 200) {
-      const booking = res.data?.booking || res.data?.data?.booking;
-      if (!booking?.bookingNumber) {
+    try {
+      const pricingPayload = buildPricingPayload();
+      const payload = {
+        ...pricingPayload,
+        vehicleName: selectedVehicle?.label || form.vehicleName,
+        vehicle: {
+          carId: selectedVehicle?.carId ?? null,
+          name: selectedVehicle?.label || form.vehicleName,
+          type: selectedVehicle?.fleetClass || form.vehicleCategory || '',
+          label: selectedVehicle?.label || form.vehicleName,
+        },
+        travelDate: form.travelDate,
+        travelTime: form.travelTime,
+        schedule: { pickupDateTime: `${form.travelDate}T${form.travelTime}` },
+        flightNumber: form.flightNumber,
+        pickupLocation: pricingPayload.origin || form.pickupLocation || form.origin || form.serviceLocation || form.airport,
+        dropoffLocation: pricingPayload.destination || form.dropoffLocation || form.destination,
+        pickupPlace: pricingPayload.pickupPlace,
+        dropoffPlace: pricingPayload.dropoffPlace,
+        passengers: form.passengers,
+        luggage: form.luggage,
+        passengerCount: form.passengers,
+        luggageCount: form.luggage,
+        customer: form.customer,
+        specialRequests: form.specialRequests,
+        returnTrip: Boolean(form.returnTrip),
+        returnDate: form.returnDate,
+        returnTime: form.returnTime,
+      };
+
+      const res = await createBookingAPI(payload);
+
+      if (res?.status === 201 || res?.status === 200) {
+        const booking = res.data?.booking || res.data?.data?.booking;
+        const savedQuote = res.data?.quote || res.data?.data?.quote || quote;
+        if (!booking?.bookingNumber) {
+          closeReservedWhatsApp();
+          setError(res?.data?.message || res?.error || t('booking.errCreate'));
+          return;
+        }
+
+        if (TEMP_WHATSAPP_BOOKING_INSTEAD_OF_MOYASAR) {
+          const isCustomQuoteBooking = Boolean(booking?.customQuoteRequired || savedQuote?.customQuoteRequired);
+          const message = buildWhatsAppConfirmationMessage({
+            booking,
+            form,
+            quote: savedQuote,
+          });
+          try {
+            sessionStorage.setItem(`booking_${booking.bookingNumber}`, JSON.stringify(booking));
+          } catch { /* ignore quota */ }
+          const opened = openCompanyWhatsApp(message, {
+            window: waWindow,
+            redirect: !waWindow || waWindow.closed,
+          });
+          if (opened.method === 'redirect') return;
+          if (!opened.ok) {
+            closeReservedWhatsApp();
+            setError(opened.error || t('booking.errWhatsApp'));
+          }
+          navigate(`/booking-confirmation/${booking.bookingNumber}`, {
+            state: {
+              booking,
+              customQuote: isCustomQuoteBooking,
+              whatsappPending: true,
+              whatsappOpened: opened.ok && opened.method === 'window',
+            },
+          });
+          return;
+        }
+
+        if (booking?.customQuoteRequired || savedQuote?.customQuoteRequired) {
+          closeReservedWhatsApp();
+          navigate(`/booking-confirmation/${booking.bookingNumber}`, { state: { booking, customQuote: true } });
+          return;
+        }
+
+        const checkoutToken = normalizeCheckoutToken(
+          res.data?.checkoutToken || res.data?.data?.checkoutToken || '',
+        );
+        if (!checkoutToken && !hasAuthSession()) {
+          closeReservedWhatsApp();
+          setError(CHECKOUT_TOKEN_MISSING_MESSAGE);
+          return;
+        }
+        if (checkoutToken && booking?._id) {
+          saveCheckoutToken(booking._id, checkoutToken);
+        }
+
+        navigate('/payment', {
+          state: checkoutToken ? { booking, checkoutToken } : { booking },
+        });
+      } else {
         closeReservedWhatsApp();
         setError(res?.data?.message || res?.error || t('booking.errCreate'));
-        return;
       }
-      if (booking?.customQuoteRequired || quote?.customQuoteRequired) {
-        closeReservedWhatsApp();
-        navigate(`/booking-confirmation/${booking.bookingNumber}`, { state: { booking, customQuote: true } });
-        return;
-      }
-
-      if (TEMP_WHATSAPP_BOOKING_INSTEAD_OF_MOYASAR) {
-        const message = buildWhatsAppConfirmationMessage({
-          booking,
-          form,
-          quote,
-        });
-        try {
-          sessionStorage.setItem(`booking_${booking.bookingNumber}`, JSON.stringify(booking));
-        } catch { /* ignore quota */ }
-        const opened = openCompanyWhatsApp(message, {
-          window: waWindow,
-          redirect: !waWindow || waWindow.closed,
-        });
-        if (opened.method === 'redirect') return;
-        if (!opened.ok) {
-          closeReservedWhatsApp();
-          setError(opened.error || t('booking.errWhatsApp'));
-        }
-        navigate(`/booking-confirmation/${booking.bookingNumber}`, {
-          state: { booking, whatsappPending: true, whatsappOpened: opened.ok && opened.method === 'window' },
-        });
-        return;
-      }
-
-      const checkoutToken = normalizeCheckoutToken(
-        res.data?.checkoutToken || res.data?.data?.checkoutToken || '',
-      );
-      if (!checkoutToken && !hasAuthSession()) {
-        closeReservedWhatsApp();
-        setError(CHECKOUT_TOKEN_MISSING_MESSAGE);
-        return;
-      }
-      if (checkoutToken && booking?._id) {
-        saveCheckoutToken(booking._id, checkoutToken);
-      }
-
-      navigate('/payment', {
-        state: checkoutToken ? { booking, checkoutToken } : { booking },
-      });
-    } else {
-      closeReservedWhatsApp();
-      setError(res?.data?.message || res?.error || t('booking.errCreate'));
+    } finally {
+      submittingRef.current = false;
+      setLoading(false);
     }
   };
 
@@ -532,18 +615,23 @@ function BookingWizard() {
                 variant="transfer"
                 value={form.pickupPlace || form.airport}
                 onChange={(pickupLocation, pickupPlace) => {
-                  const isGroundPlace = pickupPlace?.kind === 'place' || pickupPlace?.kind === 'neighbourhood';
-                  const selectedAirport = pickupPlace?.kind === 'airport' || pickupPlace?.iata
+                  const isCustom = pickupPlace?.kind === 'custom';
+                  const isGroundPlace = isCustom || pickupPlace?.kind === 'place' || pickupPlace?.kind === 'neighbourhood';
+                  const selectedAirport = !isCustom && (pickupPlace?.kind === 'airport' || pickupPlace?.iata)
                     ? pickupPlace
                     : isGroundPlace
                       ? null
                       : findAirport(pickupLocation);
                   setError('');
                   update({
-                    airport: selectedAirport?.nameEn || pickupLocation,
-                    pickupPlace: selectedAirport
-                      ? toLocationPlace(selectedAirport, selectedAirport.nameEn)
-                      : pickupPlace,
+                    airport: isCustom ? '' : (selectedAirport?.nameEn || pickupLocation),
+                    origin: isCustom ? pickupLocation : (selectedAirport?.nameEn || pickupLocation),
+                    pickupLocation: isCustom ? pickupLocation : (selectedAirport?.nameEn || pickupLocation),
+                    pickupPlace: isCustom
+                      ? pickupPlace
+                      : (selectedAirport
+                        ? toLocationPlace(selectedAirport, selectedAirport.nameEn)
+                        : pickupPlace),
                   });
                 }}
                 placeholder={t('booking.transferPh')}
@@ -556,17 +644,21 @@ function BookingWizard() {
                 variant="transfer"
                 value={form.dropoffPlace || form.destination}
                 onChange={(destination, dropoffPlace) => {
-                  const isGroundPlace = dropoffPlace?.kind === 'place' || dropoffPlace?.kind === 'neighbourhood';
-                  const selectedAirport = dropoffPlace?.kind === 'airport' || dropoffPlace?.iata
+                  const isCustom = dropoffPlace?.kind === 'custom';
+                  const isGroundPlace = isCustom || dropoffPlace?.kind === 'place' || dropoffPlace?.kind === 'neighbourhood';
+                  const selectedAirport = !isCustom && (dropoffPlace?.kind === 'airport' || dropoffPlace?.iata)
                     ? dropoffPlace
                     : isGroundPlace
                       ? null
                       : findAirport(destination);
                   update({
-                    destination: selectedAirport?.nameEn || destination,
-                    dropoffPlace: selectedAirport
-                      ? toLocationPlace(selectedAirport, selectedAirport.nameEn)
-                      : dropoffPlace,
+                    destination: isCustom ? destination : (selectedAirport?.nameEn || destination),
+                    dropoffLocation: isCustom ? destination : (selectedAirport?.nameEn || destination),
+                    dropoffPlace: isCustom
+                      ? dropoffPlace
+                      : (selectedAirport
+                        ? toLocationPlace(selectedAirport, selectedAirport.nameEn)
+                        : dropoffPlace),
                   });
                 }}
                 placeholder={t('booking.transferPh')}
@@ -830,7 +922,7 @@ function BookingWizard() {
       {error && !/timeout|network error|econnaborted/i.test(error) && (
         <div className="book-error">{error}</div>
       )}
-      {step === 2 && isInquiry && (
+      {step === 2 && isInquiry && !TEMP_WHATSAPP_BOOKING_INSTEAD_OF_MOYASAR && (
         <div className="book-inquiry-actions">
           <button
             type="button"
@@ -851,7 +943,7 @@ function BookingWizard() {
           </button>
         </div>
       )}
-      {step === 2 && !isInquiry && (
+      {step === 2 && (TEMP_WHATSAPP_BOOKING_INSTEAD_OF_MOYASAR || !isInquiry) && (
         <button
           type="button"
           className="lux-btn w-100 mt-4"
@@ -859,7 +951,11 @@ function BookingWizard() {
           disabled={loading || !quote}
           onClick={handleSubmit}
         >
-          {loading ? t('booking.processing') : quote?.customQuoteRequired ? t('booking.requestQuote') : t('booking.payNow')}
+          {loading
+            ? t('booking.processing')
+            : TEMP_WHATSAPP_BOOKING_INSTEAD_OF_MOYASAR
+              ? (quote?.customQuoteRequired || isInquiry ? t('booking.requestQuoteWhatsApp') : t('booking.confirmWhatsApp'))
+              : (quote?.customQuoteRequired ? t('booking.requestQuote') : t('booking.payNow'))}
         </button>
       )}
     </div>
@@ -1038,7 +1134,16 @@ function BookingWizard() {
                         </button>
                       ))}
                     </div>
-                    {isRouteTransfer ? (
+                    {fleetError && (
+                      <p className="book-hint mb-2" role="status" style={{ color: '#f6d26e' }}>
+                        Live fleet availability could not be loaded. Final vehicle availability will be confirmed when submitting your booking.
+                      </p>
+                    )}
+                    {fleetLoading ? (
+                      <div className="py-3" role="status" style={{ color: 'rgba(255,255,255,0.65)', fontSize: '0.92rem' }}>
+                        Loading available vehicles...
+                      </div>
+                    ) : isRouteTransfer ? (
                       <InquiryVehicleGrid
                         vehicles={vehicles}
                         value={form.vehicleCategory}
@@ -1091,7 +1196,7 @@ function BookingWizard() {
                       <input className="form-control book-input" value={form.customer.name} onChange={(e) => update({ customer: { ...form.customer, name: e.target.value } })} placeholder={t('booking.namePh')} autoComplete="name" />
                     </div>
                     <div className="col-12 col-md-6">
-                      <label className="book-label">{isInquiry ? t('booking.emailOptional') : t('booking.email')}</label>
+                      <label className="book-label">{(isInquiry && !TEMP_WHATSAPP_BOOKING_INSTEAD_OF_MOYASAR) ? t('booking.emailOptional') : t('booking.email')}</label>
                       <input type="email" inputMode="email" autoComplete="email" className="form-control book-input" value={form.customer.email} onChange={(e) => update({ customer: { ...form.customer, email: e.target.value } })} placeholder={t('booking.emailPh')} />
                     </div>
                     <div className="col-12">

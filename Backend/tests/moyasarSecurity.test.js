@@ -267,9 +267,9 @@ check('secret key logging was removed', () => {
   assert.ok(!source.includes('MOYASAR KEY DEBUG'));
 });
 
-check('checkout switch is Moyasar for the production source', () => {
+check('checkout switch uses WhatsApp booking assistance instead of Moyasar TEST checkout', () => {
   const source = fs.readFileSync(path.join(__dirname, '../../Front-end/Nextify/src/utils/paymentMode.js'), 'utf8');
-  assert.ok(source.includes('TEMP_WHATSAPP_BOOKING_INSTEAD_OF_MOYASAR = false'));
+  assert.ok(source.includes('TEMP_WHATSAPP_BOOKING_INSTEAD_OF_MOYASAR = true'));
 });
 
 check('env example has an empty secret placeholder and production env is ignored', () => {
@@ -441,11 +441,11 @@ async function httpChecks() {
         vehicleName: 'Ford Taurus',
         quotedPrice: 1,
         totalAmount: 1,
-        airport: 'King Khalid International Airport',
-        origin: 'King Khalid International Airport',
-        destination: 'Olaya',
-        pickupPlace: { id: 'riyadh-airport', iata: 'RUH', nameEn: 'King Khalid International Airport', cityEn: 'Riyadh', kind: 'airport' },
-        dropoffPlace: { id: 'olaya', nameEn: 'Olaya', cityEn: 'Riyadh', pricingCity: 'Riyadh', kind: 'neighbourhood' },
+        airport: 'King Abdulaziz International Airport',
+        origin: 'King Abdulaziz International Airport',
+        destination: 'Makkah',
+        pickupPlace: { id: 'jeddah-airport', iata: 'JED', nameEn: 'King Abdulaziz International Airport', cityEn: 'Jeddah', kind: 'airport' },
+        dropoffPlace: { id: 'mecca', nameEn: 'Makkah', cityEn: 'Makkah', kind: 'place' },
         travelDate: '2026-12-20',
         travelTime: '15:00',
         customer: { name: 'Security Test', email: 'security-pay-test@example.com', mobile: '0555992937' },
@@ -456,7 +456,7 @@ async function httpChecks() {
     const checkoutToken = bookJson?.data?.checkoutToken;
     assert.strictEqual(bookRes.status, 201, bookJson.message || 'booking failed');
     assert.ok(typeof checkoutToken === 'string' && checkoutToken.length >= 43, 'checkoutToken must be issued');
-    assert.strictEqual(booking.pricing.totalAmount, 180);
+    assert.strictEqual(booking.pricing.totalAmount, 600);
     assert.notStrictEqual(booking.pricing.totalAmount, 1);
 
     // OPTIONS preflight for /api/payments/create must allow X-Checkout-Token
@@ -501,7 +501,7 @@ async function httpChecks() {
     const raw = JSON.stringify(payJson);
     assert.ok(payRes.status === 200 || payRes.status === 201, payJson.message || 'payment create failed');
     assert.strictEqual(payJson.data.checkout.provider, 'moyasar');
-    assert.strictEqual(payJson.data.checkout.amountHalalas, 18000);
+    assert.strictEqual(payJson.data.checkout.amountHalalas, 60000);
     assert.ok(String(payJson.data.checkout.publishableKey).startsWith('pk_test_'));
     assert.ok(!raw.includes('sk_test_'));
     assert.ok(!raw.includes('sk_live_'));

@@ -39,6 +39,40 @@ const carSchema = new mongoose.Schema({
   img: {
     type: String,
     required: true
+  },
+  brand: {
+    type: String,
+    trim: true,
+    default: '',
+  },
+  model: {
+    type: String,
+    trim: true,
+    default: '',
+  },
+  category: {
+    type: String,
+    trim: true,
+    default: '',
+  },
+  description: {
+    type: String,
+    trim: true,
+    default: '',
+  },
+  images: {
+    type: [String],
+    default: [],
+  },
+  available: {
+    type: Boolean,
+    default: true,
+    index: true,
+  },
+  displayOrder: {
+    type: Number,
+    default: 0,
+    index: true,
   }
 }, {
   timestamps: true,

@@ -111,6 +111,7 @@ export const GCC_DESTINATIONS = GCC_DESTINATION_OPTIONS
   }));
 
 export const DURATION_OPTIONS = [
+  { value: 'hourly', label: 'Hourly' },
   { value: 'half_day', label: 'Half Day' },
   { value: 'full_day', label: 'Full Day' },
 ];

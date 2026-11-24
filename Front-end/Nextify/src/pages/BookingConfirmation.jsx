@@ -11,6 +11,7 @@ import PaymentMethods from '../components/booking/PaymentMethods';
 import '../components/booking/Booking.css';
 
 import { buildConfirmedBookingWhatsAppMessage, buildWhatsAppConfirmationMessage, COMPANY_PHONE, getWhatsAppUrl } from '../utils/whatsapp';
+import { TEMP_WHATSAPP_BOOKING_INSTEAD_OF_MOYASAR } from '../utils/paymentMode';
 import { clearCheckoutToken } from '../utils/checkoutSession';
 import { useLanguage } from '../i18n/LanguageContext';
 import { translateService } from '../i18n/places';
@@ -100,7 +101,7 @@ function BookingConfirmation() {
 
   const serviceType = booking.serviceType;
 
-  const whatsappMessage = whatsappPending
+  const whatsappMessage = (whatsappPending || customQuote || TEMP_WHATSAPP_BOOKING_INSTEAD_OF_MOYASAR)
     ? buildWhatsAppConfirmationMessage({ booking })
     : buildConfirmedBookingWhatsAppMessage(booking);
 
@@ -134,7 +135,7 @@ function BookingConfirmation() {
       ['FAILED', 'failed'].includes(String(booking.paymentStatus || ''))
     );
   const retryBookingId = booking._id;
-  const canRetryPayment = Boolean(paymentFailed && retryBookingId && !customQuote);
+  const canRetryPayment = Boolean(!TEMP_WHATSAPP_BOOKING_INSTEAD_OF_MOYASAR && paymentFailed && retryBookingId && !customQuote);
 
 
 

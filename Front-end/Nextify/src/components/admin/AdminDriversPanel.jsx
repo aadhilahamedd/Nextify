@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   createDriverAPI,
   deleteDriverAPI,
@@ -47,8 +47,19 @@ export default function AdminDriversPanel() {
   }, []);
 
   useEffect(() => {
-    fetchDrivers();
-  }, [fetchDrivers]);
+    let cancelled = false;
+    getDriversAPI().then((res) => {
+      if (cancelled) return;
+      if (res?.status === 200) {
+        setDrivers(Array.isArray(res.data) ? res.data : res.data?.drivers || []);
+        setError('');
+      } else {
+        setError(res?.error || 'Failed to load drivers');
+      }
+      setLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   const saveDriver = async (e) => {
     e.preventDefault();
