@@ -1,21 +1,22 @@
 /**
  * Run: node Backend/tests/pricing.test.js
- * Requires MongoDB connection via MONGODB_URI or connectionString
+ * Runs offline against approved pricing rules without connecting to MongoDB.
  */
-require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
 const mongoose = require('mongoose');
 const { calculatePrice } = require('../services/pricingService');
-const { seedApprovedPricing } = require('../seed/pricingSeed');
 
 const tests = [
-  { name: 'Airport GMC', payload: { serviceType: 'airport_transfer', airport: 'Riyadh', vehicleCategory: 'gmc' }, expect: 240 },
-  { name: 'Airport Ford Taurus', payload: { serviceType: 'airport_transfer', airport: 'Jeddah', vehicleCategory: 'ford_taurus' }, expect: 180 },
-  { name: 'Airport Lexus', payload: { serviceType: 'airport_transfer', airport: 'Dammam', vehicleCategory: 'lexus_es' }, expect: 180 },
-  { name: 'Airport BMW 5', payload: { serviceType: 'airport_transfer', airport: 'Riyadh', vehicleCategory: 'bmw_5' }, expect: 800 },
-  { name: 'Airport S-Class', payload: { serviceType: 'airport_transfer', airport: 'Riyadh', vehicleCategory: 'mercedes_s' }, expect: 1000 },
-  { name: 'Airport Hiace', payload: { serviceType: 'airport_transfer', airport: 'Riyadh', vehicleCategory: 'toyota_hiace' }, expect: 600 },
-  { name: 'Airport Coaster', payload: { serviceType: 'airport_transfer', airport: 'Riyadh', vehicleCategory: 'toyota_coaster' }, expect: 600 },
-  { name: 'Airport V-Class', payload: { serviceType: 'airport_transfer', airport: 'Riyadh', vehicleCategory: 'mercedes_v_class' }, expect: 1200 },
+  // Unapproved / incomplete airport transfer routes must never use generic fallback pricing
+  { name: 'Airport without destination requires custom quote (GMC)', payload: { serviceType: 'airport_transfer', airport: 'Riyadh', vehicleCategory: 'gmc' }, expectCustom: true, expectStatus: 'rate_on_request' },
+  { name: 'Airport without destination requires custom quote (Sedan)', payload: { serviceType: 'airport_transfer', airport: 'Jeddah', vehicleCategory: 'ford_taurus' }, expectCustom: true, expectStatus: 'rate_on_request' },
+  { name: 'Airport without destination requires custom quote (KKIA)', payload: { serviceType: 'airport_transfer', airport: 'King Khalid International Airport', vehicleCategory: 'gmc' }, expectCustom: true, expectStatus: 'rate_on_request' },
+  { name: 'Unapproved Taif Airport to Riyadh GMC requires custom quote', payload: { serviceType: 'airport_transfer', origin: 'Taif Airport', destination: 'Riyadh', vehicleCategory: 'gmc' }, expectCustom: true, expectStatus: 'rate_on_request' },
+  { name: 'Unapproved Jeddah Airport to Taif Sedan requires custom quote', payload: { serviceType: 'airport_transfer', origin: 'Jeddah Airport', destination: 'Taif', vehicleCategory: 'ford_taurus' }, expectCustom: true, expectStatus: 'rate_on_request' },
+  { name: 'Unapproved Abha Airport to Abha Lexus requires custom quote', payload: { serviceType: 'airport_transfer', origin: 'Abha Airport', destination: 'Abha', vehicleCategory: 'lexus_es' }, expectCustom: true, expectStatus: 'rate_on_request' },
+  { name: 'Unapproved Tabuk Airport to Riyadh GMC requires custom quote', payload: { serviceType: 'airport_transfer', origin: 'Tabuk Airport', destination: 'Riyadh', vehicleCategory: 'gmc' }, expectCustom: true, expectStatus: 'rate_on_request' },
+  { name: 'Custom airport pickup location requires custom quote', payload: { serviceType: 'airport_transfer', origin: 'Al Hada Resort, Taif', destination: 'Makkah', pickupPlace: { kind: 'custom', address: 'Al Hada Resort, Taif', nameEn: 'Al Hada Resort, Taif' }, vehicleCategory: 'gmc' }, expectCustom: true, expectStatus: 'rate_on_request' },
+
+  // Non-airport: City Transfer
   { name: 'Client submitted price is ignored', payload: { serviceType: 'city_transfer', vehicleCategory: 'gmc', distanceKm: 10, price: 1, quotedPrice: 1, totalAmount: 1 }, expect: 240, expectType: 'city_base' },
   { name: 'City GMC uses airport base', payload: { serviceType: 'city_transfer', vehicleCategory: 'gmc', distanceKm: 10 }, expect: 240, expectType: 'city_base' },
   { name: 'City GMC extra km still uses vehicle base', payload: { serviceType: 'city_transfer', vehicleCategory: 'gmc', distanceKm: 46 }, expect: 240, expectType: 'city_base' },
@@ -26,9 +27,8 @@ const tests = [
   { name: 'City BMW 7 ignores leftover GMC name', payload: { serviceType: 'city_transfer', vehicleCategory: 'bmw_7', vehicleName: 'GMC Yukon', distanceKm: 10 }, expect: 1000, expectType: 'city_base' },
   { name: 'City S-Class ignores leftover GMC name', payload: { serviceType: 'city_transfer', vehicleCategory: 'mercedes_s', vehicleName: 'GMC Yukon' }, expect: 1000, expectType: 'city_base' },
   { name: 'City Taurus uses sedan airport base', payload: { serviceType: 'city_transfer', vehicleCategory: 'lexus_es' }, expect: 180, expectType: 'city_base' },
-  { name: 'Airport GMC ignores extra distance', payload: { serviceType: 'airport_transfer', airport: 'Riyadh', vehicleCategory: 'gmc', distanceKm: 46 }, expect: 240 },
-  { name: 'Airport Sedan ignores extra distance', payload: { serviceType: 'airport_transfer', airport: 'Riyadh', vehicleCategory: 'ford_taurus', distanceKm: 60 }, expect: 180 },
-  { name: 'Airport never uses city GMC price', payload: { serviceType: 'airport_transfer', airport: 'Riyadh', vehicleCategory: 'gmc', distanceKm: 10 }, expect: 240 },
+
+  // Non-airport: Chauffeur Service
   { name: 'Chauffeur GMC Half', payload: { serviceType: 'chauffeur', vehicleCategory: 'gmc', durationType: 'half_day' }, expect: 800 },
   { name: 'Chauffeur GMC Full', payload: { serviceType: 'chauffeur', vehicleCategory: 'gmc', durationType: 'full_day' }, expect: 1400 },
   { name: 'Chauffeur Taurus Half', payload: { serviceType: 'chauffeur', vehicleCategory: 'ford_taurus', durationType: 'half_day' }, expect: 700 },
@@ -36,12 +36,15 @@ const tests = [
   { name: 'Chauffeur S-Class Full', payload: { serviceType: 'chauffeur', vehicleCategory: 'mercedes_s', durationType: 'full_day' }, expect: 3000 },
   { name: 'Chauffeur S-Class half unavailable', payload: { serviceType: 'chauffeur', vehicleCategory: 'mercedes_s', durationType: 'half_day' }, expectCustom: true },
   { name: 'Chauffeur V-Class Full', payload: { serviceType: 'chauffeur', vehicleCategory: 'mercedes_v_class', durationType: 'full_day' }, expect: 2500 },
+
+  // Non-airport: Intercity Transfer
   { name: 'Intercity Khobar Taurus', payload: { serviceType: 'intercity_transfer', origin: 'Riyadh', destination: 'Khobar', vehicleCategory: 'ford_taurus' }, expect: 1000 },
   { name: 'Intercity Khobar GMC', payload: { serviceType: 'intercity_transfer', origin: 'Riyadh', destination: 'Khobar', vehicleCategory: 'gmc' }, expect: 1400 },
   { name: 'Intercity Jeddah Lexus', payload: { serviceType: 'intercity_transfer', origin: 'Riyadh', destination: 'Jeddah', vehicleCategory: 'lexus_es' }, expect: 2200 },
   { name: 'Intercity Jeddah to Riyadh uses same rate', payload: { serviceType: 'intercity_transfer', origin: 'Jeddah', destination: 'Riyadh', vehicleCategory: 'lexus_es' }, expect: 2200 },
   { name: 'Intercity Al Khobar to Riyadh GMC uses same rate', payload: { serviceType: 'intercity_transfer', origin: 'Al Khobar', destination: 'Riyadh', vehicleCategory: 'gmc' }, expect: 1400 },
-  { name: 'Airport any Saudi airport uses configured vehicle rate', payload: { serviceType: 'airport_transfer', airport: 'King Khalid International Airport', vehicleCategory: 'gmc' }, expect: 240 },
+
+  // Approved Airport Transfer Fixed Routes (exact published prices)
   { name: 'Fixed Jeddah Airport to Makkah GMC', payload: { serviceType: 'airport_transfer', origin: 'Jeddah Airport', destination: 'Makkah', vehicleCategory: 'gmc', distanceKm: 999, totalAmount: 1 }, expect: 800, expectType: 'airport_fixed_route', expectKm: 90 },
   { name: 'Fixed Jeddah Airport to Makkah Sedan', payload: { serviceType: 'airport_transfer', origin: 'Jeddah Airport', destination: 'Mecca', vehicleCategory: 'ford_taurus' }, expect: 600, expectType: 'airport_fixed_route' },
   { name: 'Fixed Jeddah Airport to Makkah Lexus', payload: { serviceType: 'airport_transfer', origin: 'JED', destination: 'Maka', vehicleCategory: 'lexus_es' }, expect: 600, expectType: 'airport_fixed_route' },
@@ -72,9 +75,6 @@ const tests = [
   { name: 'KKIA to Madinah GMC uses Riyadh to Madinah fixed price', payload: { serviceType: 'airport_transfer', airport: 'King Khalid International Airport', origin: 'King Khalid International Airport', destination: 'Madinah', vehicleCategory: 'gmc', pickupPlace: { kind: 'airport', iata: 'RUH', id: 'riyadh-airport', nameEn: 'King Khalid International Airport', cityEn: 'Riyadh' } }, expect: 2900, expectType: 'airport_fixed_route', expectKm: 850 },
   { name: 'KKIA to Madinah Sedan uses Riyadh to Madinah fixed price', payload: { serviceType: 'airport_transfer', airport: 'King Khalid International Airport', origin: 'King Khalid International Airport', destination: 'Madinah', vehicleCategory: 'ford_taurus' }, expect: 2500, expectType: 'airport_fixed_route', expectKm: 850 },
   { name: 'KKIA to Dammam GMC uses Riyadh to Dammam fixed price', payload: { serviceType: 'airport_transfer', airport: 'King Khalid International Airport', origin: 'King Khalid International Airport', destination: 'Dammam', vehicleCategory: 'gmc', distanceKm: 10 }, expect: 1300, expectType: 'airport_fixed_route', expectKm: 430 },
-  { name: 'KKIA to Riyadh city stays on airport vehicle base', payload: { serviceType: 'airport_transfer', airport: 'King Khalid International Airport', origin: 'King Khalid International Airport', destination: 'Riyadh', vehicleCategory: 'gmc' }, expect: 240, expectType: 'airport_base' },
-  { name: 'Normal airport route above 40 km still uses vehicle base', payload: { serviceType: 'airport_transfer', airport: 'King Khalid International Airport', destination: 'Olaya', vehicleCategory: 'gmc', distanceKm: 46 }, expect: 240, expectType: 'airport_base' },
-  { name: 'Normal airport route below 40 km still uses vehicle base', payload: { serviceType: 'airport_transfer', airport: 'King Khalid International Airport', destination: 'Diplomatic Quarter', vehicleCategory: 'ford_taurus', distanceKm: 12 }, expect: 180, expectType: 'airport_base' },
   { name: 'Al Olaya to Jeddah Airport GMC uses Riyadh to Jeddah', payload: { serviceType: 'airport_transfer', pickupPlace: { kind: 'neighbourhood', id: 'olaya', nameEn: 'Al Olaya', pricingCity: 'Riyadh' }, dropoffPlace: { kind: 'airport', iata: 'JED', id: 'jeddah-airport', nameEn: 'King Abdulaziz International Airport' }, vehicleCategory: 'gmc' }, expect: 3200, expectType: 'airport_fixed_route', expectKm: 980 },
   { name: 'Al Olaya to Jeddah Airport Sedan uses Riyadh to Jeddah', payload: { serviceType: 'airport_transfer', origin: 'Al Olaya', destination: 'Jeddah Airport', vehicleCategory: 'lexus_es' }, expect: 2500, expectType: 'airport_fixed_route' },
   { name: 'Jeddah Airport to Al Olaya reverse GMC', payload: { serviceType: 'airport_transfer', origin: 'Jeddah Airport', destination: 'Al Olaya', vehicleCategory: 'gmc' }, expect: 3200, expectType: 'airport_fixed_route' },
@@ -82,8 +82,15 @@ const tests = [
   { name: 'Makkah to Ash Shati reverse Sedan', payload: { serviceType: 'airport_transfer', origin: 'Makkah', destination: 'Ash Shati', vehicleCategory: 'ford_taurus' }, expect: 600, expectType: 'airport_fixed_route' },
   { name: 'Al Rawdah to Madinah GMC', payload: { serviceType: 'airport_transfer', origin: 'Al Rawdah', destination: 'Madinah', vehicleCategory: 'gmc' }, expect: 1000, expectType: 'airport_fixed_route' },
   { name: 'Riyadh neighbourhood to Jeddah neighbourhood GMC', payload: { serviceType: 'airport_transfer', origin: 'Al Olaya', destination: 'Al Hamra', vehicleCategory: 'gmc' }, expect: 3200, expectType: 'airport_fixed_route' },
-  { name: 'KKIA to Al Malqa stays on Riyadh airport base', payload: { serviceType: 'airport_transfer', airport: 'King Khalid International Airport', destination: 'Al Malqa', vehicleCategory: 'gmc' }, expect: 240, expectType: 'airport_base' },
-  { name: 'Jeddah Airport to Jeddah Corniche stays on Jeddah airport base', payload: { serviceType: 'airport_transfer', origin: 'Jeddah Airport', destination: 'Jeddah Corniche', vehicleCategory: 'ford_taurus' }, expect: 180, expectType: 'airport_base' },
+
+  // Unapproved intra-city airport routes must return price: null and customQuoteRequired: true
+  { name: 'KKIA to Riyadh city requires custom quote', payload: { serviceType: 'airport_transfer', airport: 'King Khalid International Airport', origin: 'King Khalid International Airport', destination: 'Riyadh', vehicleCategory: 'gmc' }, expectCustom: true, expectStatus: 'rate_on_request' },
+  { name: 'KKIA to Olaya requires custom quote', payload: { serviceType: 'airport_transfer', airport: 'King Khalid International Airport', destination: 'Olaya', vehicleCategory: 'gmc', distanceKm: 46 }, expectCustom: true, expectStatus: 'rate_on_request' },
+  { name: 'KKIA to Diplomatic Quarter requires custom quote', payload: { serviceType: 'airport_transfer', airport: 'King Khalid International Airport', destination: 'Diplomatic Quarter', vehicleCategory: 'ford_taurus', distanceKm: 12 }, expectCustom: true, expectStatus: 'rate_on_request' },
+  { name: 'KKIA to Al Malqa requires custom quote', payload: { serviceType: 'airport_transfer', airport: 'King Khalid International Airport', destination: 'Al Malqa', vehicleCategory: 'gmc' }, expectCustom: true, expectStatus: 'rate_on_request' },
+  { name: 'Jeddah Airport to Jeddah Corniche requires custom quote', payload: { serviceType: 'airport_transfer', origin: 'Jeddah Airport', destination: 'Jeddah Corniche', vehicleCategory: 'ford_taurus' }, expectCustom: true, expectStatus: 'rate_on_request' },
+
+  // Non-airport: Intercity unpriced & GCC Transfer
   { name: 'Intercity Dammam GMC rate on request', payload: { serviceType: 'intercity_transfer', origin: 'Riyadh', destination: 'Dammam', vehicleCategory: 'gmc' }, expectCustom: true, expectStatus: 'rate_on_request' },
   { name: 'Intercity BMW 7 Khobar rate on request', payload: { serviceType: 'intercity_transfer', origin: 'Riyadh', destination: 'Khobar', vehicleCategory: 'bmw_7' }, expectCustom: true, expectStatus: 'rate_on_request' },
   { name: 'GCC Dubai GMC', payload: { serviceType: 'gcc_transfer', destination: 'Dubai', vehicleCategory: 'gmc' }, expect: 4800 },
@@ -93,13 +100,9 @@ const tests = [
 ];
 
 async function run() {
-  const uri = process.env.MONGODB_URI || process.env.connectionString;
-  if (!uri) {
-    console.error('Set MONGODB_URI to run pricing tests');
-    process.exit(1);
+  if (mongoose.connection.readyState !== 0) {
+    throw new Error('pricing.test.js must run offline without connecting to MongoDB');
   }
-  await mongoose.connect(uri);
-  await seedApprovedPricing();
 
   let passed = 0;
   let failed = 0;
@@ -110,19 +113,18 @@ async function run() {
     const typeOk = !t.expectType || result.pricingType === t.expectType;
     const kmOk = t.expectKm == null || result.distanceKm === t.expectKm;
     const ok = t.expectCustom
-      ? result.customQuoteRequired === true && result.price == null && statusOk && typeOk
+      ? result.customQuoteRequired === true && result.price === null && result.payable === false && statusOk && typeOk
       : result.price === t.expect && result.totalAmount === t.expect && !result.customQuoteRequired && statusOk && typeOk && kmOk;
     if (ok) {
       passed += 1;
       console.log(`✅ ${t.name}`);
     } else {
       failed += 1;
-      console.log(`❌ ${t.name} — got price=${result.price} total=${result.totalAmount} custom=${result.customQuoteRequired} status=${result.quoteStatus} type=${result.pricingType} km=${result.distanceKm}`);
+      console.log(`❌ ${t.name} — got price=${result.price} total=${result.totalAmount} custom=${result.customQuoteRequired} payable=${result.payable} status=${result.quoteStatus} type=${result.pricingType} km=${result.distanceKm}`);
     }
   }
 
   console.log(`\n${passed} passed, ${failed} failed`);
-  await mongoose.disconnect();
   process.exit(failed ? 1 : 0);
 }
 
