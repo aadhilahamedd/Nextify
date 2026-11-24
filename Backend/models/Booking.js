@@ -58,7 +58,7 @@ const bookingSchema = new mongoose.Schema(
     origin: { type: String, default: '' },
     destinationText: { type: String, default: '' },
     vehicleCategory: { type: String, default: '' },
-    durationType: { type: String, enum: ['', 'half_day', 'full_day'], default: '' },
+    durationType: { type: String, enum: ['', 'hourly', 'half_day', 'full_day'], default: '' },
     distanceKm: { type: Number, default: null },
     quotedPrice: { type: Number, default: null },
     pricingType: { type: String, enum: ['fixed', 'custom_quote', ''], default: 'fixed' },

@@ -66,9 +66,10 @@ router.get('/api/pricing/:id', pricingController.getPricingById);
 router.post('/api/pricing', jwtMiddleware, adminMiddleware, pricingController.createPricingRule);
 router.put('/api/pricing/:id', jwtMiddleware, adminMiddleware, pricingController.updatePricingRule);
 router.delete('/api/pricing/:id', jwtMiddleware, adminMiddleware, pricingController.deletePricingRule);
-router.get('/api/pricing-rules', jwtMiddleware, adminMiddleware, pricingController.getPricingRules);
+router.get('/api/pricing-rules', jwtMiddleware, adminMiddleware, pricingController.getAdminPricingRules);
 router.post('/api/pricing-rules', jwtMiddleware, adminMiddleware, pricingController.createPricingRule);
 router.put('/api/pricing-rules/:id', jwtMiddleware, adminMiddleware, pricingController.updatePricingRule);
+router.delete('/api/pricing-rules/:id', jwtMiddleware, adminMiddleware, pricingController.deletePricingRule);
 
 // ====== Bookings (guest + optional auth) ======
 router.post('/api/bookings', optionalJwtMiddleware, bookingController.createBooking);
@@ -83,9 +84,11 @@ router.delete('/api/bookings/:id', jwtMiddleware, adminMiddleware, bookingContro
 
 // ====== Cars ======
 router.get('/api/cars', carController.getCars);
+router.get('/api/cars/admin', jwtMiddleware, adminMiddleware, carController.getAdminCars);
 router.get('/api/cars/:id', carController.getCarById);
 router.post('/api/cars', jwtMiddleware, adminMiddleware, carController.addCar);
 router.put('/api/cars/:id', jwtMiddleware, adminMiddleware, carController.updateCar);
+router.patch('/api/cars/:id/availability', jwtMiddleware, adminMiddleware, carController.toggleCarAvailability);
 router.delete('/api/cars/:id', jwtMiddleware, adminMiddleware, carController.deleteCar);
 
 // ====== Drivers ======

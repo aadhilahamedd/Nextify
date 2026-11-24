@@ -482,6 +482,7 @@ module.exports = {
   GMC_CATEGORIES,
   SEDAN_CATEGORIES,
   resolveFixedRouteLocation,
+  locationCandidates,
   matchAirportFixedRoute,
   fixedRoutePriceForVehicle,
   quoteAirportFixedRoute,

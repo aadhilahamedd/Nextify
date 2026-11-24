@@ -14,6 +14,7 @@ const NAV_ITEMS = [
   { to: '/admin', label: 'Overview', end: true },
   { to: '/admin/messages', label: 'Messages' },
   { to: '/admin/bookings', label: 'Bookings' },
+  { to: '/admin/fleet', label: 'Fleet' },
   { to: '/admin/pricing', label: 'Pricing' },
   { to: '/admin/drivers', label: 'Drivers' },
   { to: '/admin/payments', label: 'Payments' },

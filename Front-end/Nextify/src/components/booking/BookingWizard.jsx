@@ -21,8 +21,17 @@ import InquiryVehicleGrid from './InquiryVehicleGrid';
 import { useBookingAssistant } from './BookingAssistant';
 import { LocaleDateInput, LocaleTimeInput } from './ArabicDateTime';
 import { getLocalDateValue, isTravelDateTimePast } from './dateTimeUtils';
-import { FLEET_CLASS, findFleetVehicle, getOfficialQuote, getVehiclesForService } from '../../data/fleetVehicles';
-import { calculatePriceAPI, createBookingAPI } from '../../Services/allAPI';
+import {
+  FLEET_CLASS,
+  buildManagedFleetVehicles,
+  filterManagedVehiclesForService,
+  findFleetVehicle,
+  getOfficialQuote,
+  getVehiclesForService,
+  normalizeVehicleCategory,
+} from '../../data/fleetVehicles';
+import { resolveCarImage } from '../../utils/carsStorage';
+import { calculatePriceAPI, createBookingAPI, getCarsAPI } from '../../Services/allAPI';
 import { findAirport, toLocationPlace } from '../../data/saudiAirports';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { translatePlace, translateService } from '../../i18n/places';
@@ -124,6 +133,9 @@ function BookingWizard() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [inquiryReady, setInquiryReady] = useState(false);
+  const [managedVehicles, setManagedVehicles] = useState(null);
+  const [fleetLoading, setFleetLoading] = useState(true);
+  const [fleetError, setFleetError] = useState(false);
   const isRouteTransfer = isRouteTransferService(form.serviceType);
   const wizardRef = useRef(null);
   const pageRef = useRef(null);
@@ -151,11 +163,43 @@ function BookingWizard() {
     [t]
   );
 
-  const vehicles = useMemo(
-    () => getVehiclesForService(form.serviceType, vehicleFilter, form.durationType),
-    [form.serviceType, vehicleFilter, form.durationType]
-  );
-  const selectedVehicle = findFleetVehicle({ category: form.vehicleCategory, name: form.vehicleName });
+  useEffect(() => {
+    let cancelled = false;
+    getCarsAPI()
+      .then((res) => {
+        if (cancelled) return;
+        if (res?.status === 200 && Array.isArray(res.data)) {
+          const built = buildManagedFleetVehicles(res.data, resolveCarImage);
+          setManagedVehicles(built || []);
+          setFleetError(false);
+        } else {
+          setFleetError(true);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setFleetError(true);
+      })
+      .finally(() => {
+        if (!cancelled) setFleetLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  const vehicles = useMemo(() => {
+    if (fleetLoading) return [];
+    return filterManagedVehiclesForService(managedVehicles, form.serviceType, vehicleFilter, form.durationType);
+  }, [fleetLoading, managedVehicles, form.serviceType, vehicleFilter, form.durationType]);
+  const selectedVehicle = useMemo(() => {
+    const normalizedCat = normalizeVehicleCategory(form.vehicleCategory);
+    if (Array.isArray(managedVehicles)) {
+      const fromManaged = managedVehicles.find(
+        (v) => (normalizedCat && v.category === normalizedCat)
+          || (form.vehicleName && v.label.toLowerCase() === String(form.vehicleName).toLowerCase())
+      );
+      if (fromManaged) return fromManaged;
+    }
+    return findFleetVehicle({ category: form.vehicleCategory, name: form.vehicleName });
+  }, [managedVehicles, form.vehicleCategory, form.vehicleName]);
   const today = getLocalDateValue();
   const minTravelTime = form.travelDate === today
     ? `${String(new Date().getHours()).padStart(2, '0')}:${String(new Date().getMinutes()).padStart(2, '0')}`
@@ -174,8 +218,9 @@ function BookingWizard() {
     setForm((f) => {
       const next = { ...f, ...patch };
       if (next.vehicleCategory && (patch.serviceType !== undefined || patch.durationType !== undefined)) {
-        const allowed = getVehiclesForService(next.serviceType, 'All', next.durationType);
-        if (!allowed.some((v) => v.category === next.vehicleCategory)) {
+        const allowed = filterManagedVehiclesForService(managedVehicles, next.serviceType, 'All', next.durationType);
+        const normalizedSelected = normalizeVehicleCategory(next.vehicleCategory);
+        if (!allowed.some((v) => v.category === normalizedSelected)) {
           next.vehicleCategory = '';
           next.vehicleName = '';
         }
@@ -204,6 +249,7 @@ function BookingWizard() {
     return {
       serviceType: form.serviceType,
       vehicleCategory: form.vehicleCategory,
+      vehicleCarId: selectedVehicle?.carId ?? undefined,
       vehicleName: selectedVehicle?.label || form.vehicleName,
       airport: isCustomPickup ? '' : (airportPlace?.nameEn || form.airport),
       origin,
@@ -224,7 +270,8 @@ function BookingWizard() {
 
   const quoteKey = JSON.stringify([
     form.serviceType,
-    form.vehicleCategory,
+    normalizeVehicleCategory(form.vehicleCategory),
+    selectedVehicle?.carId ?? '',
     form.durationType,
     form.intercityRoute,
     form.gccDestination,
@@ -232,11 +279,18 @@ function BookingWizard() {
     form.airport,
     form.origin,
     form.destination,
+    form.pickupLocation,
+    form.dropoffLocation,
+    form.otherOrigin,
     form.otherDestination,
     form.pickupPlace?.kind || '',
     form.pickupPlace?.id || '',
+    form.pickupPlace?.address || '',
+    form.pickupPlace?.nameEn || '',
     form.dropoffPlace?.kind || '',
     form.dropoffPlace?.id || '',
+    form.dropoffPlace?.address || '',
+    form.dropoffPlace?.nameEn || '',
     Boolean(form.returnTrip),
   ]);
   const quote = serverQuoteState.key === quoteKey && serverQuoteState.quote
@@ -245,7 +299,10 @@ function BookingWizard() {
   const isInquiry = quoteRequiresInquiry(quote, form);
 
   useEffect(() => {
-    if (step < 1 || !localQuote) {
+    if (step < 1 || !form.vehicleCategory) {
+      return undefined;
+    }
+    if (form.serviceType === 'chauffeur' && !form.durationType) {
       return undefined;
     }
 
@@ -255,17 +312,9 @@ function BookingWizard() {
         if (cancelled) return;
         const nextQuote = res?.data?.quote || (res?.data?.price != null ? res.data : null);
         if (res?.status === 200 && nextQuote) {
-          const quotedVehicle = String(nextQuote.vehicleCategory || '').trim();
-          if (quotedVehicle && form.vehicleCategory && quotedVehicle !== form.vehicleCategory) {
-            return;
-          }
-          const localCityPrice = selectedVehicle?.city ?? selectedVehicle?.airport;
-          if (
-            form.serviceType === 'city_transfer'
-            && localCityPrice != null
-            && nextQuote.price != null
-            && nextQuote.price !== localCityPrice
-          ) {
+          const quotedVehicle = normalizeVehicleCategory(nextQuote.vehicleCategory);
+          const selectedCategory = normalizeVehicleCategory(form.vehicleCategory);
+          if (quotedVehicle && selectedCategory && quotedVehicle !== selectedCategory) {
             return;
           }
           setServerQuoteState({ key: quoteKey, quote: nextQuote });
@@ -281,7 +330,9 @@ function BookingWizard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     step,
-    localQuote,
+    form.serviceType,
+    form.vehicleCategory,
+    form.durationType,
     quoteKey,
   ]);
 
@@ -422,6 +473,12 @@ function BookingWizard() {
       const payload = {
         ...pricingPayload,
         vehicleName: selectedVehicle?.label || form.vehicleName,
+        vehicle: {
+          carId: selectedVehicle?.carId ?? null,
+          name: selectedVehicle?.label || form.vehicleName,
+          type: selectedVehicle?.fleetClass || form.vehicleCategory || '',
+          label: selectedVehicle?.label || form.vehicleName,
+        },
         travelDate: form.travelDate,
         travelTime: form.travelTime,
         schedule: { pickupDateTime: `${form.travelDate}T${form.travelTime}` },
@@ -1077,7 +1134,16 @@ function BookingWizard() {
                         </button>
                       ))}
                     </div>
-                    {isRouteTransfer ? (
+                    {fleetError && (
+                      <p className="book-hint mb-2" role="status" style={{ color: '#f6d26e' }}>
+                        Live fleet availability could not be loaded. Final vehicle availability will be confirmed when submitting your booking.
+                      </p>
+                    )}
+                    {fleetLoading ? (
+                      <div className="py-3" role="status" style={{ color: 'rgba(255,255,255,0.65)', fontSize: '0.92rem' }}>
+                        Loading available vehicles...
+                      </div>
+                    ) : isRouteTransfer ? (
                       <InquiryVehicleGrid
                         vehicles={vehicles}
                         value={form.vehicleCategory}

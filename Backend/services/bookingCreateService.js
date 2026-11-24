@@ -1,4 +1,6 @@
+const mongoose = require('mongoose');
 const Booking = require('../models/Booking');
+const Car = require('../models/Car');
 const { generateBookingNumber } = require('../utils/bookingNumber');
 const { generateCheckoutToken } = require('../utils/checkoutToken');
 const { calculatePrice, normalizeServiceType } = require('./pricingService');
@@ -83,6 +85,8 @@ async function createBookingFromPayload(body, { userId } = {}) {
   const quote = await calculatePrice({
     serviceType,
     vehicleCategory: body.vehicleCategory,
+    vehicleId: body.vehicleId || body.vehicleCategory,
+    vehicleCarId: body.vehicleCarId ?? body.vehicle?.carId ?? null,
     vehicleName: body.vehicleName || body.vehicle?.label || body.vehicle?.name,
     airport: airportMatch?.nameEn || body.airport,
     origin: airportMatch?.nameEn || origin || pickupPlace?.nameEn || pickupPlace?.address || body.airport,
@@ -102,6 +106,28 @@ async function createBookingFromPayload(body, { userId } = {}) {
     && !quote.customQuoteRequired
   ) {
     throw httpError(400, 'Please select a pickup and drop-off location');
+  }
+
+  const requestedCarId = body.vehicle?.carId ?? body.vehicleCarId ?? null;
+  if (requestedCarId !== '' && requestedCarId != null && mongoose.connection.readyState === 1) {
+    const rawCarId = String(requestedCarId).trim();
+    const numericCarId = Number(rawCarId);
+    let carQuery = null;
+    if (Number.isInteger(numericCarId) && numericCarId > 0 && String(numericCarId) === rawCarId) {
+      carQuery = { id: numericCarId };
+    } else if (/^[a-fA-F0-9]{24}$/.test(rawCarId)) {
+      carQuery = { _id: rawCarId };
+    } else {
+      throw httpError(400, 'Selected vehicle is invalid.');
+    }
+
+    const fleetCar = await Car.findOne(carQuery).select('id available name category').lean();
+    if (!fleetCar) {
+      throw httpError(400, 'Selected vehicle does not exist.');
+    }
+    if (fleetCar.available === false) {
+      throw httpError(400, 'Selected vehicle is currently unavailable.');
+    }
   }
 
   if (body.vehicle?.carId && !quote.customQuoteRequired) {

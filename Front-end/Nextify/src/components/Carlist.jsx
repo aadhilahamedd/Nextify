@@ -1,282 +1,59 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import Container from 'react-bootstrap/Container'
-import { useNavigate } from 'react-router-dom'
-import { ensureAuthToken, isAuthExpiredMessage } from '../utils/authSession'
-import { applyLocalCarImages, getCarImageUrl, initialCars, sortCarsForShowcase } from '../utils/carsStorage'
-import { FLEET_CLASS, getFleetClass } from '../data/fleetVehicles'
-import { getCarsAPI, addCarAPI, updateCarAPI, deleteCarAPI, getPricingRulesAPI } from '../Services/allAPI'
-import VehiclePricingDisplay from './pricing/VehiclePricingDisplay'
-import { formatCarDayPriceForLang } from '../i18n/format'
-import { sarToUsd, parsePriceNumber } from '../utils/currency'
-import { useLanguage } from '../i18n/LanguageContext'
-import { BriefcaseIcon, CloseIcon, PencilIcon, PlusIcon, TrashIcon, UsersIcon } from './icons'
+import { useEffect, useState } from 'react';
+import Container from 'react-bootstrap/Container';
+import { useNavigate } from 'react-router-dom';
+import { applyLocalCarImages, getCarImageUrl, initialCars, sortCarsForShowcase } from '../utils/carsStorage';
+import { FLEET_CLASS, getFleetClass } from '../data/fleetVehicles';
+import { getCarsAPI, getPricingRulesAPI } from '../Services/allAPI';
+import VehiclePricingDisplay from './pricing/VehiclePricingDisplay';
+import { formatCarDayPriceForLang } from '../i18n/format';
+import { useLanguage } from '../i18n/LanguageContext';
+import { BriefcaseIcon, UsersIcon } from './icons';
 
 const getCarListId = (car) => {
-  if (car?._id) return String(car._id)
-  const numeric = Number(car?.id)
-  if (Number.isInteger(numeric) && numeric > 0 && String(car.id).length < 16) return numeric
-  return car?.id
-}
-
-const stopCardClick = (event) => {
-  event.preventDefault()
-  event.stopPropagation()
-}
-
-const getApiMessage = (res, fallback) =>
-  res?.error || res?.data?.message || res?.message || fallback
+  if (car?._id) return String(car._id);
+  const numeric = Number(car?.id);
+  if (Number.isInteger(numeric) && numeric > 0 && String(car.id).length < 16) return numeric;
+  return car?.id;
+};
 
 function Carlist() {
   const { t, lang } = useLanguage();
   const navigate = useNavigate();
-  const [cars, setCars] = useState(initialCars)
-  const [showModal, setShowModal] = useState(false)
-  const [editingCar, setEditingCar] = useState(null)
-  const [editData, setEditData] = useState({ name: '', price: '', priceUsd: '', type: '', seats: '', luggage: '', img: '' })
-  const [preview, setPreview] = useState(null)
-  const [activeFilter, setActiveFilter] = useState('All')
-  const [pricingRules, setPricingRules] = useState([])
-  const [actionError, setActionError] = useState('')
-  const [actionSuccess, setActionSuccess] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [pendingDelete, setPendingDelete] = useState(null)
-  const [deleting, setDeleting] = useState(false)
-  const retriedExpiredDelete = useRef(false)
-
-  const user = useMemo(() => {
-    try {
-      return JSON.parse(localStorage.getItem('user') || 'null')
-    } catch {
-      return null
-    }
-  }, [])
-  const isAdmin = user?.role === 'admin'
+  const [cars, setCars] = useState(initialCars);
+  const [activeFilter, setActiveFilter] = useState('All');
+  const [pricingRules, setPricingRules] = useState([]);
 
   const handleCardClick = (car) => {
-    navigate('/cardetails', { state: { car } })
-  }
-
-  const openEditModal = (car) => {
-    setEditingCar(car)
-    setEditData({
-      name: car.name,
-      price: car.price || '',
-      priceUsd: car.priceUsd || '',
-      type: car.type,
-      seats: car.seats,
-      luggage: car.luggage,
-      img: car.img
-    })
-    setPreview(getCarImageUrl(car.img))
-    setShowModal(true)
-  }
-
-  const closeModal = () => {
-    setShowModal(false)
-    setEditingCar(null)
-    setPreview(null)
-  }
-
-  const openAddModal = () => {
-    setEditingCar(null)
-    setEditData({ name: '', price: '', priceUsd: '', type: '', seats: '', luggage: '', img: '' })
-    setPreview(null)
-    setShowModal(true)
-  }
-
-  const handleEditChange = (field, value) => {
-    setEditData((prev) => {
-      const next = { ...prev, [field]: value }
-      if (field === 'price') {
-        const sar = parsePriceNumber(value)
-        if (sar != null && !prev.priceUsd) next.priceUsd = String(sarToUsd(sar))
-      }
-      return next
-    })
-  }
-
-  const handleImageSelect = (event) => {
-    const file = event.target.files?.[0]
-    if (!file) return
-    const applyImage = (dataUrl) => {
-      setPreview(dataUrl)
-      setEditData((prev) => ({ ...prev, img: dataUrl }))
-    }
-    const reader = new FileReader()
-    reader.onload = () => {
-      const source = String(reader.result || '')
-      const image = new Image()
-      image.onload = () => {
-        const maxWidth = 1600
-        const scale = Math.min(1, maxWidth / Math.max(image.width, 1))
-        const canvas = document.createElement('canvas')
-        canvas.width = Math.max(1, Math.round(image.width * scale))
-        canvas.height = Math.max(1, Math.round(image.height * scale))
-        const ctx = canvas.getContext('2d')
-        if (!ctx) {
-          applyImage(source)
-          return
-        }
-        ctx.drawImage(image, 0, 0, canvas.width, canvas.height)
-        applyImage(canvas.toDataURL('image/jpeg', 0.82))
-      }
-      image.onerror = () => applyImage(source)
-      image.src = source
-    }
-    reader.readAsDataURL(file)
-    event.target.value = ''
-  }
-
-  const fetchCars = useCallback(async () => {
-    const response = await getCarsAPI()
-    if (response && Array.isArray(response.data)) {
-      setCars(applyLocalCarImages(response.data, { collapseGmc: !isAdmin }))
-    }
-  }, [isAdmin])
+    navigate('/cardetails', { state: { car } });
+  };
 
   useEffect(() => {
-    let cancelled = false
+    let cancelled = false;
     getCarsAPI().then((response) => {
       if (!cancelled && response && Array.isArray(response.data)) {
-        setCars(applyLocalCarImages(response.data, { collapseGmc: !isAdmin }))
+        const visible = response.data.filter((car) => car?.available !== false);
+        setCars(applyLocalCarImages(visible, { collapseGmc: true }));
       }
-    })
+    });
     getPricingRulesAPI().then((res) => {
-      if (!cancelled && res?.status === 200) setPricingRules(res.data?.rules || [])
-    })
-    return () => { cancelled = true }
-  }, [isAdmin])
-
-  const saveAdd = async () => {
-    const trimmedName = editData.name.trim()
-    if (!trimmedName) {
-      setActionError('Enter a car name.')
-      return
-    }
-    if (!editData.img) {
-      setActionError('Choose a cover image before adding a car.')
-      return
-    }
-
-    const sar = editData.price.trim()
-    const usd = editData.priceUsd.trim() || (parsePriceNumber(sar) != null ? String(sarToUsd(parsePriceNumber(sar))) : '')
-    const newCar = {
-      name: trimmedName,
-      price: sar || '0',
-      priceUsd: usd,
-      type: editData.type || 'Unknown',
-      seats: editData.seats || 'N/A',
-      luggage: editData.luggage || 'N/A',
-      img: editData.img
-    }
-
-    setSaving(true)
-    const response = await addCarAPI(newCar)
-    setSaving(false)
-    if (response.status === 201 || response.status === 200) {
-      setActionError('')
-      setActionSuccess('Car added to the fleet.')
-      await fetchCars()
-      closeModal()
-    } else {
-      setActionError(getApiMessage(response, 'Failed to add car. Sign in as admin and try again.'))
-    }
-  }
-
-  useEffect(() => {
-    if (showModal) {
-      document.body.style.overflow = 'hidden'
-    } else {
-      document.body.style.overflow = 'auto'
-    }
-
-    return () => {
-      document.body.style.overflow = 'auto'
-    }
-  }, [showModal]);
-
-  const saveEdit = async () => {
-    if (!editingCar) return
-    const carId = getCarListId(editingCar)
-    if (!carId) {
-      setActionError('This car has no valid ID, so it cannot be updated.')
-      return
-    }
-    setSaving(true)
-    const response = await updateCarAPI(carId, editData)
-    setSaving(false)
-    if (response.status === 200) {
-      const savedCar = response.data?.car
-      if (savedCar) {
-        setCars((prev) => prev.map((item) => (
-          getCarListId(item) === carId ? { ...item, ...savedCar } : item
-        )))
-      } else {
-        setCars((prev) => prev.map((item) => (
-          getCarListId(item) === carId ? { ...item, ...editData } : item
-        )))
-      }
-      setActionError('')
-      setActionSuccess('Car updated.')
-      await fetchCars()
-      closeModal()
-    } else {
-      setActionError(getApiMessage(response, 'Failed to update car. Sign in as admin and try again.'))
-    }
-  }
-
-  const requestDeleteCar = (event, car) => {
-    stopCardClick(event)
-    retriedExpiredDelete.current = false
-    setActionError('')
-    setActionSuccess('')
-    setPendingDelete(car)
-  }
-
-  const deleteCar = useCallback(async (car) => {
-    const carId = getCarListId(car)
-    if (!carId) {
-      setPendingDelete(null)
-      setActionError('This car has no valid ID, so it cannot be deleted.')
-      return
-    }
-    setDeleting(true)
-    await ensureAuthToken()
-    const response = await deleteCarAPI(carId)
-    setDeleting(false)
-    if (response.status === 200) {
-      setPendingDelete(null)
-      setActionError('')
-      setActionSuccess(`${car.name} was removed from the fleet.`)
-      setCars((prev) => prev.filter((item) => getCarListId(item) !== carId))
-      await fetchCars()
-    } else {
-      setActionError(getApiMessage(response, 'Failed to delete car. Sign in as admin and try again.'))
-    }
-  }, [fetchCars])
-
-  useEffect(() => {
-    if (!pendingDelete || deleting || !isAuthExpiredMessage(actionError) || retriedExpiredDelete.current) return undefined
-    retriedExpiredDelete.current = true
-    const timer = window.setTimeout(() => {
-      deleteCar(pendingDelete)
-    }, 0)
-    return () => window.clearTimeout(timer)
-  }, [pendingDelete, actionError, deleting, deleteCar])
+      if (!cancelled && res?.status === 200) setPricingRules(res.data?.rules || []);
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   const getCarCategory = (car) => {
-    const fleetClass = getFleetClass(car)
-    if (fleetClass) return fleetClass
-    const type = String(car.type || '').toLowerCase()
-    const name = String(car.name || '').toLowerCase()
+    const fleetClass = getFleetClass(car);
+    if (fleetClass) return fleetClass;
+    const type = String(car.type || '').toLowerCase();
+    const name = String(car.name || '').toLowerCase();
 
-    if (type.includes('suv') || name.includes('gmc') || name.includes('yukon') || name.includes('tahoe') || name.includes('suburban')) return FLEET_CLASS.SUV
-    if (type.includes('coach') || type.includes('bus') || type.includes('mini bus') || name.includes('coaster')) return FLEET_CLASS.COACHES
-    if (type.includes('van') || type.includes('minivan') || type.includes('passenger van') || name.includes('hiace') || name.includes('sprinter') || name.includes('v-class')) return FLEET_CLASS.VAN
-    if (name.includes('s-class') || name.includes('7 series')) return FLEET_CLASS.FIRST
-    if (name.includes('e-class') || name.includes('5 series')) return FLEET_CLASS.BUSINESS
-    return FLEET_CLASS.SEDAN
-  }
+    if (type.includes('suv') || name.includes('gmc') || name.includes('yukon') || name.includes('tahoe') || name.includes('suburban')) return FLEET_CLASS.SUV;
+    if (type.includes('coach') || type.includes('bus') || type.includes('mini bus') || name.includes('coaster')) return FLEET_CLASS.COACHES;
+    if (type.includes('van') || type.includes('minivan') || type.includes('passenger van') || name.includes('hiace') || name.includes('sprinter') || name.includes('v-class')) return FLEET_CLASS.VAN;
+    if (name.includes('s-class') || name.includes('7 series')) return FLEET_CLASS.FIRST;
+    if (name.includes('e-class') || name.includes('5 series')) return FLEET_CLASS.BUSINESS;
+    return FLEET_CLASS.SEDAN;
+  };
 
   const filterOptions = [
     { id: 'All', label: t('fleet.all') },
@@ -286,12 +63,12 @@ function Carlist() {
     { id: FLEET_CLASS.SEDAN, label: t('fleet.sedan') },
     { id: FLEET_CLASS.VAN, label: t('fleet.van') },
     { id: FLEET_CLASS.COACHES, label: t('fleet.coaches') },
-  ]
+  ];
 
-  const filteredCars = sortCarsForShowcase(cars).filter((car) => {
-    if (activeFilter === 'All') return true
-    return getCarCategory(car) === activeFilter
-  })
+  const filteredCars = sortCarsForShowcase(cars.filter((car) => car?.available !== false)).filter((car) => {
+    if (activeFilter === 'All') return true;
+    return getCarCategory(car) === activeFilter;
+  });
 
   return (
     <div style={{ backgroundColor: '#0a0a0a', minHeight: '100vh', color: 'white', paddingTop: '140px', paddingBottom: '80px' }}>
@@ -304,70 +81,51 @@ function Carlist() {
             {t('fleet.title')}
           </h2>
           <div style={{ width: '60px', height: '2px', backgroundColor: '#fff', margin: '0 auto' }}></div>
-            {isAdmin ? (
-              <div style={{ marginTop: '20px', color: '#f6d26e', fontSize: '1rem' }}>
-                Hii, {user.username}. You can add, edit or delete cards directly from the fleet.
-              </div>
-            ) : null}
-            {isAdmin && (
-              <button
-                type="button"
-                onClick={openAddModal}
-                className="btn btn-outline-light rounded-pill mt-4"
-                style={{ borderColor: 'rgba(246, 210, 110, 0.8)', color: '#f6d26e', padding: '12px 28px' }}
-              >
-                <PlusIcon size={16} className="me-2" />
-                Add New Car
-              </button>
-            )}
-          </div>
+        </div>
 
-          {actionError && <div className="alert alert-danger py-2">{actionError}</div>}
-          {actionSuccess && <div className="alert alert-success py-2">{actionSuccess}</div>}
+        <div className="d-flex flex-wrap justify-content-center gap-2 gap-md-3 mb-4">
+          {filterOptions.map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              onClick={() => setActiveFilter(option.id)}
+              className="btn btn-sm text-uppercase fw-semibold"
+              style={{
+                borderRadius: '999px',
+                padding: '10px 16px',
+                letterSpacing: '1px',
+                border: activeFilter === option.id ? '1px solid rgba(238, 176, 18, 0.9)' : '1px solid rgba(255,255,255,0.16)',
+                background: activeFilter === option.id ? 'rgba(238, 176, 18, 0.18)' : 'rgba(255,255,255,0.04)',
+                color: activeFilter === option.id ? '#f6d26e' : 'rgba(255,255,255,0.85)',
+              }}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
 
-          <div className="d-flex flex-wrap justify-content-center gap-2 gap-md-3 mb-4">
-            {filterOptions.map((option) => (
-              <button
-                key={option.id}
-                type="button"
-                onClick={() => setActiveFilter(option.id)}
-                className="btn btn-sm text-uppercase fw-semibold"
+        <div className="row g-4">
+          {filteredCars.map((car) => (
+            <div key={getCarListId(car) || car.name} className="col-lg-4 col-md-6 mb-4">
+              <div
+                className="h-100 d-flex flex-column fleet-card"
                 style={{
-                  borderRadius: '999px',
-                  padding: '10px 16px',
-                  letterSpacing: '1px',
-                  border: activeFilter === option.id ? '1px solid rgba(238, 176, 18, 0.9)' : '1px solid rgba(255,255,255,0.16)',
-                  background: activeFilter === option.id ? 'rgba(238, 176, 18, 0.18)' : 'rgba(255,255,255,0.04)',
-                  color: activeFilter === option.id ? '#f6d26e' : 'rgba(255,255,255,0.85)',
+                  backgroundColor: '#141414',
+                  border: '1px solid rgba(255,255,255,0.05)',
+                  transition: 'transform 0.3s ease, border-color 0.3s ease',
+                  cursor: 'pointer',
+                }}
+                onClick={() => handleCardClick(car)}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-10px)';
+                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)';
                 }}
               >
-                {option.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="row g-4">
-            {filteredCars.map((car) => (
-              <div key={getCarListId(car) || car.name} className="col-lg-4 col-md-6 mb-4">
-                <div
-                  className="h-100 d-flex flex-column fleet-card"
-                  style={{
-                    backgroundColor: '#141414',
-                    border: '1px solid rgba(255,255,255,0.05)',
-                    transition: 'transform 0.3s ease, border-color 0.3s ease',
-                    cursor: 'pointer'
-                  }}
-                  onClick={() => handleCardClick(car)}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-10px)';
-                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)';
-                  }}
-                >
-                  <div className="fleet-card-image">
+                <div className="fleet-card-image">
                   {car.img && (
                     <img
                       key={String(car.img).slice(0, 80)}
@@ -375,259 +133,63 @@ function Carlist() {
                       alt={car.name}
                     />
                   )}
-                  {isAdmin && (
-                    <div className="fleet-card-admin-actions" onClick={stopCardClick} onMouseDown={stopCardClick}>
-                      <button
-                        type="button"
-                        onClick={(e) => { stopCardClick(e); openEditModal(car) }}
-                        style={actionIconStyle}
-                        title="Edit car"
-                      >
-                        <PencilIcon size={16} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(e) => requestDeleteCar(e, car)}
-                        style={deleteIconStyle}
-                        title="Delete car"
-                      >
-                        <TrashIcon size={16} />
-                      </button>
-                    </div>
-                  )}
                 </div>
                 <div className="p-4 d-flex flex-column flex-grow-1">
-                <p className="mb-1 text-uppercase" style={{ fontSize: '0.7rem', color: '#a0a0a0', letterSpacing: '1px' }}>{car.type}</p>
-                <h3 className="h4 mb-3" style={{ fontFamily: 'Georgia, serif' }}>{car.name}</h3>
+                  <p className="mb-1 text-uppercase" style={{ fontSize: '0.7rem', color: '#a0a0a0', letterSpacing: '1px' }}>{car.type}</p>
+                  <h3 className="h4 mb-3" style={{ fontFamily: 'Georgia, serif' }}>{car.name}</h3>
 
-                <div className="mb-3">
-                  <span
-                    className="badge bg-dark border border-secondary text-light fw-normal py-2 px-3 rounded-pill"
-                    style={{ fontSize: '0.72rem' }}
-                  >
-                    {getCarCategory(car)}
-                  </span>
-                </div>
+                  <div className="mb-3">
+                    <span
+                      className="badge bg-dark border border-secondary text-light fw-normal py-2 px-3 rounded-pill"
+                      style={{ fontSize: '0.72rem' }}
+                    >
+                      {getCarCategory(car)}
+                    </span>
+                  </div>
 
-                <div className="d-flex flex-wrap gap-2 mb-4 mt-auto">
-                  <span className="badge bg-dark border border-secondary text-light fw-normal py-2 px-3 rounded-pill" style={{ fontSize: '0.75rem' }}>
-                    <UsersIcon size={14} className="me-2" />
-                    {car.seats}
-                  </span>
-                  <span className="badge bg-dark border border-secondary text-light fw-normal py-2 px-3 rounded-pill" style={{ fontSize: '0.75rem' }}>
-                    <BriefcaseIcon size={14} className="me-2" />
-                    {car.luggage}
-                  </span>
-                </div>
+                  {car.description ? (
+                    <p className="small mb-3" style={{ color: 'rgba(255,255,255,0.62)', lineHeight: 1.55 }}>
+                      {car.description}
+                    </p>
+                  ) : null}
 
-                {formatCarDayPriceForLang(car, lang) && (
-                  <p className="mb-2 fw-semibold" style={{ color: '#f4f4f4', fontSize: '0.95rem' }}>
-                    {formatCarDayPriceForLang(car, lang)}
-                    <span className="ms-1" style={{ color: '#888', fontWeight: 400, fontSize: '0.75rem' }}>{t('fleet.perDay')}</span>
-                  </p>
-                )}
-                <VehiclePricingDisplay rules={pricingRules} car={car} />
+                  <div className="d-flex flex-wrap gap-2 mb-4 mt-auto">
+                    <span className="badge bg-dark border border-secondary text-light fw-normal py-2 px-3 rounded-pill" style={{ fontSize: '0.75rem' }}>
+                      <UsersIcon size={14} className="me-2" />
+                      {car.seats}
+                    </span>
+                    <span className="badge bg-dark border border-secondary text-light fw-normal py-2 px-3 rounded-pill" style={{ fontSize: '0.75rem' }}>
+                      <BriefcaseIcon size={14} className="me-2" />
+                      {car.luggage}
+                    </span>
+                  </div>
 
-                <div className="d-flex justify-content-between align-items-center pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-                  <span className="fw-bold fs-6" style={{ color: '#888' }}>{t('fleet.chauffeur')}</span>
-                  <button 
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); handleCardClick(car); }} 
-                    className="lux-btn lux-btn-sm"
-                  >
-                    {t('fleet.book')}
-                  </button>
-                </div>
+                  {formatCarDayPriceForLang(car, lang) && (
+                    <p className="mb-2 fw-semibold" style={{ color: '#f4f4f4', fontSize: '0.95rem' }}>
+                      {formatCarDayPriceForLang(car, lang)}
+                      <span className="ms-1" style={{ color: '#888', fontWeight: 400, fontSize: '0.75rem' }}>{t('fleet.perDay')}</span>
+                    </p>
+                  )}
+                  <VehiclePricingDisplay rules={pricingRules} car={car} />
+
+                  <div className="d-flex justify-content-between align-items-center pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                    <span className="fw-bold fs-6" style={{ color: '#888' }}>{t('fleet.chauffeur')}</span>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); handleCardClick(car); }}
+                      className="lux-btn lux-btn-sm"
+                    >
+                      {t('fleet.book')}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
           ))}
         </div>
       </Container>
-
-      {pendingDelete && (
-        <div style={modalOverlayStyle} onClick={() => !deleting && setPendingDelete(null)}>
-          <div style={modalStyle} onClick={stopCardClick}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
-              <div>
-                <h4 style={{ margin: 0 }}>Delete car</h4>
-                <p style={{ margin: '6px 0 0', color: '#c4c4c4', fontSize: '0.9rem' }}>
-                  Remove {pendingDelete.name} from the fleet? This cannot be undone.
-                </p>
-              </div>
-              <button type="button" onClick={() => setPendingDelete(null)} style={closeButtonStyle} title="Close modal" disabled={deleting}>
-                <CloseIcon size={18} />
-              </button>
-            </div>
-            {actionError && <div className="alert alert-danger py-2">{actionError}</div>}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '6px' }}>
-              <button type="button" onClick={() => setPendingDelete(null)} style={secondaryModalButtonStyle} disabled={deleting}>
-                Cancel
-              </button>
-              {isAuthExpiredMessage(actionError) ? (
-                <button
-                  type="button"
-                  onClick={() => navigate('/login?next=/carlist')}
-                  style={primaryModalButtonStyle}
-                >
-                  Log in again
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => deleteCar(pendingDelete)}
-                  style={{ ...primaryModalButtonStyle, background: 'linear-gradient(135deg, #3a1212, #b33b3b)', color: '#fff' }}
-                  disabled={deleting}
-                >
-                  {deleting ? 'Deleting...' : 'Delete car'}
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showModal && (
-        <div style={modalOverlayStyle} onClick={closeModal}>
-          <div style={modalStyle} onClick={(e) => e.stopPropagation()}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
-              <div>
-                <h4 style={{ margin: 0 }}>{editingCar ? 'Edit Car' : 'Add New Car'}</h4>
-                <p style={{ margin: '6px 0 0', color: '#c4c4c4', fontSize: '0.9rem' }}>
-                  {editingCar ? 'Update image, name, price and details.' : 'Provide all details to add a new car to the fleet.'}
-                </p>
-              </div>
-              <button onClick={closeModal} style={closeButtonStyle} title="Close modal">
-                <CloseIcon size={18} />
-              </button>
-            </div>
-            <div style={{ display: 'grid', gap: '14px' }}>
-              <div style={{ display: 'grid', gap: '10px' }}>
-                <label style={{ color: '#f3f3f3', fontSize: '0.9rem' }}>Cover Image</label>
-                <div style={{ width: '100%', minHeight: '180px', borderRadius: '16px', overflow: 'hidden', background: '#111', border: '1px solid rgba(255,255,255,0.08)' }}>
-                  {(preview || editData.img) ? (
-                    <img src={preview || getCarImageUrl(editData.img)} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  ) : null}
-                </div>
-                <input type="file" accept="image/*" onChange={handleImageSelect} style={{ color: '#fff' }} />
-              </div>
-              <div style={{ display: 'grid', gap: '10px' }}>
-                <label style={{ color: '#f3f3f3', fontSize: '0.9rem' }}>Name</label>
-                <input value={editData.name} onChange={(e) => handleEditChange('name', e.target.value)} style={inputStyle} />
-              </div>
-              <div style={{ display: 'grid', gap: '10px' }}>
-                <label style={{ color: '#f3f3f3', fontSize: '0.9rem' }}>SAR Price</label>
-                <input value={editData.price} onChange={(e) => handleEditChange('price', e.target.value)} style={inputStyle} placeholder="e.g. 1500" />
-              </div>
-              <div style={{ display: 'grid', gap: '10px' }}>
-                <label style={{ color: '#f3f3f3', fontSize: '0.9rem' }}>Dollar Price</label>
-                <input value={editData.priceUsd} onChange={(e) => handleEditChange('priceUsd', e.target.value)} style={inputStyle} placeholder="e.g. 400" />
-              </div>
-              <div style={{ display: 'grid', gap: '10px' }}>
-                <label style={{ color: '#f3f3f3', fontSize: '0.9rem' }}>Type</label>
-                <input value={editData.type} onChange={(e) => handleEditChange('type', e.target.value)} style={inputStyle} />
-              </div>
-              <div style={{ display: 'grid', gap: '10px' }}>
-                <label style={{ color: '#f3f3f3', fontSize: '0.9rem' }}>Seats</label>
-                <input value={editData.seats} onChange={(e) => handleEditChange('seats', e.target.value)} style={inputStyle} />
-              </div>
-              <div style={{ display: 'grid', gap: '10px' }}>
-                <label style={{ color: '#f3f3f3', fontSize: '0.9rem' }}>Luggage</label>
-                <input value={editData.luggage} onChange={(e) => handleEditChange('luggage', e.target.value)} style={inputStyle} />
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '6px' }}>
-                <button onClick={closeModal} style={secondaryModalButtonStyle}>Cancel</button>
-                <button onClick={editingCar ? saveEdit : saveAdd} style={primaryModalButtonStyle} disabled={saving}>
-                  {saving ? 'Saving...' : editingCar ? 'Save Changes' : 'Add Car'}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
-  )
+  );
 }
 
-const actionIconStyle = {
-  border: '1px solid rgba(255,255,255,0.16)',
-  background: 'rgba(0,0,0,0.45)',
-  color: '#fff',
-  width: '38px',
-  height: '38px',
-  borderRadius: '12px',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  cursor: 'pointer'
-};
-
-const deleteIconStyle = {
-  ...actionIconStyle,
-  border: '1px solid rgba(255,100,100,0.4)',
-  color: '#ffb3b3'
-};
-
-const modalOverlayStyle = {
-  position: 'fixed',
-  inset: 0,
-  backgroundColor: 'rgba(0,0,0,0.82)',
-  zIndex: 1100,
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  padding: '20px',
-  pointerEvents: 'auto'
-};
-
-const modalStyle = {
-  width: '100%',
-  maxWidth: '520px',
-  background: '#12121b',
-  borderRadius: '22px',
-  padding: '24px',
-  border: '1px solid rgba(255,255,255,0.08)',
-  boxShadow: '0 20px 70px rgba(0,0,0,0.5)',
-  maxHeight: 'calc(100vh - 120px)',
-  overflowY: 'auto',
-  pointerEvents: 'auto'
-};
-
-const closeButtonStyle = {
-  border: 'none',
-  background: 'transparent',
-  color: '#fff',
-  fontSize: '1.1rem',
-  cursor: 'pointer'
-};
-
-const inputStyle = {
-  width: '100%',
-  padding: '14px 16px',
-  borderRadius: '14px',
-  border: '1px solid rgba(255,255,255,0.12)',
-  background: '#18181f',
-  color: '#fff',
-  fontSize: '0.95rem'
-};
-
-const primaryModalButtonStyle = {
-  border: 'none',
-  background: 'linear-gradient(135deg, #231b12, #a98231, #d4b56d)',
-  color: '#000',
-  borderRadius: '14px',
-  padding: '12px 24px',
-  cursor: 'pointer',
-  fontWeight: 700
-};
-
-const secondaryModalButtonStyle = {
-  border: '1px solid rgba(255,255,255,0.18)',
-  background: 'transparent',
-  color: '#fff',
-  borderRadius: '14px',
-  padding: '12px 24px',
-  cursor: 'pointer'
-};
-
-export default Carlist
+export default Carlist;

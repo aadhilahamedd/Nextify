@@ -160,15 +160,102 @@ export const FLEET_VEHICLES = [
   },
 ];
 
+export const VEHICLE_CATEGORY_ALIASES = {
+  gmc_yukon: 'gmc',
+  gmc_tahoe: 'gmc',
+  chevrolet_suburban: 'gmc',
+  mini_van: 'toyota_hiace',
+};
+
+export function normalizeVehicleCategory(category) {
+  const normalized = String(category || '').trim().toLowerCase();
+  return VEHICLE_CATEGORY_ALIASES[normalized] || normalized;
+}
+
 export function findFleetVehicle(carOrName) {
   const name = String(carOrName?.name || carOrName?.label || carOrName || '').toLowerCase();
-  const category = String(carOrName?.category || carOrName?.vehicleCategory || '').toLowerCase();
+  const rawCategory = String(carOrName?.category || carOrName?.vehicleCategory || '').toLowerCase();
+  const category = normalizeVehicleCategory(rawCategory);
   if (category) {
     const byCategory = FLEET_VEHICLES.find((v) => v.category === category);
     if (byCategory) return byCategory;
   }
   if (!name) return null;
   return FLEET_VEHICLES.find((v) => v.names.some((token) => name.includes(token))) || null;
+}
+
+function inferFleetClassFromCar(car) {
+  const type = String(car?.type || '').toLowerCase();
+  const name = String(car?.name || '').toLowerCase();
+  if (type.includes('suv') || name.includes('gmc') || name.includes('yukon') || name.includes('tahoe') || name.includes('suburban')) return FLEET_CLASS.SUV;
+  if (type.includes('coach') || type.includes('bus') || type.includes('mini bus') || name.includes('coaster')) return FLEET_CLASS.COACHES;
+  if (type.includes('van') || type.includes('minivan') || name.includes('hiace') || name.includes('sprinter') || name.includes('v-class') || name.includes('vito')) return FLEET_CLASS.VAN;
+  if (name.includes('s-class') || name.includes('7 series')) return FLEET_CLASS.FIRST;
+  if (name.includes('e-class') || name.includes('5 series')) return FLEET_CLASS.BUSINESS;
+  return FLEET_CLASS.SEDAN;
+}
+
+export function toCategorySlug(value, fallbackId) {
+  const slug = String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+  return slug || `vehicle_${fallbackId ?? 'custom'}`;
+}
+
+export function buildManagedFleetVehicles(apiCars, resolveImage = (car) => car?.img || '') {
+  if (!Array.isArray(apiCars)) return null;
+  const available = apiCars
+    .filter((car) => car && car.available !== false)
+    .sort((a, b) => {
+      const orderA = Number.isFinite(Number(a.displayOrder)) ? Number(a.displayOrder) : 0;
+      const orderB = Number.isFinite(Number(b.displayOrder)) ? Number(b.displayOrder) : 0;
+      if (orderA !== orderB) return orderA - orderB;
+      return (Number(a.id) || 0) - (Number(b.id) || 0);
+    });
+
+  const seenCategories = new Set();
+  const mapped = [];
+  for (const car of available) {
+    const base = findFleetVehicle({ category: car.category, name: car.name });
+    const rawCat = car.category || base?.category || toCategorySlug(car.name, car.id);
+    const category = normalizeVehicleCategory(rawCat);
+    if (seenCategories.has(category)) continue;
+    seenCategories.add(category);
+
+    mapped.push({
+      ...(base || {}),
+      carId: car.id ?? null,
+      category,
+      label: car.name || base?.label || category,
+      names: base?.names || [String(car.name || '').toLowerCase()].filter(Boolean),
+      fleetClass: base?.fleetClass || inferFleetClassFromCar(car),
+      image: resolveImage(car) || base?.image || car.img || '',
+      seats: car.seats || '',
+      luggage: car.luggage || '',
+      description: car.description || '',
+      isCustom: !base,
+    });
+  }
+  return mapped;
+}
+
+export function filterManagedVehiclesForService(managedVehicles, serviceType, fleetClass = 'All', durationType) {
+  if (!Array.isArray(managedVehicles)) {
+    return getVehiclesForService(serviceType, fleetClass, durationType);
+  }
+  const list = managedVehicles.filter((v) => {
+    if (serviceType === 'chauffeur' && durationType === 'half_day') {
+      return v.isCustom || v.half != null;
+    }
+    if (serviceType === 'chauffeur' && durationType === 'full_day') {
+      return v.isCustom || v.full != null;
+    }
+    return true;
+  });
+  if (!fleetClass || fleetClass === 'All') return list;
+  return list.filter((v) => v.fleetClass === fleetClass);
 }
 
 export function getFleetClass(car) {

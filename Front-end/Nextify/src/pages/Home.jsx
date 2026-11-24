@@ -4,6 +4,7 @@ import Container from 'react-bootstrap/Container'
 import { applyLocalCarImages, getCarImageUrl, getEliteCollectionCars, initialCars } from '../utils/carsStorage'
 import { getCarsAPI } from '../Services/allAPI'
 import ServiceRates from '../components/pricing/ServiceRates'
+import VipAmenitiesSection from '../components/VipAmenitiesSection'
 import ClientSection from '../components/ClientSection'
 import AboutReviews from '../components/AboutReviews'
 import { COMPANY } from '../utils/company'
@@ -328,6 +329,8 @@ function Home() {
         </div>
       </Container>
     </section>
+
+    <VipAmenitiesSection />
 
     <ServiceRates />
 

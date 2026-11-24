@@ -225,6 +225,37 @@ export const getPricingRulesAPI = async ({ serviceType, search } = {}) => {
   }
 };
 
+export const getAdminPricingRulesAPI = async ({
+  serviceType,
+  vehicleCategory,
+  vehicleId,
+  location,
+  pricingMode,
+  active,
+  search,
+} = {}) => {
+  try {
+    const params = new URLSearchParams();
+    if (serviceType) params.set("serviceType", serviceType);
+    if (vehicleCategory) params.set("vehicleCategory", vehicleCategory);
+    if (vehicleId) params.set("vehicleId", vehicleId);
+    if (location) params.set("location", location);
+    if (pricingMode) params.set("pricingMode", pricingMode);
+    if (active !== undefined && active !== "") params.set("active", String(active));
+    if (search) params.set("search", search);
+    const qs = params.toString();
+    const response = await commonAPI(
+      "GET",
+      `${serverURL}/api/pricing-rules${qs ? `?${qs}` : ""}`,
+      "",
+      getAuthHeaders()
+    );
+    return unwrap(response);
+  } catch (err) {
+    return handleError(err, "Failed to fetch admin pricing rules");
+  }
+};
+
 export const createPricingRuleAPI = async (ruleData) => {
   try {
     const response = await commonAPI("POST", `${serverURL}/api/pricing`, ruleData, getAuthHeaders());
@@ -401,6 +432,31 @@ export const getCarsAPI = async () => {
     return handleError({ response }, "Failed to fetch cars");
   } catch (err) {
     return handleError(err, "Failed to fetch cars");
+  }
+};
+
+export const getAdminCarsAPI = async () => {
+  try {
+    const response = await commonAPI("GET", `${serverURL}/api/cars/admin`, "", getAuthHeaders());
+    if (response.status === 200) return response;
+    return handleError({ response }, response?.data?.message || "Failed to fetch fleet vehicles");
+  } catch (err) {
+    return handleError(err, "Failed to fetch fleet vehicles");
+  }
+};
+
+export const toggleCarAvailabilityAPI = async (id, available) => {
+  try {
+    const response = await commonAPI(
+      "PATCH",
+      `${serverURL}/api/cars/${id}/availability`,
+      { available },
+      getAuthHeaders()
+    );
+    if (response.status === 200) return unwrap(response);
+    return handleError({ response }, response?.data?.message || "Failed to update vehicle availability");
+  } catch (err) {
+    return handleError(err, "Failed to update vehicle availability");
   }
 };
 

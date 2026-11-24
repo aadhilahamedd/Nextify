@@ -203,20 +203,47 @@ function resolveCarQuery(param) {
   return null;
 }
 
-// Get all cars (auto-seeds if empty)
+async function ensureSeededCars() {
+  const existingCount = await Car.countDocuments();
+  if (existingCount === 0) {
+    console.log('No cars found in database. Seeding initial cars...');
+    await Car.insertMany(initialCars);
+  }
+  await Car.deleteMany({ name: { $in: ['Chevrolet Impala', 'Chevrolet Impala Limited'] } });
+  await remapLegacyCarImages();
+}
+
+function normalizeImagesList(images, primaryImg) {
+  const list = Array.isArray(images)
+    ? images.map((item) => String(item || '').trim()).filter(Boolean)
+    : [];
+  const primary = String(primaryImg || '').trim();
+  if (primary && !list.includes(primary)) {
+    list.unshift(primary);
+  }
+  return list;
+}
+
+// Get public available cars (auto-seeds if empty)
 exports.getCars = async (req, res) => {
   try {
-    let cars = await Car.find().sort({ id: 1 });
-    if (cars.length === 0) {
-      console.log('No cars found in database. Seeding initial cars...');
-      await Car.insertMany(initialCars);
-    }
-    await Car.deleteMany({ name: { $in: ['Chevrolet Impala', 'Chevrolet Impala Limited'] } });
-    await remapLegacyCarImages();
-    cars = await Car.find().sort({ id: 1 });
+    await ensureSeededCars();
+    const cars = await Car.find({ available: { $ne: false } }).sort({ displayOrder: 1, id: 1 });
     return res.status(200).json(cars);
   } catch (err) {
     console.error('Error fetching cars:', err);
+    return res.status(500).json({ message: 'Error fetching cars', error: err.message });
+  }
+};
+
+// Get all cars for Admin Fleet Management (including disabled vehicles)
+exports.getAdminCars = async (req, res) => {
+  try {
+    await ensureSeededCars();
+    const cars = await Car.find().sort({ displayOrder: 1, id: 1 });
+    return res.status(200).json(cars);
+  } catch (err) {
+    console.error('Error fetching admin cars:', err);
     return res.status(500).json({ message: 'Error fetching cars', error: err.message });
   }
 };
@@ -236,10 +263,45 @@ exports.getCarById = async (req, res) => {
   }
 };
 
+function toCategorySlug(name, fallbackId) {
+  const slug = String(name || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFKC')
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+  return slug || `vehicle_${fallbackId ?? 'custom'}`;
+}
+
+async function resolveNewCarCategory(rawCategory, name, nextId) {
+  const explicit = String(rawCategory || '').trim().toLowerCase();
+  if (explicit) return explicit;
+
+  const baseSlug = toCategorySlug(name, nextId);
+  const existingConflict = await Car.findOne({ category: baseSlug }).select('id category').lean();
+  if (!existingConflict) return baseSlug;
+  return `${baseSlug}_${nextId}`;
+}
+
 // Add new car
 exports.addCar = async (req, res) => {
   try {
-    const { name, price, priceUsd, type, seats, luggage, img } = req.body;
+    const {
+      name,
+      brand,
+      model,
+      category,
+      price,
+      priceUsd,
+      type,
+      seats,
+      luggage,
+      description,
+      img,
+      images,
+      available,
+      displayOrder,
+    } = req.body;
     if (!name || !price || !type || !seats || !luggage || !img) {
       return res.status(400).json({ message: 'All fields must be filled' });
     }
@@ -247,16 +309,25 @@ exports.addCar = async (req, res) => {
     // Determine the next sequential ID
     const lastCar = await Car.findOne().sort({ id: -1 });
     const nextId = lastCar ? lastCar.id + 1 : 1;
+    const parsedOrder = Number(displayOrder);
+    const resolvedCategory = await resolveNewCarCategory(category, name, nextId);
 
     const newCar = new Car({
       id: nextId,
-      name,
-      price,
-      priceUsd: priceUsd || '',
-      type,
-      seats,
-      luggage,
-      img
+      name: String(name).trim(),
+      brand: String(brand || '').trim(),
+      model: String(model || '').trim(),
+      category: resolvedCategory,
+      price: String(price).trim(),
+      priceUsd: String(priceUsd || '').trim(),
+      type: String(type).trim(),
+      seats: String(seats).trim(),
+      luggage: String(luggage).trim(),
+      description: String(description || '').trim(),
+      img: String(img).trim(),
+      images: normalizeImagesList(images, img),
+      available: available === undefined ? true : Boolean(available),
+      displayOrder: Number.isFinite(parsedOrder) ? parsedOrder : nextId,
     });
 
     await newCar.save();
@@ -267,7 +338,7 @@ exports.addCar = async (req, res) => {
   }
 };
 
-// Update existing car
+// Update existing car (preserves existing numeric id and references)
 exports.updateCar = async (req, res) => {
   try {
     const query = resolveCarQuery(req.params.id);
@@ -275,22 +346,82 @@ exports.updateCar = async (req, res) => {
       return res.status(400).json({ message: 'Invalid car ID' });
     }
 
-    const { name, price, priceUsd, type, seats, luggage, img } = req.body;
-
-    const updatedCar = await Car.findOneAndUpdate(
-      query,
-      { name, price, priceUsd: priceUsd || '', type, seats, luggage, img, updatedAt: Date.now() },
-      { new: true }
-    );
-
-    if (!updatedCar) {
+    const existing = await Car.findOne(query);
+    if (!existing) {
       return res.status(404).json({ message: 'Car not found' });
     }
 
-    return res.status(200).json({ message: 'Car updated successfully', car: updatedCar });
+    const {
+      name,
+      brand,
+      model,
+      category,
+      price,
+      priceUsd,
+      type,
+      seats,
+      luggage,
+      description,
+      img,
+      images,
+      available,
+      displayOrder,
+    } = req.body;
+
+    if (name !== undefined) existing.name = String(name).trim();
+    if (brand !== undefined) existing.brand = String(brand || '').trim();
+    if (model !== undefined) existing.model = String(model || '').trim();
+    if (category !== undefined) existing.category = String(category || '').trim();
+    if (price !== undefined) existing.price = String(price).trim();
+    if (priceUsd !== undefined) existing.priceUsd = String(priceUsd || '').trim();
+    if (type !== undefined) existing.type = String(type).trim();
+    if (seats !== undefined) existing.seats = String(seats).trim();
+    if (luggage !== undefined) existing.luggage = String(luggage).trim();
+    if (description !== undefined) existing.description = String(description || '').trim();
+    if (img !== undefined && String(img).trim()) existing.img = String(img).trim();
+    if (images !== undefined) {
+      existing.images = normalizeImagesList(images, existing.img);
+    }
+    if (available !== undefined) existing.available = Boolean(available);
+    if (displayOrder !== undefined && displayOrder !== '') {
+      const parsedOrder = Number(displayOrder);
+      if (Number.isFinite(parsedOrder)) existing.displayOrder = parsedOrder;
+    }
+
+    await existing.save();
+    return res.status(200).json({ message: 'Car updated successfully', car: existing });
   } catch (err) {
     console.error('Error updating car:', err);
     return res.status(500).json({ message: 'Error updating car', error: err.message });
+  }
+};
+
+// Toggle car availability (enable / disable)
+exports.toggleCarAvailability = async (req, res) => {
+  try {
+    const query = resolveCarQuery(req.params.id);
+    if (!query) {
+      return res.status(400).json({ message: 'Invalid car ID' });
+    }
+
+    const existing = await Car.findOne(query);
+    if (!existing) {
+      return res.status(404).json({ message: 'Car not found' });
+    }
+
+    const nextAvailable = req.body?.available !== undefined
+      ? Boolean(req.body.available)
+      : existing.available === false;
+    existing.available = nextAvailable;
+    await existing.save();
+
+    return res.status(200).json({
+      message: nextAvailable ? 'Vehicle enabled' : 'Vehicle disabled',
+      car: existing,
+    });
+  } catch (err) {
+    console.error('Error toggling car availability:', err);
+    return res.status(500).json({ message: 'Error updating vehicle availability', error: err.message });
   }
 };
 

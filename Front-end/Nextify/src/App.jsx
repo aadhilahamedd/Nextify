@@ -7,6 +7,7 @@ import AdminLayout from './pages/admin/AdminLayout'
 import AdminDashboard from './pages/admin/AdminDashboard'
 import AdminMessages from './pages/admin/AdminMessages'
 import AdminBookings from './pages/admin/AdminBookings'
+import AdminFleet from './pages/admin/AdminFleet'
 import AdminPricing from './pages/admin/AdminPricing'
 import AdminDrivers from './pages/admin/AdminDrivers'
 import AdminPayments from './pages/admin/AdminPayments'
@@ -72,6 +73,7 @@ function App() {
           <Route index element={<AdminDashboard />} />
           <Route path="messages" element={<AdminMessages />} />
           <Route path="bookings" element={<AdminBookings />} />
+          <Route path="fleet" element={<AdminFleet />} />
           <Route path="pricing" element={<AdminPricing />} />
           <Route path="drivers" element={<AdminDrivers />} />
           <Route path="payments" element={<AdminPayments />} />
