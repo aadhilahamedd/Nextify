@@ -1,4 +1,4 @@
-import { CITY_NEIGHBOURHOODS, findNeighbourhood, neighbourhoodToDestination } from './cityNeighbourhoods';
+import { CITY_NEIGHBOURHOODS, findNeighbourhood, neighbourhoodToDestination } from './cityNeighbourhoods.js';
 
 function dest(id, nameEn, nameAr, regionEn, regionAr, aliases = []) {
   return { id, nameEn, nameAr, regionEn, regionAr, aliases };
@@ -121,7 +121,7 @@ export const SAUDI_DESTINATIONS = [
   dest('red-sea-airport', 'Red Sea International Airport', 'مطار البحر الأحمر الدولي', 'Tabuk', 'تبوك', ['RSI', 'Red Sea Airport']),
 ];
 
-export { SAUDI_AIRPORTS, searchSaudiAirports, findAirport } from './saudiAirports';
+export { SAUDI_AIRPORTS, searchSaudiAirports, findAirport } from './saudiAirports.js';
 
 function normalize(value) {
   return String(value || '')

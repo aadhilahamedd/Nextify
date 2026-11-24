@@ -5,7 +5,7 @@
  * Add a new route by appending one object to AIRPORT_FIXED_ROUTES.
  */
 
-import { neighbourhoodLocationsForRoutes } from './cityNeighbourhoods';
+import { neighbourhoodLocationsForRoutes } from './cityNeighbourhoods.js';
 
 const GMC_CATEGORIES = ['gmc', 'gmc_yukon', 'gmc_tahoe', 'chevrolet_suburban'];
 const SEDAN_CATEGORIES = ['ford_taurus', 'lexus_es'];
@@ -285,6 +285,7 @@ function resolveFixedRouteLocation(value) {
   if (value == null || value === '') return null;
 
   if (typeof value === 'object') {
+    if (value.kind === 'custom') return null;
     const direct = LOCATIONS.find((location) => objectMatchesLocation(value, location));
     if (direct) return direct;
     if (value.kind === 'airport' || value.iata || value.ident) {

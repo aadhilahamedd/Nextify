@@ -1,4 +1,4 @@
-import { COMPANY } from './company';
+import { COMPANY } from './company.js';
 
 const SERVICE_LABELS = {
   airport: 'Airport Transfer',
@@ -159,6 +159,7 @@ export function buildWhatsAppConfirmationMessage({
   const customer = form.customer || booking.customer || {};
   const pickupDateTime = booking.schedule?.pickupDateTime || booking.arrivalDateTime;
   const pickup = pickValue(
+    form.pickupPlace?.kind === 'custom' ? form.pickupPlace.address : null,
     form.pickupLocation,
     form.serviceLocation,
     form.origin,
@@ -166,13 +167,17 @@ export function buildWhatsAppConfirmationMessage({
     booking.origin,
   );
   const dropoff = pickValue(
+    form.dropoffPlace?.kind === 'custom' ? form.dropoffPlace.address : null,
     form.dropoffLocation,
-    form.destination,
+    form.destination === 'Other' ? form.otherDestination : form.destination,
+    form.gccDestination === 'Other' ? form.otherDestination : form.gccDestination,
     booking.destination?.address,
     booking.destinationText,
     booking.dropoffLocation,
   );
-  const airport = pickValue(form.airport, booking.airport);
+  const airport = form.pickupPlace?.kind === 'custom'
+    ? ''
+    : pickValue(form.airport, booking.airport);
   const vehicle = pickValue(
     form.vehicleName,
     booking.vehicle?.name,
@@ -278,15 +283,18 @@ export function buildWhatsAppConfirmationMessage({
   }
 
   lines.push('', 'PRICE DETAILS');
-  if (!customQuote && hasDisplayValue(amount)) {
+  if (!customQuote && hasDisplayValue(amount) && Number(quote?.price ?? booking.quotedPrice ?? booking.pricing?.totalAmount) > 0) {
     pushField(lines, 'Currency', currency);
     pushField(lines, 'Booking Amount', amount);
+  } else {
+    pushField(lines, 'Price', 'Price on request');
   }
 
   lines.push(
     '',
-    'Please confirm my booking.',
-    'Payment can be made by mada, Visa, Mastercard, Apple Pay, Samsung Pay, or Google Pay.',
+    customQuote
+      ? 'Please share the quotation and confirm availability for my booking.'
+      : 'Please confirm my booking.',
     '',
     'Thank you.',
     'Nextify Limo',
@@ -369,7 +377,7 @@ export function openWhatsAppBooking(phone, message, options = {}) {
     return { ok: true, method: 'redirect' };
   }
 
-  let popup = null;
+  let popup;
   try {
     popup = window.open(url, WHATSAPP_WINDOW_NAME);
   } catch {

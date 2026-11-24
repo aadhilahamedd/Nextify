@@ -112,6 +112,26 @@ export default function DestinationAutocomplete({
   }, [localResults, liveResults, liveSearch, includePlaces, excludeAirports, variant]);
 
   const selectableResults = useMemo(() => results.filter((item) => !item.group), [results]);
+  const trimmedQuery = typing ? query.trim() : '';
+  const hasExactMatch = Boolean(trimmedQuery) && selectableResults.some((item) => {
+    const qLower = trimmedQuery.toLowerCase();
+    return [item.nameEn, item.nameAr, item.address, item.label]
+      .filter(Boolean)
+      .some((field) => String(field).trim().toLowerCase() === qLower);
+  });
+  const customOption = trimmedQuery && !hasExactMatch
+    ? {
+        id: '__custom__',
+        kind: 'custom',
+        nameEn: trimmedQuery,
+        address: trimmedQuery,
+        isCustomOption: true,
+      }
+    : null;
+  const allSelectableResults = useMemo(
+    () => (customOption ? [...selectableResults, customOption] : selectableResults),
+    [selectableResults, customOption],
+  );
 
   useEffect(() => {
     if (!liveSearchKey) {
@@ -154,25 +174,42 @@ export default function DestinationAutocomplete({
   }, []);
 
   const emit = (nextValue, item) => {
+    if (item?.kind === 'custom') {
+      const customText = String(item.address || item.nameEn || nextValue || '').trim();
+      if (!customText) return;
+      onChange(customText, { kind: 'custom', address: customText, nameEn: customText, id: '' });
+      return;
+    }
     if (item) {
       const selectedName = item.nameEn || item.address || item.label || nextValue;
       onChange(selectedName, toLocationPlace(item, selectedName));
       return;
     }
     if (typeof nextValue === 'object' && nextValue) {
+      if (nextValue.kind === 'custom') {
+        const customText = String(nextValue.address || nextValue.nameEn || '').trim();
+        if (!customText) return;
+        onChange(customText, { kind: 'custom', address: customText, nameEn: customText, id: '' });
+        return;
+      }
       const selectedName = formatTransferLocation(nextValue, 'en') || nextValue.nameEn || nextValue.address || '';
       if (!selectedName || selectedName === '[object Object]') return;
       onChange(selectedName, toLocationPlace(nextValue, selectedName));
       return;
     }
-    if (includePlaces) {
+    if (includePlaces && !isTransferSearch) {
       const dest = findDestination(nextValue);
       if (dest && !isAirportItem(dest)) {
         onChange(dest.nameEn, toLocationPlace({ ...dest, kind: 'place' }, dest.nameEn));
         return;
       }
     }
-    onChange(String(nextValue || ''), toLocationPlace(null, String(nextValue || '')));
+    const text = String(nextValue || '').trim();
+    if (!text) {
+      onChange('', null);
+      return;
+    }
+    onChange(text, { kind: 'custom', address: text, nameEn: text, id: '' });
   };
 
   const commit = (next) => {
@@ -181,16 +218,35 @@ export default function DestinationAutocomplete({
       setOpen(false);
       return;
     }
-    const resolved = isAirportSearch && !includePlaces
-      ? (displayAirportName(next, 'en') || resolveDestinationValue(next))
-      : resolveDestinationValue(next);
-    if (!resolved || resolved === '[object Object]') {
+    const rawText = String(next || '').trim();
+    if (!rawText || rawText === '[object Object]') {
       if (typing && !String(query || '').trim()) emit('', null);
       setTyping(false);
       setOpen(false);
       return;
     }
-    emit(resolved, selectableResults.find((item) => item.nameEn === resolved || item.address === resolved) || null);
+    const matched = selectableResults.find((item) => {
+      const qLower = rawText.toLowerCase();
+      return [item.nameEn, item.nameAr, item.address, item.label]
+        .filter(Boolean)
+        .some((field) => String(field).trim().toLowerCase() === qLower);
+    });
+    if (matched) {
+      emit(matched.nameEn || matched.address || matched.label, matched);
+      setTyping(false);
+      setOpen(false);
+      return;
+    }
+    if (isTransferSearch) {
+      emit(rawText, { kind: 'custom', address: rawText, nameEn: rawText });
+      setTyping(false);
+      setOpen(false);
+      return;
+    }
+    const resolved = isAirportSearch && !includePlaces
+      ? (displayAirportName(rawText, 'en') || resolveDestinationValue(rawText))
+      : resolveDestinationValue(rawText);
+    emit(resolved || rawText, null);
     setTyping(false);
     setOpen(false);
   };
@@ -256,13 +312,13 @@ export default function DestinationAutocomplete({
           }
           if (e.key === 'ArrowDown') {
             e.preventDefault();
-            setActive((i) => Math.min(i + 1, Math.max(selectableResults.length - 1, 0)));
+            setActive((i) => Math.min(i + 1, Math.max(allSelectableResults.length - 1, 0)));
           } else if (e.key === 'ArrowUp') {
             e.preventDefault();
             setActive((i) => Math.max(i - 1, 0));
-          } else if (e.key === 'Enter' && open && selectableResults[active]) {
+          } else if (e.key === 'Enter' && open && allSelectableResults[active]) {
             e.preventDefault();
-            selectItem(selectableResults[active]);
+            selectItem(allSelectableResults[active]);
           } else if (e.key === 'Escape') {
             setOpen(false);
           }
@@ -270,7 +326,7 @@ export default function DestinationAutocomplete({
       />
       {open && (
         <ul id={`${id}-list`} className={`dest-ac-list${isAr ? ' is-rtl' : ''}`} role="listbox">
-          {results.length ? results.map((item) => {
+          {results.map((item) => {
             if (item.group) {
               return (
                 <li key={`group-${item.group}`} className="dest-ac-group" role="presentation">
@@ -278,7 +334,7 @@ export default function DestinationAutocomplete({
                 </li>
               );
             }
-            const selectableIndex = selectableResults.findIndex((row) => placeKey(row) === placeKey(item));
+            const selectableIndex = allSelectableResults.findIndex((row) => placeKey(row) === placeKey(item));
             const meta = optionCopy(item, lang, t, isTransferSearch);
             const isSelected = Boolean(selectedOption?.id && item.id === selectedOption.id);
             return (
@@ -296,7 +352,26 @@ export default function DestinationAutocomplete({
               {renderOptionCopy(meta)}
             </li>
             );
-          }) : (
+          })}
+          {customOption && (
+            <li
+              key="custom-location-option"
+              role="option"
+              aria-selected={allSelectableResults.length - 1 === active}
+              className={`dest-ac-item${allSelectableResults.length - 1 === active ? ' is-active' : ''}`}
+              onMouseDown={(e) => {
+                e.preventDefault();
+                selectItem(customOption);
+              }}
+              onMouseEnter={() => setActive(allSelectableResults.length - 1)}
+            >
+              <span className="dest-ac-copy">
+                <span className="dest-ac-name">{t('booking.useCustomLocation', { value: customOption.address })}</span>
+                <span className="dest-ac-region">{t('booking.customLocationNote')}</span>
+              </span>
+            </li>
+          )}
+          {!results.length && !customOption && (
             <li className="dest-ac-empty">{loadingPlaces ? t('booking.searchingPlaces') : t('booking.noResults')}</li>
           )}
         </ul>

@@ -285,6 +285,7 @@ function resolveFixedRouteLocation(value) {
   if (value == null || value === '') return null;
 
   if (typeof value === 'object') {
+    if (value.kind === 'custom') return null;
     const direct = LOCATIONS.find((location) => objectMatchesLocation(value, location));
     if (direct) return direct;
     if (value.kind === 'airport' || value.iata || value.ident) {

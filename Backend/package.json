@@ -7,7 +7,7 @@
     "start": "node index.js",
     "dev": "nodemon index.js",
     "provision:admin": "node scripts/provisionAdmin.js",
-    "test": "node tests/moyasarSecurity.test.js && node tests/moyasarHardening.test.js && node tests/moyasarAmountMatch.test.js && node tests/checkoutOwnership.test.js && node tests/paymentRateLimit.test.js && node tests/paymentSafety.test.js && node tests/paymentIndexReadiness.test.js && node tests/whatsappCheckout.test.js && node tests/adminMiddleware.test.js && node tests/authSecurity.test.js && node tests/apiHardening.test.js && node tests/jwtSecret.test.js && node tests/dbConnect.test.js && node tests/trackPhoneMatch.test.js && node tests/airportFixedRoutes.test.js && node tests/distanceSlabs.test.js && node tests/saudiAirports.test.js"
+    "test": "node tests/moyasarSecurity.test.js && node tests/moyasarHardening.test.js && node tests/moyasarAmountMatch.test.js && node tests/checkoutOwnership.test.js && node tests/paymentRateLimit.test.js && node tests/paymentSafety.test.js && node tests/paymentIndexReadiness.test.js && node tests/whatsappCheckout.test.js && node tests/adminMiddleware.test.js && node tests/authSecurity.test.js && node tests/apiHardening.test.js && node tests/jwtSecret.test.js && node tests/dbConnect.test.js && node tests/trackPhoneMatch.test.js && node tests/airportFixedRoutes.test.js && node tests/airportPricingProtection.test.js && node tests/distanceSlabs.test.js && node tests/saudiAirports.test.js"
   },
   "keywords": [],
   "author": "",

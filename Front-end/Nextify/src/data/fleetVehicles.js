@@ -1,5 +1,4 @@
-import { matchAirportFixedRoute, quoteAirportFixedRoute } from './airportFixedRoutes';
-import { findAirport } from './saudiAirports';
+import { matchAirportFixedRoute, quoteAirportFixedRoute } from './airportFixedRoutes.js';
 
 export const FLEET_CLASS = {
   FIRST: 'First class',
@@ -319,7 +318,6 @@ export function getOfficialQuote({
   vehicleCategory,
   vehicleName,
   durationType,
-  distanceKm,
   origin,
   destination,
   airport,
@@ -332,7 +330,18 @@ export function getOfficialQuote({
 
   switch (serviceType) {
     case 'airport_transfer': {
-      const fixedRoute = matchAirportFixedRoute(pickupPlace || origin || airport, dropoffPlace || destination);
+      const pickupValue = pickupPlace || origin || airport;
+      const dropoffValue = dropoffPlace || destination;
+      if (!pickupValue || !dropoffValue) {
+        return customOfficialQuote('Price on request', {
+          serviceType,
+          quoteStatus: 'rate_on_request',
+          origin: origin || airport || '',
+          destination: destination || '',
+          pricingModel: 'airport_transfer',
+        });
+      }
+      const fixedRoute = matchAirportFixedRoute(pickupValue, dropoffValue);
       if (fixedRoute) {
         const matched = quoteAirportFixedRoute(fixedRoute, vehicle.category, {
           airport: airport || origin,
@@ -341,32 +350,19 @@ export function getOfficialQuote({
           displayLabel: vehicle.label,
         });
         if (matched.customQuoteRequired) {
-          return customOfficialQuote(matched.message, matched);
+          return customOfficialQuote('Price on request', {
+            ...matched,
+            message: 'Price on request',
+          });
         }
         return officialQuote(vehicle, matched.price, matched);
       }
-      const pickupAirport = findAirport(pickupPlace) || findAirport(origin) || findAirport(airport);
-      const dropoffAirport = findAirport(dropoffPlace) || findAirport(destination);
-      if (destination && !pickupAirport && !dropoffAirport) {
-        return customOfficialQuote('Rate on Request', {
-          serviceType,
-          quoteStatus: 'rate_on_request',
-          origin: origin || airport,
-          destination,
-          pricingModel: 'airport_transfer',
-        });
-      }
-      if (vehicle.airport == null) {
-        return customOfficialQuote('No fixed airport transfer rate for this vehicle. Custom quote required.', {
-          serviceType,
-          airport: airport || origin,
-          pricingModel: 'airport_transfer',
-        });
-      }
-      return officialQuote(vehicle, vehicle.airport, {
+      // No generic fallback pricing for airport transfers: unapproved routes require a custom quotation.
+      return customOfficialQuote('Price on request', {
         serviceType,
-        airport: pickupAirport?.nameEn || dropoffAirport?.nameEn || airport || origin,
-        pricingType: 'airport_base',
+        quoteStatus: 'rate_on_request',
+        origin: origin || airport || '',
+        destination: destination || '',
         pricingModel: 'airport_transfer',
       });
     }

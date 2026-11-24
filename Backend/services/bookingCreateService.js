@@ -7,6 +7,9 @@ const { resolveFixedRouteLocation } = require('../data/airportFixedRoutes');
 const { findNeighbourhood, formatNeighbourhoodLabel } = require('../data/cityNeighbourhoods');
 
 function bookingLocationAddress(place, fallback = '') {
+  if (place?.kind === 'custom') {
+    return String(place.address || place.nameEn || fallback || '').trim();
+  }
   const neighbourhood = findNeighbourhood(place);
   if (neighbourhood) return formatNeighbourhoodLabel(neighbourhood);
   const loc = resolveFixedRouteLocation(place);
@@ -55,15 +58,25 @@ async function createBookingFromPayload(body, { userId } = {}) {
   const dropoffPlace = body.dropoffPlace || (typeof body.destination === 'object' ? body.destination : null);
   let airportMatch = null;
 
-  const dropoffAirport = serviceType === 'airport_transfer'
+  const dropoffAirport = serviceType === 'airport_transfer' && dropoffPlace?.kind !== 'custom'
     ? findAirport(dropoffPlace || destination)
     : null;
-  if (serviceType === 'airport_transfer') {
+  if (serviceType === 'airport_transfer' && pickupPlace?.kind !== 'custom') {
     const pickupValue = pickupPlace || origin || body.airport;
     const pickupLocation = resolveFixedRouteLocation(pickupValue);
     if (pickupLocation?.kind !== 'city' && pickupLocation?.kind !== 'neighbourhood') {
       airportMatch = findAirport(pickupValue);
     }
+  }
+
+  const airportPickupText = String(
+    airportMatch?.nameEn || origin || pickupPlace?.address || pickupPlace?.nameEn || body.airport || '',
+  ).trim();
+  const airportDropoffText = String(
+    destination || dropoffPlace?.address || dropoffPlace?.nameEn || '',
+  ).trim();
+  if (serviceType === 'airport_transfer' && (!airportPickupText || !airportDropoffText)) {
+    throw httpError(400, 'Please select a pickup and drop-off location');
   }
 
   // Never trust a client-submitted price. Recalculate on the server.

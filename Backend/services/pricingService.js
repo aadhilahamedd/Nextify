@@ -161,6 +161,15 @@ async function calculateAirportPrice(payload = {}) {
 
   const pickupValue = pickupPlace || origin || airport;
   const dropoffValue = dropoffPlace || destination;
+  if (!pickupValue || !dropoffValue) {
+    return rateOnRequest('Price on request', {
+      serviceType: 'airport_transfer',
+      origin: origin || airportName || '',
+      destination: destination || '',
+      pricingModel: 'airport_transfer',
+    });
+  }
+
   const fixedRoute = matchAirportFixedRoute(pickupValue, dropoffValue);
   if (fixedRoute) {
     const matched = quoteAirportFixedRoute(fixedRoute, vCat || vName, {
@@ -170,7 +179,10 @@ async function calculateAirportPrice(payload = {}) {
       displayLabel: vName || vCat,
     });
     if (matched.customQuoteRequired) {
-      return rateOnRequest(matched.message, matched);
+      return rateOnRequest('Price on request', {
+        ...matched,
+        message: 'Price on request',
+      });
     }
     return {
       success: true,
@@ -179,34 +191,11 @@ async function calculateAirportPrice(payload = {}) {
     };
   }
 
-  const pickupAirport = findAirport(pickupPlace) || findAirport(origin) || findAirport(airport);
-  const dropoffAirport = findAirport(dropoffPlace) || findAirport(destination);
-  if (dropoffValue && !pickupAirport && !dropoffAirport) {
-    return rateOnRequest('Rate on Request', {
-      serviceType: 'airport_transfer',
-      origin: origin || airportName,
-      destination: destination || '',
-      pricingModel: 'airport_transfer',
-    });
-  }
-
-  const resolvedAirport = pickupAirport?.nameEn || dropoffAirport?.nameEn || airportName;
-  const rules = await getRulesByService('airport_transfer');
-  const rule = findAirportRule(rules, resolvedAirport, vCat, vName);
-  if (!rule) {
-    return customQuote('No fixed airport transfer rate for this vehicle. Custom quote required.', {
-      serviceType: 'airport_transfer',
-      airport: resolvedAirport,
-      pricingModel: 'airport_transfer',
-    });
-  }
-
-  return fixedQuote(rule, {
+  // No generic fallback pricing for airport transfers: unapproved routes require a custom quotation.
+  return rateOnRequest('Price on request', {
     serviceType: 'airport_transfer',
-    airport: resolvedAirport,
+    origin: origin || airportName || '',
     destination: destination || '',
-    pricingType: 'airport_base',
-    quoteStatus: 'priced',
     pricingModel: 'airport_transfer',
   });
 }

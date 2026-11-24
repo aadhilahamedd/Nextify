@@ -126,6 +126,7 @@ function BookingWizard() {
   const wizardRef = useRef(null);
   const pageRef = useRef(null);
   const skipWizardScroll = useRef(true);
+  const submittingRef = useRef(false);
   const [inView, setInView] = useState(false);
 
   if (location.state !== prevRouteState) {
@@ -183,25 +184,29 @@ function BookingWizard() {
   };
 
   const buildPricingPayload = useCallback(() => {
-    const airportPlace = (form.pickupPlace?.kind === 'place' && !form.pickupPlace?.iata)
+    const isCustomPickup = form.pickupPlace?.kind === 'custom';
+    const isCustomDropoff = form.dropoffPlace?.kind === 'custom';
+    const airportPlace = (isCustomPickup || (form.pickupPlace?.kind === 'place' && !form.pickupPlace?.iata))
       ? null
       : findAirport(form.pickupPlace || form.airport);
     const origin = form.serviceType === 'airport_transfer'
-      ? (airportPlace?.nameEn || form.airport)
+      ? (isCustomPickup ? (form.pickupPlace?.address || form.pickupLocation || form.origin || form.airport) : (airportPlace?.nameEn || form.airport || form.pickupLocation))
       : form.origin === 'Other'
         ? form.otherOrigin
         : (form.origin || form.pickupLocation || 'Riyadh');
-    const destination = form.destination === 'Other' || form.gccDestination === 'Other'
-      ? form.otherDestination
-      : (form.destination || form.gccDestination || form.dropoffLocation);
+    const destination = isCustomDropoff
+      ? (form.dropoffPlace?.address || form.destination || form.dropoffLocation)
+      : (form.destination === 'Other' || form.gccDestination === 'Other'
+        ? form.otherDestination
+        : (form.destination || form.gccDestination || form.dropoffLocation));
     return {
       serviceType: form.serviceType,
       vehicleCategory: form.vehicleCategory,
       vehicleName: selectedVehicle?.label || form.vehicleName,
-      airport: airportPlace?.nameEn || form.airport,
+      airport: isCustomPickup ? '' : (airportPlace?.nameEn || form.airport),
       origin,
       destination,
-      pickupPlace: form.pickupPlace || toLocationPlace(airportPlace, form.airport),
+      pickupPlace: isCustomPickup ? form.pickupPlace : (form.pickupPlace || toLocationPlace(airportPlace, form.airport)),
       dropoffPlace: form.dropoffPlace,
       durationType: form.durationType,
       distanceKm: form.distanceKm !== '' && form.distanceKm != null ? Number(form.distanceKm) : undefined,
@@ -226,6 +231,10 @@ function BookingWizard() {
     form.origin,
     form.destination,
     form.otherDestination,
+    form.pickupPlace?.kind || '',
+    form.pickupPlace?.id || '',
+    form.dropoffPlace?.kind || '',
+    form.dropoffPlace?.id || '',
     Boolean(form.returnTrip),
   ]);
   const quote = serverQuoteState.key === quoteKey && serverQuoteState.quote
@@ -320,11 +329,11 @@ function BookingWizard() {
       return false;
     }
     if (form.serviceType === 'airport_transfer') {
-      if (!String(form.airport || '').trim()) {
+      if (!String(form.pickupPlace?.address || form.airport || form.pickupLocation || '').trim()) {
         setError(t('booking.errPickup'));
         return false;
       }
-      if (!form.destination?.trim()) {
+      if (!String(form.dropoffPlace?.address || form.destination || form.dropoffLocation || '').trim()) {
         setError(t('booking.errDest'));
         return false;
       }
@@ -367,7 +376,7 @@ function BookingWizard() {
 
   const validate = () => {
     if (!validateTrip()) return false;
-    if (isInquiry) {
+    if (isInquiry && !TEMP_WHATSAPP_BOOKING_INSTEAD_OF_MOYASAR) {
       if (!form.customer.name || !form.customer.mobile) {
         setError(t('booking.errInquiryGuest'));
         return false;
@@ -390,7 +399,9 @@ function BookingWizard() {
   };
 
   const handleSubmit = async () => {
+    if (submittingRef.current) return;
     if (!validate()) return;
+    submittingRef.current = true;
     setLoading(true);
     setError('');
 
@@ -398,92 +409,105 @@ function BookingWizard() {
       ? reserveWhatsAppWindow()
       : null;
 
-    const payload = {
-      ...buildPricingPayload(),
-      vehicleName: selectedVehicle?.label || form.vehicleName,
-      travelDate: form.travelDate,
-      travelTime: form.travelTime,
-      schedule: { pickupDateTime: `${form.travelDate}T${form.travelTime}` },
-      flightNumber: form.flightNumber,
-      pickupLocation: form.pickupLocation || form.origin || form.serviceLocation || form.airport,
-      dropoffLocation: form.dropoffLocation || form.destination,
-      pickupPlace: form.pickupPlace,
-      dropoffPlace: form.dropoffPlace,
-      passengers: form.passengers,
-      luggage: form.luggage,
-      passengerCount: form.passengers,
-      luggageCount: form.luggage,
-      customer: form.customer,
-      specialRequests: form.specialRequests,
-      returnTrip: Boolean(form.returnTrip),
-      returnDate: form.returnDate,
-      returnTime: form.returnTime,
-    };
-
-    const res = await createBookingAPI(payload);
-    setLoading(false);
-
     const closeReservedWhatsApp = () => {
       if (waWindow && !waWindow.closed) {
         try { waWindow.close(); } catch { /* ignore */ }
       }
     };
 
-    if (res?.status === 201 || res?.status === 200) {
-      const booking = res.data?.booking || res.data?.data?.booking;
-      if (!booking?.bookingNumber) {
+    try {
+      const pricingPayload = buildPricingPayload();
+      const payload = {
+        ...pricingPayload,
+        vehicleName: selectedVehicle?.label || form.vehicleName,
+        travelDate: form.travelDate,
+        travelTime: form.travelTime,
+        schedule: { pickupDateTime: `${form.travelDate}T${form.travelTime}` },
+        flightNumber: form.flightNumber,
+        pickupLocation: pricingPayload.origin || form.pickupLocation || form.origin || form.serviceLocation || form.airport,
+        dropoffLocation: pricingPayload.destination || form.dropoffLocation || form.destination,
+        pickupPlace: pricingPayload.pickupPlace,
+        dropoffPlace: pricingPayload.dropoffPlace,
+        passengers: form.passengers,
+        luggage: form.luggage,
+        passengerCount: form.passengers,
+        luggageCount: form.luggage,
+        customer: form.customer,
+        specialRequests: form.specialRequests,
+        returnTrip: Boolean(form.returnTrip),
+        returnDate: form.returnDate,
+        returnTime: form.returnTime,
+      };
+
+      const res = await createBookingAPI(payload);
+
+      if (res?.status === 201 || res?.status === 200) {
+        const booking = res.data?.booking || res.data?.data?.booking;
+        const savedQuote = res.data?.quote || res.data?.data?.quote || quote;
+        if (!booking?.bookingNumber) {
+          closeReservedWhatsApp();
+          setError(res?.data?.message || res?.error || t('booking.errCreate'));
+          return;
+        }
+
+        if (TEMP_WHATSAPP_BOOKING_INSTEAD_OF_MOYASAR) {
+          const isCustomQuoteBooking = Boolean(booking?.customQuoteRequired || savedQuote?.customQuoteRequired);
+          const message = buildWhatsAppConfirmationMessage({
+            booking,
+            form,
+            quote: savedQuote,
+          });
+          try {
+            sessionStorage.setItem(`booking_${booking.bookingNumber}`, JSON.stringify(booking));
+          } catch { /* ignore quota */ }
+          const opened = openCompanyWhatsApp(message, {
+            window: waWindow,
+            redirect: !waWindow || waWindow.closed,
+          });
+          if (opened.method === 'redirect') return;
+          if (!opened.ok) {
+            closeReservedWhatsApp();
+            setError(opened.error || t('booking.errWhatsApp'));
+          }
+          navigate(`/booking-confirmation/${booking.bookingNumber}`, {
+            state: {
+              booking,
+              customQuote: isCustomQuoteBooking,
+              whatsappPending: true,
+              whatsappOpened: opened.ok && opened.method === 'window',
+            },
+          });
+          return;
+        }
+
+        if (booking?.customQuoteRequired || savedQuote?.customQuoteRequired) {
+          closeReservedWhatsApp();
+          navigate(`/booking-confirmation/${booking.bookingNumber}`, { state: { booking, customQuote: true } });
+          return;
+        }
+
+        const checkoutToken = normalizeCheckoutToken(
+          res.data?.checkoutToken || res.data?.data?.checkoutToken || '',
+        );
+        if (!checkoutToken && !hasAuthSession()) {
+          closeReservedWhatsApp();
+          setError(CHECKOUT_TOKEN_MISSING_MESSAGE);
+          return;
+        }
+        if (checkoutToken && booking?._id) {
+          saveCheckoutToken(booking._id, checkoutToken);
+        }
+
+        navigate('/payment', {
+          state: checkoutToken ? { booking, checkoutToken } : { booking },
+        });
+      } else {
         closeReservedWhatsApp();
         setError(res?.data?.message || res?.error || t('booking.errCreate'));
-        return;
       }
-      if (booking?.customQuoteRequired || quote?.customQuoteRequired) {
-        closeReservedWhatsApp();
-        navigate(`/booking-confirmation/${booking.bookingNumber}`, { state: { booking, customQuote: true } });
-        return;
-      }
-
-      if (TEMP_WHATSAPP_BOOKING_INSTEAD_OF_MOYASAR) {
-        const message = buildWhatsAppConfirmationMessage({
-          booking,
-          form,
-          quote,
-        });
-        try {
-          sessionStorage.setItem(`booking_${booking.bookingNumber}`, JSON.stringify(booking));
-        } catch { /* ignore quota */ }
-        const opened = openCompanyWhatsApp(message, {
-          window: waWindow,
-          redirect: !waWindow || waWindow.closed,
-        });
-        if (opened.method === 'redirect') return;
-        if (!opened.ok) {
-          closeReservedWhatsApp();
-          setError(opened.error || t('booking.errWhatsApp'));
-        }
-        navigate(`/booking-confirmation/${booking.bookingNumber}`, {
-          state: { booking, whatsappPending: true, whatsappOpened: opened.ok && opened.method === 'window' },
-        });
-        return;
-      }
-
-      const checkoutToken = normalizeCheckoutToken(
-        res.data?.checkoutToken || res.data?.data?.checkoutToken || '',
-      );
-      if (!checkoutToken && !hasAuthSession()) {
-        closeReservedWhatsApp();
-        setError(CHECKOUT_TOKEN_MISSING_MESSAGE);
-        return;
-      }
-      if (checkoutToken && booking?._id) {
-        saveCheckoutToken(booking._id, checkoutToken);
-      }
-
-      navigate('/payment', {
-        state: checkoutToken ? { booking, checkoutToken } : { booking },
-      });
-    } else {
-      closeReservedWhatsApp();
-      setError(res?.data?.message || res?.error || t('booking.errCreate'));
+    } finally {
+      submittingRef.current = false;
+      setLoading(false);
     }
   };
 
@@ -532,18 +556,23 @@ function BookingWizard() {
                 variant="transfer"
                 value={form.pickupPlace || form.airport}
                 onChange={(pickupLocation, pickupPlace) => {
-                  const isGroundPlace = pickupPlace?.kind === 'place' || pickupPlace?.kind === 'neighbourhood';
-                  const selectedAirport = pickupPlace?.kind === 'airport' || pickupPlace?.iata
+                  const isCustom = pickupPlace?.kind === 'custom';
+                  const isGroundPlace = isCustom || pickupPlace?.kind === 'place' || pickupPlace?.kind === 'neighbourhood';
+                  const selectedAirport = !isCustom && (pickupPlace?.kind === 'airport' || pickupPlace?.iata)
                     ? pickupPlace
                     : isGroundPlace
                       ? null
                       : findAirport(pickupLocation);
                   setError('');
                   update({
-                    airport: selectedAirport?.nameEn || pickupLocation,
-                    pickupPlace: selectedAirport
-                      ? toLocationPlace(selectedAirport, selectedAirport.nameEn)
-                      : pickupPlace,
+                    airport: isCustom ? '' : (selectedAirport?.nameEn || pickupLocation),
+                    origin: isCustom ? pickupLocation : (selectedAirport?.nameEn || pickupLocation),
+                    pickupLocation: isCustom ? pickupLocation : (selectedAirport?.nameEn || pickupLocation),
+                    pickupPlace: isCustom
+                      ? pickupPlace
+                      : (selectedAirport
+                        ? toLocationPlace(selectedAirport, selectedAirport.nameEn)
+                        : pickupPlace),
                   });
                 }}
                 placeholder={t('booking.transferPh')}
@@ -556,17 +585,21 @@ function BookingWizard() {
                 variant="transfer"
                 value={form.dropoffPlace || form.destination}
                 onChange={(destination, dropoffPlace) => {
-                  const isGroundPlace = dropoffPlace?.kind === 'place' || dropoffPlace?.kind === 'neighbourhood';
-                  const selectedAirport = dropoffPlace?.kind === 'airport' || dropoffPlace?.iata
+                  const isCustom = dropoffPlace?.kind === 'custom';
+                  const isGroundPlace = isCustom || dropoffPlace?.kind === 'place' || dropoffPlace?.kind === 'neighbourhood';
+                  const selectedAirport = !isCustom && (dropoffPlace?.kind === 'airport' || dropoffPlace?.iata)
                     ? dropoffPlace
                     : isGroundPlace
                       ? null
                       : findAirport(destination);
                   update({
-                    destination: selectedAirport?.nameEn || destination,
-                    dropoffPlace: selectedAirport
-                      ? toLocationPlace(selectedAirport, selectedAirport.nameEn)
-                      : dropoffPlace,
+                    destination: isCustom ? destination : (selectedAirport?.nameEn || destination),
+                    dropoffLocation: isCustom ? destination : (selectedAirport?.nameEn || destination),
+                    dropoffPlace: isCustom
+                      ? dropoffPlace
+                      : (selectedAirport
+                        ? toLocationPlace(selectedAirport, selectedAirport.nameEn)
+                        : dropoffPlace),
                   });
                 }}
                 placeholder={t('booking.transferPh')}
@@ -830,7 +863,7 @@ function BookingWizard() {
       {error && !/timeout|network error|econnaborted/i.test(error) && (
         <div className="book-error">{error}</div>
       )}
-      {step === 2 && isInquiry && (
+      {step === 2 && isInquiry && !TEMP_WHATSAPP_BOOKING_INSTEAD_OF_MOYASAR && (
         <div className="book-inquiry-actions">
           <button
             type="button"
@@ -851,7 +884,7 @@ function BookingWizard() {
           </button>
         </div>
       )}
-      {step === 2 && !isInquiry && (
+      {step === 2 && (TEMP_WHATSAPP_BOOKING_INSTEAD_OF_MOYASAR || !isInquiry) && (
         <button
           type="button"
           className="lux-btn w-100 mt-4"
@@ -859,7 +892,11 @@ function BookingWizard() {
           disabled={loading || !quote}
           onClick={handleSubmit}
         >
-          {loading ? t('booking.processing') : quote?.customQuoteRequired ? t('booking.requestQuote') : t('booking.payNow')}
+          {loading
+            ? t('booking.processing')
+            : TEMP_WHATSAPP_BOOKING_INSTEAD_OF_MOYASAR
+              ? (quote?.customQuoteRequired || isInquiry ? t('booking.requestQuoteWhatsApp') : t('booking.confirmWhatsApp'))
+              : (quote?.customQuoteRequired ? t('booking.requestQuote') : t('booking.payNow'))}
         </button>
       )}
     </div>
@@ -1091,7 +1128,7 @@ function BookingWizard() {
                       <input className="form-control book-input" value={form.customer.name} onChange={(e) => update({ customer: { ...form.customer, name: e.target.value } })} placeholder={t('booking.namePh')} autoComplete="name" />
                     </div>
                     <div className="col-12 col-md-6">
-                      <label className="book-label">{isInquiry ? t('booking.emailOptional') : t('booking.email')}</label>
+                      <label className="book-label">{(isInquiry && !TEMP_WHATSAPP_BOOKING_INSTEAD_OF_MOYASAR) ? t('booking.emailOptional') : t('booking.email')}</label>
                       <input type="email" inputMode="email" autoComplete="email" className="form-control book-input" value={form.customer.email} onChange={(e) => update({ customer: { ...form.customer, email: e.target.value } })} placeholder={t('booking.emailPh')} />
                     </div>
                     <div className="col-12">
