@@ -1,3 +1,5 @@
+import { getVehiclePriorityRank } from '../data/fleetVehicles.js';
+
 const IMAGE_MAP = {
   local_sprinter: '/images/car/mercedes-sprinter.webp',
   local_lexus_es: '/images/car/lexus-es-350.webp',
@@ -126,6 +128,8 @@ export function getShowcaseRank(car) {
 
 export function sortCarsForShowcase(cars = []) {
   return [...cars].sort((a, b) => {
+    const priorityDiff = getVehiclePriorityRank(a) - getVehiclePriorityRank(b);
+    if (priorityDiff !== 0) return priorityDiff;
     const rankDiff = getShowcaseRank(a) - getShowcaseRank(b);
     if (rankDiff !== 0) return rankDiff;
     return String(a.name || '').localeCompare(String(b.name || ''));

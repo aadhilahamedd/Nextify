@@ -254,8 +254,8 @@ export function filterManagedVehiclesForService(managedVehicles, serviceType, fl
     }
     return true;
   });
-  if (!fleetClass || fleetClass === 'All') return list;
-  return list.filter((v) => v.fleetClass === fleetClass);
+  if (!fleetClass || fleetClass === 'All') return sortVehiclesByPriority(list);
+  return sortVehiclesByPriority(list.filter((v) => v.fleetClass === fleetClass));
 }
 
 export function getFleetClass(car) {
@@ -287,20 +287,45 @@ function vehiclesInOrder(categories, fleetClass = 'All') {
   return list.filter((v) => v.fleetClass === fleetClass);
 }
 
+/**
+ * Customer-facing priority: GMC (0) → Sedan (1) → everything else (2).
+ * Uses category/fleet-class data (and the car `type` for admin-created vehicles); display
+ * names are only a last-resort fallback when no category data exists.
+ */
+export function getVehiclePriorityRank(vehicle) {
+  const base = findFleetVehicle({
+    category: vehicle?.category || vehicle?.vehicleCategory,
+    name: vehicle?.name || vehicle?.label,
+  });
+  const category = normalizeVehicleCategory(vehicle?.category || vehicle?.vehicleCategory || base?.category);
+  if (category === 'gmc') return 0;
+  const fleetClass = vehicle?.fleetClass || base?.fleetClass || inferFleetClassFromCar(vehicle);
+  if (fleetClass === FLEET_CLASS.SEDAN) return 1;
+  return 2;
+}
+
+/** Stable sort by GMC → Sedan → other; never hides or removes vehicles. */
+export function sortVehiclesByPriority(list = []) {
+  return list
+    .map((item, index) => ({ item, index, rank: getVehiclePriorityRank(item) }))
+    .sort((a, b) => (a.rank - b.rank) || (a.index - b.index))
+    .map((entry) => entry.item);
+}
+
 export function getVehiclesForService(serviceType, fleetClass = 'All', durationType) {
   if (serviceType === 'intercity_transfer') {
-    return vehiclesInOrder(INTERCITY_INQUIRY_CATEGORIES, fleetClass);
+    return sortVehiclesByPriority(vehiclesInOrder(INTERCITY_INQUIRY_CATEGORIES, fleetClass));
   }
   if (serviceType === 'gcc_transfer') {
-    return vehiclesInOrder(GCC_INQUIRY_CATEGORIES, fleetClass);
+    return sortVehiclesByPriority(vehiclesInOrder(GCC_INQUIRY_CATEGORIES, fleetClass));
   }
   const list = FLEET_VEHICLES.filter((v) => {
     if (serviceType === 'chauffeur' && durationType === 'half_day') return v.half != null;
     if (serviceType === 'chauffeur' && durationType === 'full_day') return v.full != null;
     return true;
   });
-  if (!fleetClass || fleetClass === 'All') return list;
-  return list.filter((v) => v.fleetClass === fleetClass);
+  if (!fleetClass || fleetClass === 'All') return sortVehiclesByPriority(list);
+  return sortVehiclesByPriority(list.filter((v) => v.fleetClass === fleetClass));
 }
 
 export function getVehicleImageByCategory(category) {
