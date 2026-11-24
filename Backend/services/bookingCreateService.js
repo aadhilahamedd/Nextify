@@ -224,6 +224,7 @@ async function createBookingFromPayload(body, { userId } = {}) {
         originLabel: quote.originLabel || null,
         destinationLabel: quote.destinationLabel || null,
         routeType: quote.routeType || null,
+        ...(quote.taxIncluded ? { taxIncluded: true } : {}),
       },
     },
     paymentStatus: quote.customQuoteRequired ? 'NOT_REQUIRED' : 'PENDING',

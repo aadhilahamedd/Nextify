@@ -286,6 +286,9 @@ export function buildWhatsAppConfirmationMessage({
   if (!customQuote && hasDisplayValue(amount) && Number(quote?.price ?? booking.quotedPrice ?? booking.pricing?.totalAmount) > 0) {
     pushField(lines, 'Currency', currency);
     pushField(lines, 'Booking Amount', amount);
+    if (quote?.taxIncluded || booking.pricing?.breakdown?.taxIncluded) {
+      pushField(lines, 'Tax', 'Included');
+    }
   } else {
     pushField(lines, 'Price', 'Price on request');
   }

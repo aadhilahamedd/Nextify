@@ -83,6 +83,17 @@ const tests = [
   { name: 'Al Rawdah to Madinah GMC', payload: { serviceType: 'airport_transfer', origin: 'Al Rawdah', destination: 'Madinah', vehicleCategory: 'gmc' }, expect: 1000, expectType: 'airport_fixed_route' },
   { name: 'Riyadh neighbourhood to Jeddah neighbourhood GMC', payload: { serviceType: 'airport_transfer', origin: 'Al Olaya', destination: 'Al Hamra', vehicleCategory: 'gmc' }, expect: 3200, expectType: 'airport_fixed_route' },
 
+  // New approved Bahrain one-way routes (no auto-reverse)
+  { name: 'Bahrain to Dammam SUV (GMC)', payload: { serviceType: 'airport_transfer', origin: 'Bahrain', destination: 'Dammam', vehicleCategory: 'gmc' }, expect: 650, expectType: 'airport_fixed_route' },
+  { name: 'Bahrain to Dammam Sedan (Taurus)', payload: { serviceType: 'airport_transfer', origin: 'Bahrain', destination: 'Dammam', vehicleCategory: 'ford_taurus' }, expect: 550, expectType: 'airport_fixed_route' },
+  { name: 'Bahrain to Al Khobar SUV (GMC)', payload: { serviceType: 'airport_transfer', origin: 'Bahrain', destination: 'Al Khobar', vehicleCategory: 'gmc' }, expect: 650, expectType: 'airport_fixed_route' },
+  { name: 'Bahrain to Al Khobar Sedan (Lexus)', payload: { serviceType: 'airport_transfer', origin: 'Bahrain', destination: 'Al Khobar', vehicleCategory: 'lexus_es' }, expect: 550, expectType: 'airport_fixed_route' },
+  { name: 'Bahrain to Riyadh tax-inclusive GMC', payload: { serviceType: 'airport_transfer', origin: 'Bahrain', destination: 'Riyadh', vehicleCategory: 'gmc' }, expect: 1800, expectType: 'airport_fixed_route' },
+  { name: 'Bahrain to Riyadh tax-inclusive Sedan', payload: { serviceType: 'airport_transfer', origin: 'Bahrain', destination: 'Riyadh', vehicleCategory: 'ford_taurus' }, expect: 1800, expectType: 'airport_fixed_route' },
+  { name: 'Bahrain to Dammam unsupported vehicle requires custom quote', payload: { serviceType: 'airport_transfer', origin: 'Bahrain', destination: 'Dammam', vehicleCategory: 'mercedes_s' }, expectCustom: true, expectStatus: 'rate_on_request', expectType: 'airport_fixed_route' },
+  { name: 'Reverse Dammam to Bahrain requires custom quote', payload: { serviceType: 'airport_transfer', origin: 'Dammam', destination: 'Bahrain', vehicleCategory: 'gmc' }, expectCustom: true, expectStatus: 'rate_on_request' },
+  { name: 'Reverse Al Khobar to Bahrain requires custom quote', payload: { serviceType: 'airport_transfer', origin: 'Al Khobar', destination: 'Bahrain', vehicleCategory: 'ford_taurus' }, expectCustom: true, expectStatus: 'rate_on_request' },
+
   // Unapproved intra-city airport routes must return price: null and customQuoteRequired: true
   { name: 'KKIA to Riyadh city requires custom quote', payload: { serviceType: 'airport_transfer', airport: 'King Khalid International Airport', origin: 'King Khalid International Airport', destination: 'Riyadh', vehicleCategory: 'gmc' }, expectCustom: true, expectStatus: 'rate_on_request' },
   { name: 'KKIA to Olaya requires custom quote', payload: { serviceType: 'airport_transfer', airport: 'King Khalid International Airport', destination: 'Olaya', vehicleCategory: 'gmc', distanceKm: 46 }, expectCustom: true, expectStatus: 'rate_on_request' },

@@ -266,6 +266,87 @@ async function run() {
     assert.strictEqual(gccQuote.customQuoteRequired, false);
   });
 
+  await check('7. Approved Bahrain one-way routes return exact prices and block unapproved reverse directions & unsupported vehicles', async () => {
+    // Bahrain -> Dammam: SUV 650, Sedan 550
+    const bdSuv = await calculatePrice({ serviceType: 'airport_transfer', origin: 'Bahrain', destination: 'Dammam', vehicleCategory: 'gmc' });
+    assert.strictEqual(bdSuv.price, 650);
+    assert.strictEqual(bdSuv.totalAmount, 650);
+    assert.strictEqual(bdSuv.customQuoteRequired, false);
+
+    const bdSedan = await calculatePrice({ serviceType: 'airport_transfer', origin: 'Bahrain', destination: 'Dammam', vehicleCategory: 'ford_taurus' });
+    assert.strictEqual(bdSedan.price, 550);
+    assert.strictEqual(bdSedan.totalAmount, 550);
+    assert.strictEqual(bdSedan.customQuoteRequired, false);
+
+    // Bahrain -> Al Khobar: SUV 650, Sedan 550
+    const bkSuv = await calculatePrice({ serviceType: 'airport_transfer', origin: 'Bahrain', destination: 'Al Khobar', vehicleCategory: 'gmc_yukon' });
+    assert.strictEqual(bkSuv.price, 650);
+    assert.strictEqual(bkSuv.customQuoteRequired, false);
+
+    const bkSedan = await calculatePrice({ serviceType: 'airport_transfer', origin: 'Bahrain', destination: 'Al Khobar', vehicleCategory: 'lexus_es' });
+    assert.strictEqual(bkSedan.price, 550);
+    assert.strictEqual(bkSedan.customQuoteRequired, false);
+
+    // Bahrain -> Riyadh: SAR 1,800 including tax (no extra tax added)
+    const brSuv = await calculatePrice({ serviceType: 'airport_transfer', origin: 'Bahrain', destination: 'Riyadh', vehicleCategory: 'gmc' });
+    assert.strictEqual(brSuv.price, 1800);
+    assert.strictEqual(brSuv.totalAmount, 1800);
+    assert.strictEqual(brSuv.taxIncluded, true);
+    assert.strictEqual(brSuv.customQuoteRequired, false);
+
+    const brSedan = await calculatePrice({ serviceType: 'airport_transfer', origin: 'Bahrain', destination: 'Riyadh', vehicleCategory: 'ford_taurus' });
+    assert.strictEqual(brSedan.price, 1800);
+    assert.strictEqual(brSedan.totalAmount, 1800);
+    assert.strictEqual(brSedan.taxIncluded, true);
+
+    // Existing Riyadh -> Bahrain preserved at 1,500 / 1,300
+    const rbSuv = await calculatePrice({ serviceType: 'airport_transfer', origin: 'Riyadh', destination: 'Bahrain', vehicleCategory: 'gmc' });
+    assert.strictEqual(rbSuv.price, 1500);
+    const rbSedan = await calculatePrice({ serviceType: 'airport_transfer', origin: 'Riyadh', destination: 'Bahrain', vehicleCategory: 'ford_taurus' });
+    assert.strictEqual(rbSedan.price, 1300);
+
+    // Unsupported vehicles on Bahrain routes must return Price on request
+    for (const badCat of ['bmw_5', 'mercedes_s', 'toyota_hiace', 'mercedes_coach']) {
+      const q = await calculatePrice({ serviceType: 'airport_transfer', origin: 'Bahrain', destination: 'Dammam', vehicleCategory: badCat });
+      assert.strictEqual(q.price, null);
+      assert.strictEqual(q.customQuoteRequired, true);
+      assert.strictEqual(q.payable, false);
+      assert.strictEqual(q.message, 'Price on request');
+    }
+
+    // Reverse Dammam -> Bahrain and Al Khobar -> Bahrain must NOT be priced and must reject payment checkout
+    for (const [origin, destination] of [['Dammam', 'Bahrain'], ['Al Khobar', 'Bahrain']]) {
+      const rev = await calculatePrice({ serviceType: 'airport_transfer', origin, destination, vehicleCategory: 'gmc' });
+      assert.strictEqual(rev.price, null, `${origin} -> ${destination} must not have an auto-reversed price`);
+      assert.strictEqual(rev.customQuoteRequired, true);
+      assert.strictEqual(rev.payable, false);
+      assert.strictEqual(rev.message, 'Price on request');
+    }
+
+    Booking.findOne = async () => null;
+    Booking.prototype.save = async function () { return this; };
+    const revBooking = await createBookingFromPayload({
+      serviceType: 'airport_transfer',
+      vehicleCategory: 'gmc',
+      vehicleName: 'GMC Yukon',
+      origin: 'Dammam',
+      destination: 'Bahrain',
+      travelDate: '2026-12-28',
+      travelTime: '11:00',
+      customer: { name: 'Reverse Guest', email: 'rev@example.com', mobile: '0555992937' },
+    });
+    assert.strictEqual(revBooking.booking.customQuoteRequired, true);
+    assert.strictEqual(revBooking.booking.paymentStatus, 'NOT_REQUIRED');
+    assert.strictEqual(revBooking.checkoutToken, null);
+    let checkoutErr = null;
+    try {
+      await paymentService.createOrReuseCheckout(revBooking.booking);
+    } catch (err) {
+      checkoutErr = err;
+    }
+    assert.ok(checkoutErr && checkoutErr.statusCode === 400);
+  });
+
   const failed = results.filter((r) => !r.ok);
   console.log(`\nResults: ${results.length - failed.length} passed, ${failed.length} failed`);
   if (failed.length) process.exitCode = 1;

@@ -49,6 +49,41 @@ describe('WhatsApp booking switch and airport pricing rules', () => {
     });
     assert.equal(riyadhMadinahSedan.price, 2500);
     assert.equal(riyadhMadinahSedan.customQuoteRequired, false);
+
+    // Existing Riyadh -> Bahrain preserved
+    const riyadhBahrainGmc = getOfficialQuote({
+      serviceType: 'airport_transfer',
+      origin: 'Riyadh',
+      destination: 'Bahrain',
+      vehicleCategory: 'gmc',
+    });
+    assert.equal(riyadhBahrainGmc.price, 1500);
+
+    // New approved Bahrain one-way routes
+    assert.equal(getOfficialQuote({ serviceType: 'airport_transfer', origin: 'Bahrain', destination: 'Dammam', vehicleCategory: 'gmc' }).price, 650);
+    assert.equal(getOfficialQuote({ serviceType: 'airport_transfer', origin: 'Bahrain', destination: 'Dammam', vehicleCategory: 'ford_taurus' }).price, 550);
+    assert.equal(getOfficialQuote({ serviceType: 'airport_transfer', origin: 'Bahrain', destination: 'Al Khobar', vehicleCategory: 'gmc' }).price, 650);
+    assert.equal(getOfficialQuote({ serviceType: 'airport_transfer', origin: 'Bahrain', destination: 'Al Khobar', vehicleCategory: 'lexus_es' }).price, 550);
+    const bahrainRiyadh = getOfficialQuote({ serviceType: 'airport_transfer', origin: 'Bahrain', destination: 'Riyadh', vehicleCategory: 'gmc' });
+    assert.equal(bahrainRiyadh.price, 1800);
+    assert.equal(bahrainRiyadh.totalAmount, 1800);
+    assert.equal(bahrainRiyadh.taxIncluded, true);
+  });
+
+  test('new Bahrain reverse directions and unsupported vehicles return Price on request', () => {
+    for (const payload of [
+      { origin: 'Dammam', destination: 'Bahrain', vehicleCategory: 'gmc' },
+      { origin: 'Al Khobar', destination: 'Bahrain', vehicleCategory: 'ford_taurus' },
+      { origin: 'Bahrain', destination: 'Dammam', vehicleCategory: 'bmw_5' },
+      { origin: 'Bahrain', destination: 'Al Khobar', vehicleCategory: 'mercedes_s' },
+      { origin: 'Bahrain', destination: 'Riyadh', vehicleCategory: 'toyota_hiace' },
+    ]) {
+      const q = getOfficialQuote({ serviceType: 'airport_transfer', ...payload });
+      assert.equal(q.price, null);
+      assert.equal(q.customQuoteRequired, true);
+      assert.equal(q.payable, false);
+      assert.equal(q.message, 'Price on request');
+    }
   });
 
   test('unapproved airport routes, Taif, and custom locations display no price (Price on request)', () => {
