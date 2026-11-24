@@ -34,6 +34,8 @@ jobs:
           NODE_ENV: test
           PAYMENT_PROVIDER: moyasar
           MOYASAR_ENV: test
+          MOYASAR_SECRET_KEY: sk_test_ci_placeholder
+          MOYASAR_PUBLISHABLE_KEY: pk_test_ci_placeholder
         run: npm test
 
       - name: Run offline airport and service pricing test suite
