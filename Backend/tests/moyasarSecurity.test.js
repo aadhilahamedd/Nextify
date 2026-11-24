@@ -23,6 +23,8 @@ const saved = {
   MOYASAR_SECRET_KEY: process.env.MOYASAR_SECRET_KEY,
   MOYASAR_PUBLISHABLE_KEY: process.env.MOYASAR_PUBLISHABLE_KEY,
   MOYASAR_WEBHOOK_SECRET: process.env.MOYASAR_WEBHOOK_SECRET,
+  MOYASAR_TEST_WEBHOOK_SECRET: process.env.MOYASAR_TEST_WEBHOOK_SECRET,
+  MOYASAR_LIVE_WEBHOOK_SECRET: process.env.MOYASAR_LIVE_WEBHOOK_SECRET,
   PAYMENT_PROVIDER: process.env.PAYMENT_PROVIDER,
   NODE_ENV: process.env.NODE_ENV,
 };
@@ -117,18 +119,58 @@ check('unknown MOYASAR_ENV is rejected', () => {
 });
 
 check('example webhook secrets are not accepted', () => {
+  process.env.MOYASAR_TEST_WEBHOOK_SECRET = '';
+  process.env.MOYASAR_LIVE_WEBHOOK_SECRET = '';
   process.env.MOYASAR_WEBHOOK_SECRET = 'change_me_in_moyasar_dashboard';
-  assert.strictEqual(webhookSecretAccepted('change_me_in_moyasar_dashboard'), false);
+  assert.strictEqual(webhookSecretAccepted('change_me_in_moyasar_dashboard', false), false);
   process.env.MOYASAR_WEBHOOK_SECRET = '';
-  assert.strictEqual(webhookSecretAccepted(''), false);
+  assert.strictEqual(webhookSecretAccepted('', false), false);
   restoreEnv();
 });
 
-check('webhook token comparison is exact', () => {
+check('legacy webhook token comparison remains exact for staging compatibility', () => {
+  process.env.MOYASAR_TEST_WEBHOOK_SECRET = '';
+  process.env.MOYASAR_LIVE_WEBHOOK_SECRET = '';
   process.env.MOYASAR_WEBHOOK_SECRET = 'local-dashboard-token';
-  assert.strictEqual(webhookSecretAccepted('local-dashboard-token'), true);
-  assert.strictEqual(webhookSecretAccepted('local-dashboard-token-x'), false);
-  assert.strictEqual(webhookSecretAccepted(''), false);
+  assert.strictEqual(webhookSecretAccepted('local-dashboard-token', false), true);
+  assert.strictEqual(webhookSecretAccepted('local-dashboard-token-x', false), false);
+  assert.strictEqual(webhookSecretAccepted('', false), false);
+  restoreEnv();
+});
+
+check('separate TEST and LIVE webhook secrets are selected by the webhook live flag', () => {
+  process.env.MOYASAR_WEBHOOK_SECRET = 'legacy-must-not-be-used';
+  process.env.MOYASAR_TEST_WEBHOOK_SECRET = 'test-dashboard-token';
+  process.env.MOYASAR_LIVE_WEBHOOK_SECRET = 'live-dashboard-token';
+
+  assert.strictEqual(webhookSecretAccepted('test-dashboard-token', false), true);
+  assert.strictEqual(webhookSecretAccepted('live-dashboard-token', true), true);
+  assert.strictEqual(webhookSecretAccepted('live-dashboard-token', false), false);
+  assert.strictEqual(webhookSecretAccepted('test-dashboard-token', true), false);
+  assert.strictEqual(webhookSecretAccepted('legacy-must-not-be-used', false), false);
+  assert.strictEqual(webhookSecretAccepted('legacy-must-not-be-used', true), false);
+  restoreEnv();
+});
+
+check('missing mode-specific webhook secret fails closed without legacy fallback', () => {
+  process.env.MOYASAR_WEBHOOK_SECRET = 'legacy-must-not-be-used';
+  process.env.MOYASAR_TEST_WEBHOOK_SECRET = 'test-dashboard-token';
+  process.env.MOYASAR_LIVE_WEBHOOK_SECRET = '';
+
+  assert.strictEqual(webhookSecretAccepted('test-dashboard-token', false), true);
+  assert.strictEqual(webhookSecretAccepted('legacy-must-not-be-used', true), false);
+  assert.strictEqual(webhookSecretAccepted('anything', undefined), false);
+  restoreEnv();
+});
+
+check('webhook verification events without live flag authenticate against either configured mode secret', () => {
+  process.env.MOYASAR_WEBHOOK_SECRET = '';
+  process.env.MOYASAR_TEST_WEBHOOK_SECRET = 'test-dashboard-token';
+  process.env.MOYASAR_LIVE_WEBHOOK_SECRET = 'live-dashboard-token';
+
+  assert.strictEqual(webhookSecretAccepted('test-dashboard-token'), true);
+  assert.strictEqual(webhookSecretAccepted('live-dashboard-token'), true);
+  assert.strictEqual(webhookSecretAccepted('not-a-dashboard-token'), false);
   restoreEnv();
 });
 

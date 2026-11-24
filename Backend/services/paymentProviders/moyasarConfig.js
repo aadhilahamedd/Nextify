@@ -41,18 +41,52 @@ function assertMoyasarCredentials({ force = false } = {}) {
   return { mode };
 }
 
-function webhookSecretConfigured() {
-  const expected = String(process.env.MOYASAR_WEBHOOK_SECRET || '');
+function webhookSecretForMode(live) {
+  if (typeof live !== 'boolean') return '';
+
+  const testSecret = String(process.env.MOYASAR_TEST_WEBHOOK_SECRET || '');
+  const liveSecret = String(process.env.MOYASAR_LIVE_WEBHOOK_SECRET || '');
+  const hasModeSpecificSecrets = Boolean(testSecret || liveSecret);
+
+  // When either mode-specific secret is configured, require the matching one.
+  // Never fall back to a shared legacy secret for a missing mode in this configuration.
+  if (hasModeSpecificSecrets) {
+    return live ? liveSecret : testSecret;
+  }
+
+  // Backward compatibility for existing staging/local deployments that still use
+  // one MOYASAR_WEBHOOK_SECRET. This fallback is disabled as soon as either
+  // mode-specific secret is configured.
+  return String(process.env.MOYASAR_WEBHOOK_SECRET || '');
+}
+
+function webhookSecretConfigured(live) {
+  const expected = webhookSecretForMode(live);
   return Boolean(expected) && !EXAMPLE_WEBHOOK_SECRETS.has(expected);
 }
 
-function webhookSecretAccepted(provided) {
-  if (!webhookSecretConfigured()) return false;
-  const expected = String(process.env.MOYASAR_WEBHOOK_SECRET);
+function secretMatches(provided, expected) {
+  if (!expected || EXAMPLE_WEBHOOK_SECRETS.has(expected)) return false;
   const actual = Buffer.from(String(provided || ''));
   const wanted = Buffer.from(expected);
   if (actual.length !== wanted.length) return false;
   return crypto.timingSafeEqual(actual, wanted);
+}
+
+function webhookSecretAccepted(provided, live) {
+  if (typeof live === 'boolean') {
+    return secretMatches(provided, webhookSecretForMode(live));
+  }
+
+  // Moyasar webhook_verification payloads omit the live flag.
+  // This path performs no payment reconciliation; authenticate against either
+  // configured mode-specific secret, or the legacy secret when none are set.
+  const testSecret = String(process.env.MOYASAR_TEST_WEBHOOK_SECRET || '');
+  const liveSecret = String(process.env.MOYASAR_LIVE_WEBHOOK_SECRET || '');
+  if (testSecret || liveSecret) {
+    return secretMatches(provided, testSecret) || secretMatches(provided, liveSecret);
+  }
+  return secretMatches(provided, String(process.env.MOYASAR_WEBHOOK_SECRET || ''));
 }
 
 function assertWebhookMode(payload) {
