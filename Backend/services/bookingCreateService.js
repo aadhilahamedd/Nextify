@@ -21,7 +21,6 @@ function bookingLocationAddress(place, fallback = '') {
   }
   return place?.nameEn || place?.address || fallback || '';
 }
-const { isVehicleAvailable } = require('./availabilityService');
 
 function httpError(statusCode, message, details) {
   const err = new Error(message);
@@ -127,19 +126,6 @@ async function createBookingFromPayload(body, { userId } = {}) {
     }
     if (fleetCar.available === false) {
       throw httpError(400, 'Selected vehicle is currently unavailable.');
-    }
-  }
-
-  if (body.vehicle?.carId && !quote.customQuoteRequired) {
-    const availability = await isVehicleAvailable(
-      body.vehicle.carId,
-      body.vehicleName,
-      pickupDateTime
-    );
-    if (!availability.available) {
-      throw httpError(409, 'Selected vehicle is not available for this time slot', [
-        `Conflict with booking ${availability.conflictBooking}`,
-      ]);
     }
   }
 
