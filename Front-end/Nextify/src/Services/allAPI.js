@@ -314,7 +314,13 @@ export const attachMoyasarReferenceAPI = async (paymentId, moyasarPaymentId) => 
 
 export const verifyPaymentAPI = async (moyasarPaymentId) => {
   try {
-    const response = await commonAPI("GET", `${serverURL}/api/payments/verify/${moyasarPaymentId}`, "", getAuthHeaders());
+    const response = await commonAPI(
+      "GET",
+      `${serverURL}/api/payments/verify/${encodeURIComponent(moyasarPaymentId)}`,
+      "",
+      getAuthHeaders(),
+      { timeout: 15000 }
+    );
     return unwrap(response);
   } catch (err) {
     return handleError(err, "Failed to verify payment");

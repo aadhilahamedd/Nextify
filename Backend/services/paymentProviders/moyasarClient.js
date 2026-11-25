@@ -1,5 +1,14 @@
 const MOYASAR_API_BASE = 'https://api.moyasar.com/v1';
+const DEFAULT_MOYASAR_TIMEOUT_MS = 8000;
 const { assertMoyasarCredentials } = require('./moyasarConfig');
+
+function getMoyasarTimeoutMs() {
+  const configured = Number(process.env.MOYASAR_HTTP_TIMEOUT_MS);
+  if (Number.isFinite(configured) && configured >= 500 && configured <= 30000) {
+    return configured;
+  }
+  return DEFAULT_MOYASAR_TIMEOUT_MS;
+}
 
 function getSecretKey() {
   assertMoyasarCredentials({ force: true });
@@ -11,13 +20,33 @@ function authHeader() {
 }
 
 async function moyasarRequest(method, path) {
-  const response = await fetch(`${MOYASAR_API_BASE}${path}`, {
-    method,
-    headers: {
-      Authorization: authHeader(),
-      Accept: 'application/json',
-    },
-  });
+  const timeoutMs = getMoyasarTimeoutMs();
+  const controller = typeof AbortController === 'function' ? new AbortController() : null;
+  const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
+
+  let response;
+  try {
+    response = await fetch(`${MOYASAR_API_BASE}${path}`, {
+      method,
+      headers: {
+        Authorization: authHeader(),
+        Accept: 'application/json',
+      },
+      ...(controller ? { signal: controller.signal } : {}),
+    });
+  } catch (err) {
+    const isTimeout = err?.name === 'AbortError' || err?.code === 'ABORT_ERR';
+    const wrapped = new Error(
+      isTimeout
+        ? `Moyasar API request timed out after ${timeoutMs}ms`
+        : 'Unable to reach Moyasar API'
+    );
+    wrapped.statusCode = isTimeout ? 504 : 502;
+    wrapped.code = isTimeout ? 'MOYASAR_TIMEOUT' : 'MOYASAR_NETWORK_ERROR';
+    throw wrapped;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 
   let data = null;
   try {
@@ -52,4 +81,6 @@ async function retrievePayment(moyasarPaymentId) {
 module.exports = {
   retrievePayment,
   MOYASAR_API_BASE,
+  DEFAULT_MOYASAR_TIMEOUT_MS,
+  getMoyasarTimeoutMs,
 };

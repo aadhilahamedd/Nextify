@@ -152,15 +152,39 @@ exports.attachMoyasarReference = async (req, res, next) => {
 };
 
 exports.webhook = async (req, res, next) => {
+  const startedAt = Date.now();
+  const eventType = typeof req.body?.type === 'string' ? req.body.type : null;
+  const eventId = req.body?.id != null ? String(req.body.id) : null;
+  const moyasarPaymentId = req.body?.data?.id != null ? String(req.body.data.id) : null;
+
   try {
     const result = await paymentService.handleWebhook(req.body);
+    const durationMs = Date.now() - startedAt;
+
     if (result?.verification || result?.ignored) {
+      console.log('[payments] Moyasar webhook accepted', {
+        eventType,
+        eventId,
+        verification: Boolean(result.verification),
+        ignored: Boolean(result.ignored),
+        durationMs,
+      });
       return success(res, 200, 'Webhook accepted', {
         verification: Boolean(result.verification),
         ignored: Boolean(result.ignored),
       });
     }
     if (!result.reused && !result.duplicateCharge) notifyWhatsAppPayment(result);
+    console.log('[payments] Moyasar webhook processed', {
+      eventType,
+      eventId,
+      moyasarPaymentId,
+      bookingNumber: result.booking?.bookingNumber || null,
+      status: result.mappedStatus || result.payment?.status || null,
+      reused: Boolean(result.reused),
+      duplicateCharge: Boolean(result.duplicateCharge),
+      durationMs,
+    });
     return success(res, 200, result.manualInterventionRequired ? result.message : 'Webhook processed', {
       payment: paymentService.toSafePayment(result.payment),
       bookingNumber: result.booking?.bookingNumber,
@@ -169,6 +193,15 @@ exports.webhook = async (req, res, next) => {
       manualInterventionRequired: Boolean(result.manualInterventionRequired),
     });
   } catch (err) {
+    console.error('[payments] Moyasar webhook failed', {
+      eventType,
+      eventId,
+      moyasarPaymentId,
+      statusCode: err?.statusCode || err?.status || 500,
+      errorCode: err?.code || null,
+      message: err?.message || 'Webhook processing error',
+      durationMs: Date.now() - startedAt,
+    });
     next(err);
   }
 };
