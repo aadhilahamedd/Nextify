@@ -5,10 +5,12 @@ const moyasarPaymentProvider = require('./paymentProviders/moyasarPaymentProvide
 const { assertMoyasarCredentials } = require('./paymentProviders/moyasarConfig');
 const { frontendBaseUrl } = require('../config/publicUrls');
 
-const PROVIDER = process.env.PAYMENT_PROVIDER || 'mock';
+function getProviderName() {
+  return process.env.PAYMENT_PROVIDER || 'mock';
+}
 
 function getProvider() {
-  switch (PROVIDER) {
+  switch (getProviderName()) {
     case 'moyasar':
       return moyasarPaymentProvider;
     case 'mock':
@@ -60,7 +62,7 @@ function getCheckoutConfig(payment, booking) {
   if (typeof provider.getCheckoutConfig === 'function') {
     return provider.getCheckoutConfig(payment, booking);
   }
-  return { provider: PROVIDER };
+  return { provider: getProviderName() };
 }
 
 async function createOrReuseCheckout(bookingDoc) {
@@ -96,7 +98,7 @@ async function createOrReuseCheckout(bookingDoc) {
     err.statusCode = 400;
     throw err;
   }
-  if (PROVIDER === 'moyasar') assertMoyasarCredentials({ force: true });
+  if (getProviderName() === 'moyasar') assertMoyasarCredentials({ force: true });
 
   const alreadyPaid = await Payment.findOne({ booking: booking._id, status: 'PAID' });
   if (alreadyPaid) {
@@ -233,5 +235,7 @@ module.exports = {
   attachMoyasarReference,
   createOrReuseCheckout,
   toSafePayment,
-  PROVIDER,
+  get PROVIDER() {
+    return getProviderName();
+  },
 };
