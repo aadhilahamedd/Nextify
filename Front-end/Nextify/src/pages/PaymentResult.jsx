@@ -69,51 +69,72 @@ function PaymentResult() {
   useEffect(() => {
     if (!moyasarId) return;
 
+    const MAX_ATTEMPTS = 5;
+    const POLL_DELAYS_MS = [2000, 3000, 4000, 5000];
     let cancelled = false;
-    verifyPaymentAPI(moyasarId).then((res) => {
-      if (cancelled) return;
-      const verifiedBooking = res.data?.booking;
-      const booking = mergeConfirmationBooking(verifiedBooking);
-      const verified = res.data?.verified === true && res.status === 200;
-      const status = res.data?.status;
+    let pollTimer = null;
 
-      if (booking?._id) setRetryBookingId(booking._id);
+    const runVerify = (attempt) => {
+      verifyPaymentAPI(moyasarId).then((res) => {
+        if (cancelled) return;
+        const verifiedBooking = res.data?.booking;
+        const booking = mergeConfirmationBooking(verifiedBooking);
+        const verified = res.data?.verified === true && res.status === 200;
+        const status = res.data?.status;
 
-      if (verified && booking?.bookingNumber) {
-        clearCheckoutToken(booking._id);
-        navigate(`/booking-confirmation/${booking.bookingNumber}`, {
-          state: {
-            booking,
-            paymentSuccess: true,
-            manualInterventionRequired: Boolean(res.data?.manualInterventionRequired),
-            paymentNotice: res.message || '',
-          },
-          replace: true,
-        });
-        return;
-      }
+        if (booking?._id) setRetryBookingId(booking._id);
 
-      if (booking?.bookingNumber && ['FAILED', 'CANCELLED'].includes(status)) {
-        storeRetryBooking(booking);
-        navigate(`/booking-confirmation/${booking.bookingNumber}`, {
-          state: { booking, paymentSuccess: false },
-          replace: true,
-        });
-        return;
-      }
+        if (verified && booking?.bookingNumber) {
+          clearCheckoutToken(booking._id);
+          navigate(`/booking-confirmation/${booking.bookingNumber}`, {
+            state: {
+              booking,
+              paymentSuccess: true,
+              manualInterventionRequired: Boolean(res.data?.manualInterventionRequired),
+              paymentNotice: res.message || '',
+            },
+            replace: true,
+          });
+          return;
+        }
 
-      if (res.status === 200 || res.status === 422) {
-        setMessage(t('payment.processing'));
-        return;
-      }
+        if (booking?.bookingNumber && ['FAILED', 'CANCELLED'].includes(status)) {
+          storeRetryBooking(booking);
+          navigate(`/booking-confirmation/${booking.bookingNumber}`, {
+            state: { booking, paymentSuccess: false },
+            replace: true,
+          });
+          return;
+        }
 
-      if (booking?._id) storeRetryBooking(booking);
-      setError(res?.data?.message || res?.error || 'Payment verification failed');
-      setMessage('');
-    });
+        const isPendingStatus = (res.status === 200 || res.status === 422) && status === 'PENDING';
+        const isTransientError = [500, 502, 503, 504].includes(res.status) && !res.data?.status;
+
+        if ((isPendingStatus || isTransientError) && attempt < MAX_ATTEMPTS) {
+          setMessage(t('payment.processing'));
+          const delay = POLL_DELAYS_MS[Math.min(attempt - 1, POLL_DELAYS_MS.length - 1)];
+          pollTimer = window.setTimeout(() => {
+            if (!cancelled) runVerify(attempt + 1);
+          }, delay);
+          return;
+        }
+
+        if (res.status === 200 || res.status === 422) {
+          setMessage(t('payment.processing'));
+          return;
+        }
+
+        if (booking?._id) storeRetryBooking(booking);
+        setError(res?.data?.message || res?.error || 'Payment verification failed');
+        setMessage('');
+      });
+    };
+
+    runVerify(1);
 
     return () => {
       cancelled = true;
+      if (pollTimer) window.clearTimeout(pollTimer);
     };
   }, [moyasarId, navigate, t]);
 

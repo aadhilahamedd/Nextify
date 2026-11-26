@@ -447,7 +447,49 @@ async function reconcilePaidBooking(bookingId, session = null) {
   return confirmed || Booking.findById(bookingId, null, withSession(session));
 }
 
-async function verifyPayment(moyasarPaymentId) {
+function extractSafeFailureMetadata(moyasarPayment) {
+  const source = moyasarPayment?.source && typeof moyasarPayment.source === 'object'
+    ? moyasarPayment.source
+    : null;
+  const fields = {};
+  if (source?.message) fields['metadata.failureMessage'] = String(source.message).slice(0, 300);
+  if (source?.response_code != null && String(source.response_code).trim() !== '') {
+    fields['metadata.failureCode'] = String(source.response_code).trim().slice(0, 40);
+  }
+  if (source?.type) fields['metadata.sourceType'] = String(source.type).slice(0, 40);
+  if (source?.company) fields['metadata.sourceCompany'] = String(source.company).slice(0, 40);
+  return fields;
+}
+
+function buildWebhookAuditMetadata(webhookMeta) {
+  if (!webhookMeta || typeof webhookMeta !== 'object') return {};
+  const fields = {};
+  if (webhookMeta.eventId) fields['metadata.lastWebhookEventId'] = String(webhookMeta.eventId).slice(0, 120);
+  if (webhookMeta.eventType) fields['metadata.lastWebhookEventType'] = String(webhookMeta.eventType).slice(0, 80);
+  if (webhookMeta.eventId || webhookMeta.eventType) {
+    fields['metadata.lastWebhookAt'] = new Date().toISOString();
+  }
+  return fields;
+}
+
+async function hasCompetingActiveAttempt(bookingId, localPayment) {
+  try {
+    const other = await Payment.findOne({
+      booking: bookingId,
+      provider: 'moyasar',
+      _id: { $ne: localPayment._id },
+      status: { $in: ['PENDING', 'PAID'] },
+    });
+    if (!other) return false;
+    // Ignore if mocked Payment.findOne returned the same payment or a non-active status.
+    if (String(other._id) === String(localPayment._id)) return false;
+    return other.status === 'PENDING' || other.status === 'PAID';
+  } catch {
+    return false;
+  }
+}
+
+async function verifyPayment(moyasarPaymentId, webhookMeta = null) {
   assertMoyasarCredentials({ force: true });
   const moyasarPayment = await retrievePayment(moyasarPaymentId);
   if (moyasarPayment?.id != null && String(moyasarPayment.id) !== String(moyasarPaymentId)) {
@@ -561,13 +603,24 @@ async function verifyPayment(moyasarPaymentId) {
   }
 
   if (decision.action === 'idempotent_failed' || decision.action === 'idempotent_cancelled') {
+    const webhookAudit = buildWebhookAuditMetadata(webhookMeta);
+    const failureMeta = extractSafeFailureMetadata(moyasarPayment);
+    if (Object.keys(webhookAudit).length || Object.keys(failureMeta).length) {
+      await Payment.updateOne(
+        { _id: localPayment._id, status: { $nin: ['PAID', 'REFUNDED'] } },
+        { $set: { ...webhookAudit, ...failureMeta } }
+      );
+    }
+    const hasActiveRetry = await hasCompetingActiveAttempt(booking._id, localPayment);
     if (
       !paidOther
+      && !hasActiveRetry
       && booking.paymentStatus !== 'PAID'
       && booking.paymentStatus !== 'REFUNDED'
       && booking.paymentStatus !== 'FAILED'
     ) {
-      // Repair booking if a previous DB failure left Payment FAILED/CANCELLED while Booking stayed PENDING.
+      // Repair booking if a previous DB failure left Payment FAILED/CANCELLED while Booking stayed PENDING,
+      // but never cancel a booking that already has a newer active PENDING retry attempt.
       await Booking.updateOne(
         { _id: booking._id, paymentStatus: { $nin: ['PAID', 'REFUNDED'] } },
         {
@@ -658,6 +711,7 @@ async function verifyPayment(moyasarPaymentId) {
               providerReference: incomingId,
               'metadata.moyasarStatus': moyasarPayment.status,
               'metadata.moyasarPaymentId': incomingId,
+              ...buildWebhookAuditMetadata(webhookMeta),
             },
           },
           withSession(session, { new: true })
@@ -754,18 +808,40 @@ async function verifyPayment(moyasarPaymentId) {
 
   if (decision.action === 'mark_failed' || decision.action === 'mark_cancelled') {
     const nextStatus = decision.action === 'mark_failed' ? 'FAILED' : 'CANCELLED';
-    const updated = await Payment.findOneAndUpdate(
-      { _id: localPayment._id, status: { $nin: ['PAID', 'REFUNDED'] } },
-      {
-        $set: {
-          status: nextStatus,
-          providerReference: localPayment.providerReference || incomingId,
-          'metadata.moyasarStatus': moyasarPayment.status,
-          'metadata.moyasarPaymentId': incomingId,
+    const failureMeta = extractSafeFailureMetadata(moyasarPayment);
+    const webhookAudit = buildWebhookAuditMetadata(webhookMeta);
+    let updated = null;
+    try {
+      updated = await Payment.findOneAndUpdate(
+        { _id: localPayment._id, status: { $nin: ['PAID', 'REFUNDED', nextStatus] } },
+        {
+          $set: {
+            status: nextStatus,
+            providerReference: localPayment.providerReference || incomingId,
+            'metadata.moyasarStatus': moyasarPayment.status,
+            'metadata.moyasarPaymentId': incomingId,
+            ...failureMeta,
+            ...webhookAudit,
+          },
         },
-      },
-      { new: true }
-    );
+        { new: true }
+      );
+    } catch (err) {
+      if (err?.code === 11000) {
+        const existingByRef = await Payment.findOne({ provider: 'moyasar', providerReference: incomingId });
+        if (existingByRef && String(existingByRef.booking) === String(localPayment.booking)) {
+          return {
+            payment: existingByRef,
+            booking: await Booking.findById(booking._id),
+            moyasarStatus: moyasarPayment.status,
+            mappedStatus: existingByRef.status === 'PAID' ? 'PAID' : nextStatus,
+            reused: true,
+          };
+        }
+        throw httpError(409, 'This Moyasar payment is already linked to another booking');
+      }
+      throw err;
+    }
     if (!updated) {
       const current = await Payment.findById(localPayment._id);
       return {
@@ -776,15 +852,18 @@ async function verifyPayment(moyasarPaymentId) {
         reused: true,
       };
     }
-    await Booking.updateOne(
-      { _id: booking._id, paymentStatus: { $nin: ['PAID', 'REFUNDED'] } },
-      {
-        $set: {
-          paymentStatus: 'FAILED',
-          bookingStatus: 'CANCELLED',
-        },
-      }
-    );
+    const hasActiveRetry = await hasCompetingActiveAttempt(booking._id, localPayment);
+    if (!hasActiveRetry) {
+      await Booking.updateOne(
+        { _id: booking._id, paymentStatus: { $nin: ['PAID', 'REFUNDED'] } },
+        {
+          $set: {
+            paymentStatus: 'FAILED',
+            bookingStatus: 'CANCELLED',
+          },
+        }
+      );
+    }
     return {
       payment: updated,
       booking: await Booking.findById(booking._id),
@@ -856,7 +935,11 @@ async function verifyPayment(moyasarPaymentId) {
 }
 
 async function handleWebhook(payload) {
-  if (!webhookSecretAccepted(payload?.secret_token)) {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    throw httpError(401, 'Invalid webhook');
+  }
+
+  if (!webhookSecretAccepted(payload?.secret_token, payload?.live)) {
     throw httpError(401, 'Invalid webhook');
   }
 
@@ -884,7 +967,10 @@ async function handleWebhook(payload) {
 
   const moyasarId = payload?.data?.id;
   if (!moyasarId) throw httpError(400, 'Webhook payment id is missing');
-  return verifyPayment(moyasarId);
+  return verifyPayment(moyasarId, {
+    eventId: payload?.id || null,
+    eventType: payload?.type || null,
+  });
 }
 
 async function attachReference(localPaymentId, moyasarPaymentId) {
