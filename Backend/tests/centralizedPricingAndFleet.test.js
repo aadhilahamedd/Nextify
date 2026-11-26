@@ -527,12 +527,14 @@ async function run() {
     assert.strictEqual(toggleRes.body.car.available, false);
   });
 
-  await check('12. WhatsApp checkout flag remains enabled (no unintended Moyasar checkout)', async () => {
+  await check('12. Checkout switch fails closed to WhatsApp assistance by default and blocks TEST on production', async () => {
     const modePath = path.join(__dirname, '../../Front-end/Nextify/src/utils/paymentMode.js');
     const content = fs.readFileSync(modePath, 'utf8');
+    assert.ok(content.includes('resolveCheckoutConfig'), 'paymentMode must resolve checkout fail-closed');
+    assert.ok(content.includes('production_blocks_test_mode'), 'production must block TEST checkout');
     assert.ok(
-      /export const TEMP_WHATSAPP_BOOKING_INSTEAD_OF_MOYASAR = true;/.test(content),
-      'TEMP_WHATSAPP_BOOKING_INSTEAD_OF_MOYASAR must remain true'
+      content.includes('TEMP_WHATSAPP_BOOKING_INSTEAD_OF_MOYASAR = CHECKOUT_CONFIG.useWhatsAppFallback'),
+      'TEMP_WHATSAPP_BOOKING_INSTEAD_OF_MOYASAR must bind to fail-closed CHECKOUT_CONFIG'
     );
   });
 

@@ -284,12 +284,13 @@ export const deletePricingRuleAPI = async (id) => {
 };
 
 // ====== PAYMENTS ======
-export const createPaymentAPI = async (bookingId, checkoutToken) => {
+export const createPaymentAPI = async (bookingId, checkoutToken, expectedMode) => {
   try {
+    const body = expectedMode ? { bookingId, expectedMode } : { bookingId };
     const response = await commonAPI(
       "POST",
       `${serverURL}/api/payments/create`,
-      { bookingId },
+      body,
       getCheckoutHeaders(checkoutToken),
     );
     return unwrap(response);

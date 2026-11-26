@@ -24,6 +24,7 @@ function publishableKey() {
 function getCheckoutConfig(payment, booking) {
   return {
     provider: 'moyasar',
+    mode: moyasarMode(),
     publishableKey: publishableKey(),
     amount: payment.amount,
     amountHalalas: toHalalas(payment.amount),

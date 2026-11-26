@@ -6,6 +6,7 @@
 const assert = require('assert');
 const Booking = require('../models/Booking');
 const Payment = require('../models/Payment');
+const paymentController = require('../controllers/paymentController');
 const moyasarProvider = require('../services/paymentProviders/moyasarPaymentProvider');
 const { retrievePayment } = require('../services/paymentProviders/moyasarClient');
 const { webhookSecretAccepted } = require('../services/paymentProviders/moyasarConfig');
@@ -303,6 +304,41 @@ async function run() {
 
     await assert.rejects(() => moyasarProvider.handleWebhook(null), (err) => err.statusCode === 401);
     await assert.rejects(() => moyasarProvider.handleWebhook([]), (err) => err.statusCode === 401);
+  });
+
+  await check('6. createPayment enforces expectedMode match against MOYASAR_ENV and getCheckoutConfig exposes active mode', async () => {
+    setTestMoyasarEnv();
+    process.env.PAYMENT_PROVIDER = 'moyasar';
+
+    const makeRes = () => ({
+      statusCode: 200,
+      body: null,
+      status(code) { this.statusCode = code; return this; },
+      json(payload) { this.body = payload; return this; },
+    });
+
+    const mismatchRes = makeRes();
+    await paymentController.createPayment(
+      { body: { bookingId: BOOKING_ID, expectedMode: 'live' } },
+      mismatchRes,
+      (err) => { if (err) throw err; }
+    );
+    assert.strictEqual(mismatchRes.statusCode, 409);
+
+    const invalidRes = makeRes();
+    await paymentController.createPayment(
+      { body: { bookingId: BOOKING_ID, expectedMode: 'sandbox' } },
+      invalidRes,
+      (err) => { if (err) throw err; }
+    );
+    assert.strictEqual(invalidRes.statusCode, 400);
+
+    const cfg = moyasarProvider.getCheckoutConfig(
+      { _id: PAY_1_ID, amount: 180, currency: 'SAR' },
+      { bookingNumber: 'NXT-MODE-1' }
+    );
+    assert.strictEqual(cfg.mode, 'test');
+    assert.strictEqual(cfg.publishableKey, 'pk_test_webhook_recon');
   });
 
   const failed = results.filter((r) => !r.ok);

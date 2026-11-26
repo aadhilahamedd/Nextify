@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "test": "node tests/whatsappAirportBooking.test.mjs && node tests/checkoutSession.test.mjs && node tests/serverURL.test.mjs && node tests/bookingReviewFixes.test.mjs && node tests/vehiclePriorityOrder.test.mjs",
+    "test": "node tests/whatsappAirportBooking.test.mjs && node tests/checkoutSession.test.mjs && node tests/serverURL.test.mjs && node tests/bookingReviewFixes.test.mjs && node tests/vehiclePriorityOrder.test.mjs && node tests/paymentMode.test.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

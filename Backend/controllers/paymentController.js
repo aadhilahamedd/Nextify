@@ -1,6 +1,7 @@
 const Payment = require('../models/Payment');
 const Booking = require('../models/Booking');
 const paymentService = require('../services/paymentService');
+const { moyasarMode } = require('../services/paymentProviders/moyasarConfig');
 const { mockPaymentEndpointsEnabled } = require('../services/paymentProviders/mockPaymentGuard');
 const { success, error } = require('../utils/apiResponse');
 const { toCheckoutBooking, toPaymentConfirmationBooking } = require('../utils/checkoutBooking');
@@ -30,8 +31,20 @@ function publicResult(payment, booking, extra = {}) {
 
 exports.createPayment = async (req, res, next) => {
   try {
-    const { bookingId } = req.body;
+    const { bookingId, expectedMode } = req.body;
     if (!bookingId) return error(res, 400, 'Booking id is required');
+    if (expectedMode !== undefined && expectedMode !== null && String(expectedMode).trim() !== '') {
+      const normalizedExpected = String(expectedMode).trim().toLowerCase();
+      if (normalizedExpected !== 'test' && normalizedExpected !== 'live') {
+        return error(res, 400, 'Invalid expected payment mode');
+      }
+      if ((process.env.PAYMENT_PROVIDER || 'mock') === 'moyasar') {
+        const activeMode = moyasarMode();
+        if (normalizedExpected !== activeMode) {
+          return error(res, 409, 'Payment mode mismatch between frontend and backend');
+        }
+      }
+    }
     if (!isValidObjectIdString(String(bookingId))) {
       return error(res, 403, CHECKOUT_UNAUTHORIZED_MESSAGE);
     }

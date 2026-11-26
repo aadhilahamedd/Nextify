@@ -267,9 +267,11 @@ check('secret key logging was removed', () => {
   assert.ok(!source.includes('MOYASAR KEY DEBUG'));
 });
 
-check('checkout switch uses WhatsApp booking assistance instead of Moyasar TEST checkout', () => {
+check('checkout switch defaults fail-closed to WhatsApp booking assistance and blocks TEST on production', () => {
   const source = fs.readFileSync(path.join(__dirname, '../../Front-end/Nextify/src/utils/paymentMode.js'), 'utf8');
-  assert.ok(source.includes('TEMP_WHATSAPP_BOOKING_INSTEAD_OF_MOYASAR = true'));
+  assert.ok(source.includes('resolveCheckoutConfig'));
+  assert.ok(source.includes('production_blocks_test_mode'));
+  assert.ok(source.includes('TEMP_WHATSAPP_BOOKING_INSTEAD_OF_MOYASAR = CHECKOUT_CONFIG.useWhatsAppFallback'));
 });
 
 check('env example has an empty secret placeholder and production env is ignored', () => {
