@@ -180,11 +180,13 @@ exports.webhook = async (req, res, next) => {
         eventId,
         verification: Boolean(result.verification),
         ignored: Boolean(result.ignored),
+        reason: result.reason || null,
         durationMs,
       });
       return success(res, 200, 'Webhook accepted', {
         verification: Boolean(result.verification),
         ignored: Boolean(result.ignored),
+        ...(result.reason ? { reason: result.reason } : {}),
       });
     }
     if (!result.reused && !result.duplicateCharge) notifyWhatsAppPayment(result);

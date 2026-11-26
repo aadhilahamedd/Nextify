@@ -541,7 +541,18 @@ async function httpChecks() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ secret_token: configured, type: 'payment_paid', live: true, data: { id: 'pay_fake' } }),
     });
-    assert.strictEqual(modeHook.status, 409);
+    const modeHookJson = await modeHook.json();
+    assert.strictEqual(modeHook.status, 200);
+    assert.strictEqual(modeHookJson?.data?.ignored, true);
+    assert.strictEqual(modeHookJson?.data?.reason, 'other_environment');
+    assert.strictEqual(moyasarMockHits, 0, 'cross-environment webhook must be ignored before Moyasar retrieve');
+
+    const invalidLiveHook = await fetch(`${base}/api/payments/webhook`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ secret_token: configured, type: 'payment_paid', live: 'true', data: { id: 'pay_fake' } }),
+    });
+    assert.strictEqual(invalidLiveHook.status, 409);
 
     const verifyRes = await fetch(`${base}/api/payments/verify/pay_does_not_exist`);
     const verifyJson = await verifyRes.json();

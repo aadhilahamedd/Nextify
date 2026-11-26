@@ -41,16 +41,14 @@ function assertMoyasarCredentials({ force = false } = {}) {
   return { mode };
 }
 
-function webhookSecretForMode(live) {
-  if (typeof live !== 'boolean') return '';
+function endpointWebhookSecret() {
+  const explicit = String(process.env.MOYASAR_WEBHOOK_SECRET || '');
+  if (explicit) return explicit;
 
-  const testSecret = String(process.env.MOYASAR_TEST_WEBHOOK_SECRET || '');
-  const liveSecret = String(process.env.MOYASAR_LIVE_WEBHOOK_SECRET || '');
-  if (testSecret || liveSecret) {
-    return live ? liveSecret : testSecret;
-  }
-
-  return String(process.env.MOYASAR_WEBHOOK_SECRET || '');
+  const mode = moyasarMode();
+  return mode === 'live'
+    ? String(process.env.MOYASAR_LIVE_WEBHOOK_SECRET || '')
+    : String(process.env.MOYASAR_TEST_WEBHOOK_SECRET || '');
 }
 
 function secretMatches(provided, expected) {
@@ -61,31 +59,58 @@ function secretMatches(provided, expected) {
   return crypto.timingSafeEqual(actual, wanted);
 }
 
-function webhookSecretConfigured(live) {
-  if (typeof live === 'boolean') {
-    const expected = webhookSecretForMode(live);
-    return Boolean(expected) && !EXAMPLE_WEBHOOK_SECRETS.has(expected);
-  }
-  const testSecret = String(process.env.MOYASAR_TEST_WEBHOOK_SECRET || '');
-  const liveSecret = String(process.env.MOYASAR_LIVE_WEBHOOK_SECRET || '');
-  if (testSecret || liveSecret) {
-    return (Boolean(testSecret) && !EXAMPLE_WEBHOOK_SECRETS.has(testSecret))
-      || (Boolean(liveSecret) && !EXAMPLE_WEBHOOK_SECRETS.has(liveSecret));
-  }
-  const expected = String(process.env.MOYASAR_WEBHOOK_SECRET || '');
+function webhookSecretConfigured() {
+  const expected = endpointWebhookSecret();
   return Boolean(expected) && !EXAMPLE_WEBHOOK_SECRETS.has(expected);
 }
 
-function webhookSecretAccepted(provided, live) {
-  if (typeof live === 'boolean') {
-    return secretMatches(provided, webhookSecretForMode(live));
+function webhookSecretAccepted(provided) {
+  return secretMatches(provided, endpointWebhookSecret());
+}
+
+function webhookAllowedMode() {
+  const raw = process.env.MOYASAR_WEBHOOK_ALLOWED_MODE;
+  if (raw === undefined || String(raw).trim() === '') {
+    return moyasarMode();
   }
-  const testSecret = String(process.env.MOYASAR_TEST_WEBHOOK_SECRET || '');
-  const liveSecret = String(process.env.MOYASAR_LIVE_WEBHOOK_SECRET || '');
-  if (testSecret || liveSecret) {
-    return secretMatches(provided, testSecret) || secretMatches(provided, liveSecret);
+  const mode = String(raw).trim().toLowerCase();
+  if (mode !== 'test' && mode !== 'live' && mode !== 'none') {
+    throw httpError(500, 'MOYASAR_WEBHOOK_ALLOWED_MODE must be test, live, or none');
   }
-  return secretMatches(provided, String(process.env.MOYASAR_WEBHOOK_SECRET || ''));
+  return mode;
+}
+
+function evaluateWebhookMode(payload) {
+  if (typeof payload?.live !== 'boolean') {
+    throw httpError(409, 'Webhook mode is missing or invalid');
+  }
+  const eventIsLive = payload.live === true;
+  const eventMode = eventIsLive ? 'live' : 'test';
+  const allowedMode = webhookAllowedMode();
+
+  if (allowedMode === 'none') {
+    return {
+      allowed: false,
+      allowedMode,
+      eventMode,
+      reason: 'webhook_mode_disabled',
+    };
+  }
+
+  if ((allowedMode === 'live') !== eventIsLive) {
+    return {
+      allowed: false,
+      allowedMode,
+      eventMode,
+      reason: 'other_environment',
+    };
+  }
+
+  return {
+    allowed: true,
+    allowedMode,
+    eventMode,
+  };
 }
 
 function assertWebhookMode(payload) {
@@ -117,7 +142,9 @@ module.exports = {
   assertMoyasarCredentials,
   assertPaymentMode,
   assertWebhookMode,
+  evaluateWebhookMode,
   moyasarMode,
+  webhookAllowedMode,
   webhookSecretAccepted,
   webhookSecretConfigured,
 };

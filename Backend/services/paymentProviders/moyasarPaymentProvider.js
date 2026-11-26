@@ -5,7 +5,7 @@ const { retrievePayment } = require('./moyasarClient');
 const {
   assertMoyasarCredentials,
   assertPaymentMode,
-  assertWebhookMode,
+  evaluateWebhookMode,
   moyasarMode,
   webhookSecretAccepted,
 } = require('./moyasarConfig');
@@ -940,7 +940,7 @@ async function handleWebhook(payload) {
     throw httpError(401, 'Invalid webhook');
   }
 
-  if (!webhookSecretAccepted(payload?.secret_token, payload?.live)) {
+  if (!webhookSecretAccepted(payload?.secret_token)) {
     throw httpError(401, 'Invalid webhook');
   }
 
@@ -959,7 +959,20 @@ async function handleWebhook(payload) {
     return { verification: true, mappedStatus: 'IGNORED' };
   }
 
-  assertWebhookMode(payload);
+  const modeCheck = evaluateWebhookMode(payload);
+  if (!modeCheck.allowed) {
+    console.log('[payments] Moyasar webhook ignored', {
+      type: payload?.type || null,
+      eventMode: modeCheck.eventMode,
+      allowedMode: modeCheck.allowedMode,
+      reason: modeCheck.reason,
+    });
+    return {
+      ignored: true,
+      reason: modeCheck.reason,
+      mappedStatus: 'IGNORED',
+    };
+  }
 
   if (payload?.type && !String(payload.type).startsWith('payment_')) {
     console.log('[payments] Moyasar webhook ignored', { type: payload.type });

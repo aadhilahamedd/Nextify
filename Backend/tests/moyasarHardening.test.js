@@ -1645,20 +1645,17 @@ assert.ok(cNum.output.includes('654321'), 'must accept numeric 6-digit verificat
     }
     assert.ok(badSecretErr && badSecretErr.statusCode === 401);
 
-    // Case 7: Actual LIVE payment event is STILL rejected with 409 while MOYASAR_ENV=test
+    // Case 7: Actual LIVE payment event is safely ignored (not processed) while MOYASAR_ENV=test
     setMoyasarMode('test');
-    let livePaymentErr = null;
-    try {
-      await moyasarProvider.handleWebhook({
-        type: 'payment_paid',
-        secret_token: 'whsec_hardening_test_secret',
-        live: true,
-        data: { id: 'pay_live_rejected_in_test', status: 'paid' },
-      });
-    } catch (err) {
-      livePaymentErr = err;
-    }
-    assert.ok(livePaymentErr && livePaymentErr.statusCode === 409, 'actual LIVE payment event must still be rejected while MOYASAR_ENV=test');
+    const livePaymentRes = await moyasarProvider.handleWebhook({
+      type: 'payment_paid',
+      secret_token: 'whsec_hardening_test_secret',
+      live: true,
+      data: { id: 'pay_live_ignored_in_test', status: 'paid' },
+    });
+    assert.strictEqual(livePaymentRes.ignored, true, 'actual LIVE payment event must be safely ignored while MOYASAR_ENV=test');
+    assert.strictEqual(livePaymentRes.reason, 'other_environment');
+    assert.strictEqual(livePaymentRes.mappedStatus, 'IGNORED');
   });
 
   // 27. REST payment response with omitted `live` succeeds with matching test or live credentials + matching metadata.env
@@ -1769,10 +1766,10 @@ assert.ok(cNum.output.includes('654321'), 'must accept numeric 6-digit verificat
     }
   });
 
-  // 29. Webhook mode validation strictly requires boolean `live` matching MOYASAR_ENV
-  await check('29. assertWebhookMode and handleWebhook reject missing, invalid, or mismatched live field with 409', async () => {
+  // 29. Webhook mode validation strictly requires boolean `live` and safely ignores opposite-environment events
+  await check('29. assertWebhookMode rejects invalid/mismatched live with 409; handleWebhook rejects non-boolean live with 409 and ignores opposite-mode events', async () => {
     setMoyasarMode('test');
-    for (const badLive of [undefined, null, 'false', 'true', 0, 1, true]) {
+    for (const badLive of [undefined, null, 'false', 'true', 0, 1]) {
       const payload = {
         type: 'payment_paid',
         secret_token: 'whsec_hardening_test_secret',
@@ -1793,11 +1790,32 @@ assert.ok(cNum.output.includes('654321'), 'must accept numeric 6-digit verificat
       assert.ok(caught && caught.statusCode === 409, `handleWebhook must reject live=${String(badLive)} with 409`);
     }
 
-    // Valid live boolean in live mode accepted, false rejected
+    // Opposite-mode boolean live event is rejected by assertWebhookMode (409) but safely ignored by handleWebhook (200/IGNORED)
+    assert.throws(() => assertWebhookMode({ live: true }), (err) => err.statusCode === 409);
+    const ignoredLive = await moyasarProvider.handleWebhook({
+      type: 'payment_paid',
+      secret_token: 'whsec_hardening_test_secret',
+      live: true,
+      data: { id: 'pay_wh_other_env', status: 'paid' },
+    });
+    assert.strictEqual(ignoredLive.ignored, true);
+    assert.strictEqual(ignoredLive.reason, 'other_environment');
+    assert.strictEqual(ignoredLive.mappedStatus, 'IGNORED');
+
+    // Valid live boolean in live mode accepted, false ignored by handleWebhook
     setMoyasarMode('live');
     assert.doesNotThrow(() => assertWebhookMode({ live: true }));
     assert.throws(() => assertWebhookMode({ live: false }), (err) => err.statusCode === 409);
     assert.throws(() => assertWebhookMode({}), (err) => err.statusCode === 409);
+    const ignoredTest = await moyasarProvider.handleWebhook({
+      type: 'payment_paid',
+      secret_token: 'whsec_hardening_test_secret',
+      live: false,
+      data: { id: 'pay_wh_test_on_live', status: 'paid' },
+    });
+    assert.strictEqual(ignoredTest.ignored, true);
+    assert.strictEqual(ignoredTest.reason, 'other_environment');
+    assert.strictEqual(ignoredTest.mappedStatus, 'IGNORED');
   });
 
   // 30. Refunded bookings cannot create or reuse a new payment checkout (Moyasar, mock, and paymentService)
