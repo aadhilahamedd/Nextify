@@ -12,7 +12,11 @@ import PriceSummary from '../components/booking/PriceSummary';
 import { SERVICE_LABELS } from '../components/booking/bookingConstants';
 import { useLanguage } from '../i18n/LanguageContext';
 import { translateService } from '../i18n/places';
-import { TEMP_WHATSAPP_BOOKING_INSTEAD_OF_MOYASAR } from '../utils/paymentMode';
+import {
+  CHECKOUT_CONFIG,
+  TEMP_WHATSAPP_BOOKING_INSTEAD_OF_MOYASAR,
+  validateCheckoutResponseMode,
+} from '../utils/paymentMode';
 import {
   CHECKOUT_TOKEN_MISSING_MESSAGE,
   clearCheckoutToken,
@@ -22,7 +26,7 @@ import {
   readCheckoutToken,
   resolveCheckoutToken,
 } from '../utils/checkoutSession';
-import { buildWhatsAppConfirmationMessage, openCompanyWhatsApp } from '../utils/whatsapp';
+import { buildWhatsAppConfirmationMessage, COMPANY_PHONE, getWhatsAppUrl, openCompanyWhatsApp } from '../utils/whatsapp';
 
 const MOYASAR_JS = 'https://cdn.moyasar.com/mpf/1.14.0/moyasar.js';
 const MOYASAR_CSS = 'https://cdn.moyasar.com/mpf/1.14.0/moyasar.css';
@@ -115,14 +119,20 @@ function MockPaymentCheckout() {
     : (!hasCheckoutAuth ? CHECKOUT_TOKEN_MISSING_MESSAGE : '');
 
   const isMoyasar = checkout?.provider === 'moyasar';
-  const activePublishableKey = isMoyasar
-    ? (checkout?.publishableKey || import.meta.env.VITE_MOYASAR_PUBLISHABLE_KEY || '')
+  const runtimeHost = typeof window !== 'undefined' && window.location ? window.location.hostname : '';
+  const checkoutModeCheck = isMoyasar
+    ? validateCheckoutResponseMode(checkout, CHECKOUT_CONFIG, runtimeHost)
+    : null;
+  const activePublishableKey = isMoyasar && checkoutModeCheck?.ok
+    ? (checkout?.publishableKey || '')
     : '';
   const moyasarKeyMode = isMoyasar ? resolveMoyasarKeyMode(activePublishableKey) : null;
   const moyasarKeyError = isMoyasar && payment?._id
-    ? (!activePublishableKey
-      ? 'Moyasar publishable key is missing'
-      : (moyasarKeyMode === 'invalid' ? 'Moyasar publishable key is invalid' : ''))
+    ? (!checkoutModeCheck?.ok
+      ? 'Online payment is temporarily unavailable for this environment. Please continue via WhatsApp assistance.'
+      : (!activePublishableKey
+        ? 'Moyasar publishable key is missing'
+        : (moyasarKeyMode === 'invalid' ? 'Moyasar publishable key is invalid' : '')))
     : '';
   const displayError = derivedBootstrapError || moyasarKeyError || error;
 
@@ -163,13 +173,25 @@ function MockPaymentCheckout() {
         return;
       }
 
-      createPaymentAPI(current._id, checkoutToken).then((res) => {
+      createPaymentAPI(current._id, checkoutToken, CHECKOUT_CONFIG.mode).then((res) => {
         if (cancelled) return;
         if (res?.status === 200 || res?.status === 201) {
           const paidBooking = res.data?.booking;
           if (paidBooking?._id) setBooking((prev) => ({ ...prev, ...paidBooking }));
+          const nextCheckout = res.data?.checkout || null;
+          if (nextCheckout?.provider === 'moyasar') {
+            const check = validateCheckoutResponseMode(
+              nextCheckout,
+              CHECKOUT_CONFIG,
+              typeof window !== 'undefined' && window.location ? window.location.hostname : ''
+            );
+            if (!check.ok) {
+              setError('Online payment is unavailable for this environment. Please continue via WhatsApp assistance.');
+              return;
+            }
+          }
           setPayment(res.data?.payment);
-          setCheckout(res.data?.checkout || { provider: 'mock' });
+          setCheckout(nextCheckout);
         } else {
           setError(res?.data?.message || res?.error || 'Could not create payment session');
         }
@@ -328,9 +350,22 @@ function MockPaymentCheckout() {
 
           <PriceSummary quote={booking.pricing} />
 
-          {displayError && <div className="alert alert-danger mt-3">{displayError}</div>}
+          {displayError && (
+            <div className="alert alert-danger mt-3">
+              <div>{displayError}</div>
+              <a
+                href={getWhatsAppUrl(COMPANY_PHONE, buildWhatsAppConfirmationMessage({ booking }))}
+                target="_blank"
+                rel="noreferrer"
+                className="btn btn-sm rounded-pill mt-3 fw-semibold"
+                style={{ background: '#25D366', color: '#0a0a0a', border: 'none', padding: '8px 18px' }}
+              >
+                Continue via WhatsApp Assistance
+              </a>
+            </div>
+          )}
 
-          {isMoyasar ? (
+          {isMoyasar && checkoutModeCheck?.ok ? (
             <div className="mt-4">
               <div className="mysr-form" />
               {moyasarKeyMode === 'live' && (
@@ -340,7 +375,7 @@ function MockPaymentCheckout() {
                 <p className="text-muted small mt-3 mb-0">{t('payment.testCards')}</p>
               )}
             </div>
-          ) : (
+          ) : checkout?.provider === 'mock' ? (
             <>
               <div className="alert alert-info small mt-3">
                 {t('payment.mock')}
@@ -354,7 +389,9 @@ function MockPaymentCheckout() {
                 </button>
               </div>
             </>
-          )}
+          ) : !displayError ? (
+            <p className="text-muted small mt-4 mb-0">{t('payment.loading')}</p>
+          ) : null}
         </div>
       </Container>
     </div>

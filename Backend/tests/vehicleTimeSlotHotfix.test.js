@@ -232,7 +232,8 @@ async function run() {
       path.join(__dirname, '../../Front-end/Nextify/src/utils/paymentMode.js'),
       'utf8'
     );
-    assert.ok(/export const TEMP_WHATSAPP_BOOKING_INSTEAD_OF_MOYASAR = true;/.test(modeSrc));
+    assert.ok(modeSrc.includes('production_blocks_test_mode'));
+    assert.ok(modeSrc.includes('TEMP_WHATSAPP_BOOKING_INSTEAD_OF_MOYASAR = CHECKOUT_CONFIG.useWhatsAppFallback'));
 
     const wizardSrc = fs.readFileSync(
       path.join(__dirname, '../../Front-end/Nextify/src/components/booking/BookingWizard.jsx'),

@@ -4,6 +4,8 @@ import Container from 'react-bootstrap/Container';
 import { verifyPaymentAPI } from '../Services/allAPI';
 import { useLanguage } from '../i18n/LanguageContext';
 import { clearCheckoutToken } from '../utils/checkoutSession';
+import { TEMP_WHATSAPP_BOOKING_INSTEAD_OF_MOYASAR } from '../utils/paymentMode';
+import { COMPANY_PHONE, getWhatsAppUrl } from '../utils/whatsapp';
 
 function readSessionBooking(bookingNumber) {
   let pending = null;
@@ -138,7 +140,8 @@ function PaymentResult() {
     };
   }, [moyasarId, navigate, t]);
 
-  const retryHref = retryBookingId
+  const canRetryOnline = Boolean(!TEMP_WHATSAPP_BOOKING_INSTEAD_OF_MOYASAR && retryBookingId);
+  const retryHref = canRetryOnline
     ? `/payment?bookingId=${encodeURIComponent(retryBookingId)}`
     : '/track-booking';
 
@@ -151,9 +154,20 @@ function PaymentResult() {
           <p className="text-white-50 mt-3">{displayError || message}</p>
           {displayError && (
             <div className="d-flex flex-wrap gap-2 justify-content-center mt-4">
-              <Link to={retryHref} className="btn rounded-pill px-4" style={{ background: '#eeb012', color: '#0a0a0a' }}>
-                {retryBookingId ? t('payment.tryAgain') : t('payment.track')}
-              </Link>
+              {canRetryOnline && (
+                <Link to={retryHref} className="btn rounded-pill px-4" style={{ background: '#eeb012', color: '#0a0a0a' }}>
+                  {t('payment.tryAgain')}
+                </Link>
+              )}
+              <a
+                href={getWhatsAppUrl(COMPANY_PHONE, t('wa.help'))}
+                target="_blank"
+                rel="noreferrer"
+                className="btn rounded-pill px-4 fw-semibold"
+                style={{ background: '#25D366', color: '#0a0a0a', border: 'none' }}
+              >
+                WhatsApp Assistance
+              </a>
               <Link to="/track-booking" className="btn btn-outline-light rounded-pill px-4">{t('payment.track')}</Link>
             </div>
           )}
