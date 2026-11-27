@@ -247,14 +247,25 @@ async function run() {
     assert.strictEqual(chauffeurQuote.price, 700);
     assert.strictEqual(chauffeurQuote.customQuoteRequired, false);
 
-    const intercityQuote = await calculatePrice({
+    const intercityDammamQuote = await calculatePrice({
+      serviceType: 'intercity_transfer',
+      vehicleCategory: 'gmc',
+      origin: 'Riyadh',
+      destination: 'Dammam',
+    });
+    assert.strictEqual(intercityDammamQuote.basePrice, 1000);
+    assert.strictEqual(intercityDammamQuote.vatAmount, 150);
+    assert.strictEqual(intercityDammamQuote.price, 1150);
+    assert.strictEqual(intercityDammamQuote.customQuoteRequired, false);
+
+    const intercityJeddahQuote = await calculatePrice({
       serviceType: 'intercity_transfer',
       vehicleCategory: 'gmc',
       origin: 'Riyadh',
       destination: 'Jeddah',
     });
-    assert.strictEqual(intercityQuote.price, 3500);
-    assert.strictEqual(intercityQuote.customQuoteRequired, false);
+    assert.strictEqual(intercityJeddahQuote.price, null);
+    assert.strictEqual(intercityJeddahQuote.customQuoteRequired, true);
 
     const gccQuote = await calculatePrice({
       serviceType: 'gcc_transfer',

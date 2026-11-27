@@ -20,7 +20,14 @@ import VehiclePicker from './VehiclePicker';
 import InquiryVehicleGrid from './InquiryVehicleGrid';
 import { useBookingAssistant } from './BookingAssistant';
 import { LocaleDateInput, LocaleTimeInput } from './ArabicDateTime';
-import { getLocalDateValue, isTravelDateTimePast } from './dateTimeUtils';
+import TimezoneSelector from './TimezoneSelector';
+import {
+  DEFAULT_BOOKING_TIMEZONE,
+  convertLocalDateTimeBetweenTimezones,
+  formatTimezoneLabel,
+  getMinimumBookingConstraint,
+  validateBookingDateTime,
+} from './dateTimeUtils';
 import {
   FLEET_CLASS,
   buildManagedFleetVehicles,
@@ -200,10 +207,40 @@ function BookingWizard() {
     }
     return findFleetVehicle({ category: form.vehicleCategory, name: form.vehicleName });
   }, [managedVehicles, form.vehicleCategory, form.vehicleName]);
-  const today = getLocalDateValue();
-  const minTravelTime = form.travelDate === today
-    ? `${String(new Date().getHours()).padStart(2, '0')}:${String(new Date().getMinutes()).padStart(2, '0')}`
-    : undefined;
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  useEffect(() => {
+    const id = window.setInterval(() => setNowTick(Date.now()), 30 * 1000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  const activeTimezone = form.bookingTimezone || DEFAULT_BOOKING_TIMEZONE;
+  const minConstraint = useMemo(
+    () => getMinimumBookingConstraint(activeTimezone, new Date(nowTick)),
+    [activeTimezone, nowTick]
+  );
+  const minDate = minConstraint.minDate;
+  const minTravelTime = form.travelDate === minDate ? minConstraint.minTime : undefined;
+
+  const handleTimezoneChange = (nextTimezone) => {
+    if (!nextTimezone || nextTimezone === activeTimezone) return;
+    if (form.travelDate && form.travelTime) {
+      const converted = convertLocalDateTimeBetweenTimezones(
+        form.travelDate,
+        form.travelTime,
+        activeTimezone,
+        nextTimezone
+      );
+      if (converted) {
+        update({
+          bookingTimezone: nextTimezone,
+          travelDate: converted.travelDate,
+          travelTime: converted.travelTime,
+        });
+        return;
+      }
+    }
+    update({ bookingTimezone: nextTimezone });
+  };
   const vehicleFilters = [
     { id: 'All', label: t('fleet.all') },
     { id: FLEET_CLASS.FIRST, label: t('fleet.firstClass') },
@@ -373,8 +410,17 @@ function BookingWizard() {
       setError(t('booking.errDate'));
       return false;
     }
-    if (isTravelDateTimePast(form.travelDate, form.travelTime)) {
-      setError(t('booking.errPast'));
+    const timeCheck = validateBookingDateTime(form.travelDate, form.travelTime, activeTimezone);
+    if (!timeCheck.valid) {
+      if (timeCheck.reason === 'too_soon') {
+        setError('Bookings must be scheduled at least 60 minutes in advance.');
+      } else if (timeCheck.reason === 'dst_nonexistent') {
+        setError('Selected time does not exist in the chosen timezone due to daylight saving time. Please select another time.');
+      } else if (timeCheck.reason === 'invalid_timezone') {
+        setError('Please select a valid timezone.');
+      } else {
+        setError(t('booking.errPast'));
+      }
       return false;
     }
     if (!form.vehicleCategory) {
@@ -469,6 +515,7 @@ function BookingWizard() {
     };
 
     try {
+      const timeCheck = validateBookingDateTime(form.travelDate, form.travelTime, activeTimezone);
       const pricingPayload = buildPricingPayload();
       const payload = {
         ...pricingPayload,
@@ -481,7 +528,12 @@ function BookingWizard() {
         },
         travelDate: form.travelDate,
         travelTime: form.travelTime,
-        schedule: { pickupDateTime: `${form.travelDate}T${form.travelTime}` },
+        bookingTimezone: activeTimezone,
+        schedule: {
+          pickupDateTime: timeCheck.valid && timeCheck.utcDate
+            ? timeCheck.utcDate.toISOString()
+            : `${form.travelDate}T${form.travelTime}`,
+        },
         flightNumber: form.flightNumber,
         pickupLocation: pricingPayload.origin || form.pickupLocation || form.origin || form.serviceLocation || form.airport,
         dropoffLocation: pricingPayload.destination || form.dropoffLocation || form.destination,
@@ -1074,9 +1126,30 @@ function BookingWizard() {
                     <div className="row g-3">{renderServiceForm()}</div>
                     <h3 className="book-section-title mt-4">{t('booking.when')}</h3>
                     <div className="row g-3">
+                      <div className="col-12">
+                        <label className="book-label">Booking Timezone</label>
+                        <TimezoneSelector
+                          value={activeTimezone}
+                          onChange={handleTimezoneChange}
+                        />
+                        <span className="book-hint">
+                          Times shown in {formatTimezoneLabel(activeTimezone)} · Minimum 60 minutes advance booking.
+                        </span>
+                      </div>
                       <div className="col-12 col-md-6">
                         <label className="book-label">{t('booking.travelDate')}</label>
-                        <LocaleDateInput min={today} className="form-control book-input" value={form.travelDate} onChange={(travelDate) => update({ travelDate })} />
+                        <LocaleDateInput
+                          min={minDate}
+                          className="form-control book-input"
+                          value={form.travelDate}
+                          onChange={(travelDate) => {
+                            const patch = { travelDate };
+                            if (travelDate === minDate && form.travelTime && form.travelTime < minConstraint.minTime) {
+                              patch.travelTime = '';
+                            }
+                            update(patch);
+                          }}
+                        />
                       </div>
                       <div className="col-12 col-md-6">
                         <label className="book-label">{t('booking.travelTime')}</label>
@@ -1106,7 +1179,7 @@ function BookingWizard() {
                             <>
                               <div className="col-12 col-md-6">
                                 <label className="book-label">{t('booking.returnDate')}</label>
-                                <LocaleDateInput min={form.travelDate || today} className="form-control book-input" value={form.returnDate} onChange={(returnDate) => update({ returnDate })} />
+                                <LocaleDateInput min={form.travelDate || minDate} className="form-control book-input" value={form.returnDate} onChange={(returnDate) => update({ returnDate })} />
                               </div>
                               <div className="col-12 col-md-6">
                                 <label className="book-label">{t('booking.returnTime')}</label>

@@ -65,8 +65,9 @@ export function quoteRequiresInquiry(quote, form = {}) {
 
 export const INTERCITY_CITIES = [
   'Riyadh',
-  'Jeddah',
   'Dammam',
+  'Bahrain',
+  'Jeddah',
   'Al Khobar',
   'Jubail',
   'Salwa',
@@ -135,6 +136,7 @@ export const initialFormState = {
   returnTime: '',
   travelDate: '',
   travelTime: '',
+  bookingTimezone: 'Asia/Riyadh',
   flightNumber: '',
   vehicleCategory: '',
   vehicleName: '',

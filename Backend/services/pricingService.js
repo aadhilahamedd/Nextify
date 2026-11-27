@@ -15,6 +15,7 @@ const {
   resolveFixedRouteLocation,
   locationCandidates,
 } = require('../data/airportFixedRoutes');
+const { quoteIntercityFixedRoute } = require('../data/intercityFixedRoutes');
 
 const DEFAULT_CURRENCY = 'SAR';
 const RATE_ON_REQUEST = 'Rate on Request';
@@ -501,7 +502,6 @@ async function calculateIntercityPrice(payload = {}) {
   const {
     vehicleCategory,
     vehicleId,
-    vehicleCarId,
     vehicle,
     vehicleName,
     origin,
@@ -510,7 +510,6 @@ async function calculateIntercityPrice(payload = {}) {
   } = payload;
   const vCat = normalizeVehicleCat(vehicleCategory || vehicleId || vehicle?.category || '');
   const vName = vehicleName || vehicle?.name || vehicle?.label || '';
-  const vCarId = vehicleCarId ?? vehicle?.carId ?? null;
   const route = normalizeRoute(origin, destination);
 
   if (!route.origin || !route.destination) {
@@ -528,29 +527,20 @@ async function calculateIntercityPrice(payload = {}) {
     });
   }
 
-  const rules = await getRulesByService('intercity_transfer');
-  const rule = findIntercityRule(rules, route.origin, route.destination, vCat, vName, { vehicleId: vehicleId || vCat, vehicleCarId: vCarId });
-  if (!rule) {
-    return rateOnRequest(RATE_ON_REQUEST, {
-      serviceType: 'intercity_transfer',
-      origin: route.origin,
-      destination: route.destination,
-      pricingModel: 'intercity_fixed',
-    });
+  // Only the 4 approved fixed-price intercity routes (Riyadh ↔ Bahrain, Riyadh ↔ Dammam) have fixed prices with 15% VAT.
+  // All other intercity routes remain WhatsApp-assisted with no displayed price.
+  const fixedQuoteResult = quoteIntercityFixedRoute(route.origin, route.destination, {
+    vehicleCategory: vCat,
+    displayLabel: vName || vCat || `${route.origin} → ${route.destination}`,
+  });
+  if (fixedQuoteResult) {
+    return fixedQuoteResult;
   }
-  if (rule.vehicleApplicability !== 'all' && !vCat && !vName && vCarId == null) {
-    return rateOnRequest('Please select a vehicle for this intercity route.', {
-      serviceType: 'intercity_transfer',
-      origin: route.origin,
-      destination: route.destination,
-      pricingModel: 'intercity_fixed',
-    });
-  }
-  return quoteFromDbRule(rule, {
+
+  return rateOnRequest(RATE_ON_REQUEST, {
     serviceType: 'intercity_transfer',
     origin: route.origin,
     destination: route.destination,
-    pricingType: rule.pricingMode === 'whatsapp_assistant' ? 'custom_quote' : 'intercity_fixed',
     pricingModel: 'intercity_fixed',
   });
 }

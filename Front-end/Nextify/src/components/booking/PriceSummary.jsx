@@ -5,14 +5,21 @@ import { displayAirportName } from '../../data/saudiAirports';
 import { formatTransferLocation } from '../../data/transferLocations';
 import { toArabicIndic } from '../../i18n/format';
 
-function formatBookingWhen(dateValue, timeValue, lang) {
+import { formatTimezoneLabel } from './dateTimeUtils';
+
+function formatBookingWhen(dateValue, timeValue, lang, timeZone) {
   if (!dateValue) return '';
   const [year, month, day] = String(dateValue).split('-');
   if (!year || !month || !day) return dateValue;
   const datePart = `${day}/${month}/${year}`;
   const shown = [lang === 'ar' ? toArabicIndic(datePart) : datePart];
   if (timeValue) shown.push(lang === 'ar' ? toArabicIndic(timeValue) : timeValue);
-  return <span dir="ltr" className="book-date-value">{shown.join(' ')}</span>;
+  return (
+    <span className="book-date-value" dir="ltr">
+      {shown.join(' ')}
+      {timeZone ? <span style={{ display: 'block', fontSize: '0.78rem', opacity: 0.72 }}>{formatTimezoneLabel(timeZone)}</span> : null}
+    </span>
+  );
 }
 
 function formatDistance(value, lang, t, approximate = false) {
@@ -24,7 +31,11 @@ function formatDistance(value, lang, t, approximate = false) {
 
 export default function PriceSummary({ form, quote, compact = false, loading = false, inquiry = false }) {
   const { t, lang, formatSar } = useLanguage();
-  const price = inquiry ? null : (quote?.price ?? quote?.totalAmount ?? quote?.quotedPrice ?? null);
+  const price = inquiry ? null : (quote?.totalAmount ?? quote?.price ?? quote?.quotedPrice ?? null);
+  const basePrice = inquiry ? null : (quote?.basePrice ?? quote?.breakdown?.basePrice ?? null);
+  const vatPercent = inquiry ? 0 : Number(quote?.vatPercent ?? quote?.breakdown?.vatPercent ?? 0);
+  const vatAmount = inquiry ? 0 : Number(quote?.vatAmount ?? quote?.breakdown?.vatAmount ?? 0);
+  const hasVatBreakdown = !inquiry && vatAmount > 0 && basePrice != null && price != null;
   const customQuoteRequired = inquiry
     ? true
     : quote?.customQuoteRequired ||
@@ -53,7 +64,7 @@ export default function PriceSummary({ form, quote, compact = false, loading = f
     form?.vehicleName && [t('booking.vehicle'), translateVehicle(form?.vehicleCategory, form.vehicleName, t)],
     isFixedAirportRoute && [t('booking.routeType'), t('booking.fixedPrice')],
     distanceValue !== '' && distanceValue != null && [t('booking.distanceLabel'), formatDistance(distanceValue, lang, t, isFixedAirportRoute)],
-    form?.travelDate && [t('booking.date'), formatBookingWhen(form.travelDate, form.travelTime, lang)],
+    form?.travelDate && [t('booking.date'), formatBookingWhen(form.travelDate, form.travelTime, lang, form.bookingTimezone)],
   ].filter(Boolean) : [
     [t('booking.serviceLabel'), translateService(form?.serviceType, t) || form?.serviceType],
     form?.airport && [t('booking.airport'), displayAirportName(form.airport, lang) || translatePlace(form.airport, t, lang)],
@@ -68,7 +79,7 @@ export default function PriceSummary({ form, quote, compact = false, loading = f
     slabLabel && [t('booking.slabLabel'), slabLabel],
     form?.vehicleName && [t('booking.vehicle'), translateVehicle(form?.vehicleCategory, form.vehicleName, t)],
     form?.durationType && [t('booking.durationLabel'), form.durationType === 'half_day' ? t('booking.halfDay') : t('booking.fullDay')],
-    form?.travelDate && [t('booking.date'), formatBookingWhen(form.travelDate, form.travelTime, lang)],
+    form?.travelDate && [t('booking.date'), formatBookingWhen(form.travelDate, form.travelTime, lang, form.bookingTimezone)],
   ].filter(Boolean);
 
   const wrapClass = compact ? 'book-summary' : 'rounded-4 p-4 border bg-white';
@@ -147,8 +158,20 @@ export default function PriceSummary({ form, quote, compact = false, loading = f
             <span className="text-end ms-3">{value}</span>
           </div>
         ))}
-        <div className="d-flex justify-content-between align-items-center pt-4 mt-2">
-          <span className="fw-bold">{t('booking.total')}</span>
+        {hasVatBreakdown && (
+          <div className="pt-3 mt-2" style={{ borderTop: '1px solid #eee', fontSize: '0.94rem' }}>
+            <div className="d-flex justify-content-between py-1">
+              <span style={{ color: '#666' }}>Base fare</span>
+              <span className="text-end ms-3">{formatSar(basePrice)}</span>
+            </div>
+            <div className="d-flex justify-content-between py-1">
+              <span style={{ color: '#666' }}>VAT ({vatPercent || 15}%)</span>
+              <span className="text-end ms-3">{formatSar(vatAmount)}</span>
+            </div>
+          </div>
+        )}
+        <div className="d-flex justify-content-between align-items-center pt-3 mt-2">
+          <span className="fw-bold">{hasVatBreakdown ? 'Total including VAT' : t('booking.total')}</span>
           <span style={{ fontSize: '1.75rem', fontWeight: 700, color: '#a88448', fontFamily: 'Georgia, serif' }}>
             {formatSar(price)}
           </span>
@@ -171,8 +194,20 @@ export default function PriceSummary({ form, quote, compact = false, loading = f
           <span className="text-end">{value}</span>
         </div>
       ))}
+      {hasVatBreakdown && (
+        <>
+          <div className="book-summary-row">
+            <span>Base fare</span>
+            <span className="text-end">{formatSar(basePrice)}</span>
+          </div>
+          <div className="book-summary-row">
+            <span>VAT ({vatPercent || 15}%)</span>
+            <span className="text-end">{formatSar(vatAmount)}</span>
+          </div>
+        </>
+      )}
       <div className="book-summary-total">
-        <span>{t('booking.total')}</span>
+        <span>{hasVatBreakdown ? 'Total including VAT' : t('booking.total')}</span>
         {price != null ? (
           <strong>{formatSar(price)}</strong>
         ) : (

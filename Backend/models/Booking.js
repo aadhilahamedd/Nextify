@@ -20,6 +20,8 @@ const pricingSchema = new mongoose.Schema(
     airportCharge: { type: Number, default: 0 },
     extraStopCharge: { type: Number, default: 0 },
     discount: { type: Number, default: 0 },
+    vatPercent: { type: Number, default: 0 },
+    vatAmount: { type: Number, default: 0 },
     totalAmount: { type: Number, required: true, default: 0 },
     currency: { type: String, default: 'SAR' },
     breakdown: { type: mongoose.Schema.Types.Mixed, default: {} },
@@ -69,6 +71,11 @@ const bookingSchema = new mongoose.Schema(
     schedule: {
       pickupDateTime: { type: Date, required: true },
       arrivalDateTime: { type: Date, default: null },
+    },
+    bookingTimezone: {
+      type: String,
+      default: 'Asia/Riyadh',
+      trim: true,
     },
     flight: {
       flightNumber: { type: String, default: '' },

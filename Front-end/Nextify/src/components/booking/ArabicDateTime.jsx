@@ -135,18 +135,25 @@ export function LocaleTimeInput({ value, onChange, className, min }) {
 
   const minHour = min ? Number(min.slice(0, 2)) : null;
   const minMinute = min ? Number(min.slice(3, 5)) : null;
-  const isHourDisabled = (h) => minHour != null && Number(h) < minHour;
+  const isHourDisabled = (h) => {
+    if (minHour == null) return false;
+    const hNum = Number(h);
+    if (hNum < minHour) return true;
+    if (hNum === minHour && !minutes.some((item) => Number(item) >= minMinute)) return true;
+    return false;
+  };
   const isMinuteDisabled = (m) => {
     if (minHour == null) return false;
-    const selectedHour = Number(hour || '00');
+    const selectedHour = value ? Number(hour || '00') : minHour;
     if (selectedHour < minHour) return true;
     return selectedHour === minHour && Number(m) < minMinute;
   };
 
   const pick = (nextHour, nextMinute) => {
     if (isHourDisabled(nextHour)) return;
-    if (Number(nextHour) === minHour && Number(nextMinute) < minMinute) {
-      const nextAllowed = minutes.find((item) => Number(item) >= minMinute) || minutes[minutes.length - 1];
+    if (minHour != null && Number(nextHour) === minHour && Number(nextMinute) < minMinute) {
+      const nextAllowed = minutes.find((item) => Number(item) >= minMinute);
+      if (!nextAllowed) return;
       onChange(`${nextHour}:${nextAllowed}`);
       return;
     }

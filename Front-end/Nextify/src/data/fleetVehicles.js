@@ -507,30 +507,13 @@ export function getOfficialQuote({
       }
       return customOfficialQuote('Please select a duration.');
     case 'intercity_transfer': {
-      if (returnTrip || !destination || !origin) {
-        return customOfficialQuote('Rate on Request', {
-          serviceType,
-          quoteStatus: 'rate_on_request',
-          origin,
-          destination,
-          pricingModel: 'intercity_fixed',
-        });
-      }
-      const configured = lookupIntercityPrice(vehicle, origin, destination);
-      if (configured == null) {
-        return customOfficialQuote('Rate on Request', {
-          serviceType,
-          quoteStatus: 'rate_on_request',
-          origin,
-          destination,
-          pricingModel: 'intercity_fixed',
-        });
-      }
-      return officialQuote(vehicle, configured, {
+      // Intercity fixed prices (Riyadh ↔ Bahrain, Riyadh ↔ Dammam with 15% VAT) are calculated authoritatively on the backend.
+      // All other intercity routes remain WhatsApp-assisted with no displayed price.
+      return customOfficialQuote('Rate on Request', {
         serviceType,
-        origin: origin || 'Riyadh',
+        quoteStatus: 'rate_on_request',
+        origin,
         destination,
-        pricingType: 'intercity_fixed',
         pricingModel: 'intercity_fixed',
       });
     }

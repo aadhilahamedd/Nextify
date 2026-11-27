@@ -7,6 +7,7 @@ const { calculatePrice, normalizeServiceType } = require('./pricingService');
 const { findAirport } = require('../data/saudiAirports');
 const { resolveFixedRouteLocation } = require('../data/airportFixedRoutes');
 const { findNeighbourhood, formatNeighbourhoodLabel } = require('../data/cityNeighbourhoods');
+const { resolveAndValidateBookingSchedule } = require('../utils/bookingTimezone');
 
 function bookingLocationAddress(place, fallback = '') {
   if (place?.kind === 'custom') {
@@ -29,27 +30,14 @@ function httpError(statusCode, message, details) {
   return err;
 }
 
-async function createBookingFromPayload(body, { userId } = {}) {
+async function createBookingFromPayload(body, { userId, now } = {}) {
   const serviceType = normalizeServiceType(body.serviceType);
 
   if (!body.customer?.name && !body.name) {
     throw httpError(400, 'Customer name is required');
   }
 
-  const travelDate = body.travelDate || body.schedule?.pickupDateTime?.split('T')[0];
-  const travelTime = body.travelTime || body.schedule?.pickupDateTime?.split('T')[1];
-  const pickupDateTime =
-    body.schedule?.pickupDateTime ||
-    (travelDate && travelTime ? `${travelDate}T${travelTime}` : null) ||
-    body.arrivalDateTime ||
-    body.pickupDateTime;
-
-  if (!pickupDateTime) {
-    throw httpError(400, 'Travel date and time is required');
-  }
-  if (new Date(pickupDateTime) < new Date()) {
-    throw httpError(400, 'Travel date and time cannot be in the past');
-  }
+  const { pickupDateTime, bookingTimezone } = resolveAndValidateBookingSchedule(body, { now });
 
   const origin = body.origin || body.pickup?.address || body.pickupLocation;
   const destination = typeof body.destination === 'string'
@@ -201,7 +189,8 @@ async function createBookingFromPayload(body, { userId } = {}) {
       latitude: dropoffPlace?.lat ?? dropoffPlace?.latitude ?? null,
       longitude: dropoffPlace?.lng ?? dropoffPlace?.longitude ?? null,
     },
-    schedule: { pickupDateTime: new Date(pickupDateTime) },
+    schedule: { pickupDateTime },
+    bookingTimezone,
     flight: {
       flightNumber: body.flightNumber || body.flight?.flightNumber || '',
       airline: body.flight?.airline || '',
@@ -217,6 +206,9 @@ async function createBookingFromPayload(body, { userId } = {}) {
       luggageCount: body.luggage || body.trip?.luggageCount || body.luggageCount || 0,
     },
     pricing: {
+      basePrice: quote.customQuoteRequired ? 0 : (quote.basePrice ?? quote.price ?? 0),
+      vatPercent: quote.customQuoteRequired ? 0 : (quote.vatPercent ?? 0),
+      vatAmount: quote.customQuoteRequired ? 0 : (quote.vatAmount ?? 0),
       totalAmount: quote.customQuoteRequired ? 0 : (quote.totalAmount ?? quote.price ?? 0),
       extraKmCharge: quote.pricingType === 'airport_fixed_route' ? 0 : (quote.extraCharge || 0),
       currency: quote.currency || 'SAR',
@@ -236,6 +228,10 @@ async function createBookingFromPayload(body, { userId } = {}) {
         originLabel: quote.originLabel || null,
         destinationLabel: quote.destinationLabel || null,
         routeType: quote.routeType || null,
+        ...(quote.basePrice != null ? { basePrice: quote.basePrice } : {}),
+        ...(quote.vatPercent ? { vatPercent: quote.vatPercent } : {}),
+        ...(quote.vatAmount ? { vatAmount: quote.vatAmount } : {}),
+        ...(quote.totalAmount != null ? { totalAmount: quote.totalAmount } : {}),
         ...(quote.taxIncluded ? { taxIncluded: true } : {}),
       },
     },
