@@ -503,6 +503,20 @@ async function verifyPayment(moyasarPaymentId, webhookMeta = null) {
   const localPayment = await findLocalPayment(moyasarPayment);
 
   if (!localPayment || localPayment.provider !== 'moyasar') {
+    if (webhookMeta) {
+      console.log('[payments] Moyasar webhook ignored', {
+        type: webhookMeta.eventType || null,
+        eventId: webhookMeta.eventId || null,
+        moyasarId: String(moyasarPayment.id || moyasarPaymentId),
+        reason: 'unknown_payment',
+      });
+      return {
+        received: true,
+        ignored: true,
+        reason: 'unknown_payment',
+        mappedStatus: 'IGNORED',
+      };
+    }
     throw httpError(404, 'Payment does not belong to a Nextify booking');
   }
 

@@ -585,6 +585,78 @@ async function run() {
     );
   });
 
+  await check('11. Verified foreign/unknown payment webhook returns HTTP 200 ignored with zero DB mutations, while direct verifyPayment still returns 404', async () => {
+    setTestMoyasarEnv();
+    process.env.PAYMENT_PROVIDER = 'moyasar';
+    process.env.MOYASAR_WEBHOOK_ALLOWED_MODE = 'test';
+
+    let fetchCalls = 0;
+    let dbMutations = 0;
+    global.fetch = async () => {
+      fetchCalls += 1;
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          id: 'pay_foreign_staging_123',
+          status: 'paid',
+          amount: 18000,
+          currency: 'SAR',
+          live: false,
+          metadata: {
+            payment_id: '507f191e810c19729de86999',
+            booking_number: 'NXT-OTHER-ENV-1',
+          },
+        }),
+      };
+    };
+
+    Payment.findOne = async () => null;
+    Payment.findById = async () => null;
+    Payment.findOneAndUpdate = async () => { dbMutations += 1; throw new Error('Payment must not be updated'); };
+    Payment.updateOne = async () => { dbMutations += 1; throw new Error('Payment must not be updated'); };
+    Booking.findById = async () => { dbMutations += 1; throw new Error('Booking must not be queried'); };
+    Booking.findOneAndUpdate = async () => { dbMutations += 1; throw new Error('Booking must not be updated'); };
+    Booking.updateOne = async () => { dbMutations += 1; throw new Error('Booking must not be updated'); };
+
+    const makeRes = () => ({
+      statusCode: 0,
+      body: null,
+      status(code) { this.statusCode = code; return this; },
+      json(payload) { this.body = payload; return this; },
+    });
+
+    const res = makeRes();
+    await paymentController.webhook(
+      {
+        body: {
+          id: 'evt_foreign_payment',
+          type: 'payment_paid',
+          secret_token: 'whsec_test_recon_secret',
+          live: false,
+          data: { id: 'pay_foreign_staging_123' },
+        },
+      },
+      res,
+      (err) => { if (err) throw err; }
+    );
+
+    assert.strictEqual(res.statusCode, 200);
+    assert.strictEqual(res.body.success, true);
+    assert.strictEqual(res.body.data.received, true);
+    assert.strictEqual(res.body.data.ignored, true);
+    assert.strictEqual(res.body.data.reason, 'unknown_payment');
+    assert.strictEqual(fetchCalls, 1, 'Webhook must still verify the payment with Moyasar');
+    assert.strictEqual(dbMutations, 0, 'Unknown payment must not mutate Payment or Booking collections');
+
+    // Direct verifyPayment (non-webhook) still returns 404 for unknown payment
+    await assert.rejects(
+      () => moyasarProvider.verifyPayment('pay_foreign_staging_123'),
+      (err) => err.statusCode === 404
+    );
+    assert.strictEqual(dbMutations, 0);
+  });
+
   const failed = results.filter((r) => !r.ok);
   console.log(`\n${results.length - failed.length} passed, ${failed.length} failed`);
   if (failed.length) process.exit(1);

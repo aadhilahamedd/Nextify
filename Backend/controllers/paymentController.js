@@ -184,6 +184,7 @@ exports.webhook = async (req, res, next) => {
         durationMs,
       });
       return success(res, 200, 'Webhook accepted', {
+        received: true,
         verification: Boolean(result.verification),
         ignored: Boolean(result.ignored),
         ...(result.reason ? { reason: result.reason } : {}),
