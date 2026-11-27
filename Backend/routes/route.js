@@ -108,6 +108,8 @@ router.post('/api/payments/webhook', paymentController.webhook);
 router.post('/api/payment/webhook', paymentController.webhook);
 router.get('/api/payments/booking/:bookingId', jwtMiddleware, adminMiddleware, paymentController.getPaymentByBooking);
 router.get('/api/payments', jwtMiddleware, adminMiddleware, paymentController.getAllPayments);
+router.get('/api/admin/payments/live-test', jwtMiddleware, adminMiddleware, paymentController.getAdminLivePaymentTestStatus);
+router.post('/api/admin/payments/live-test', paymentCreateLimiter, jwtMiddleware, adminMiddleware, paymentController.createAdminLivePaymentTest);
 router.use(whatsappRoutes);
 
 // ====== Reviews ======

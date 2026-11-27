@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
   assignDriverAPI,
   deleteBookingAPI,
@@ -19,6 +20,8 @@ import {
 } from './adminHelpers';
 
 export default function AdminBookings() {
+  const [searchParams] = useSearchParams();
+  const requestedBookingNumber = searchParams.get('booking') || '';
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -49,7 +52,12 @@ export default function AdminBookings() {
     Promise.all([getBookingsAPI(), getDriversAPI()]).then(([bookingsRes, driversRes]) => {
       if (cancelled) return;
       if (bookingsRes?.status === 200) {
-        setBookings(bookingsRes.data || []);
+        const list = bookingsRes.data || [];
+        setBookings(list);
+        if (requestedBookingNumber) {
+          const match = list.find((item) => item.bookingNumber === requestedBookingNumber);
+          if (match?._id) setExpandedBookingId(match._id);
+        }
         setError('');
       } else {
         setError(bookingsRes?.response?.data?.message || bookingsRes?.error || 'Failed to load bookings.');
@@ -60,7 +68,7 @@ export default function AdminBookings() {
       setLoading(false);
     });
     return () => { cancelled = true; };
-  }, []);
+  }, [requestedBookingNumber]);
 
   const handleToggleBooking = (bookingId) => {
     setExpandedBookingId((prev) => (prev === bookingId ? null : bookingId));
@@ -145,6 +153,7 @@ export default function AdminBookings() {
             {bookings.map((booking) => {
               const isExpanded = expandedBookingId === booking._id;
               const status = booking.bookingStatus || 'pending';
+              const isInternalTest = Boolean(booking.isInternalPaymentTest);
               const isCustomQuote = Boolean(
                 booking.customQuoteRequired
                 || booking.pricingType === 'custom_quote'
@@ -200,6 +209,22 @@ export default function AdminBookings() {
                         >
                           {status}
                         </span>
+                        {isInternalTest && (
+                          <span
+                            style={{
+                              fontSize: '10px',
+                              fontWeight: '700',
+                              textTransform: 'uppercase',
+                              letterSpacing: '0.5px',
+                              padding: '3px 8px',
+                              borderRadius: '20px',
+                              background: 'rgba(13, 110, 253, 0.22)',
+                              color: '#6ea8fe',
+                            }}
+                          >
+                            ADMIN PAYMENT TEST
+                          </span>
+                        )}
                         {isCustomQuote && (
                           <span
                             style={{
@@ -299,17 +324,19 @@ export default function AdminBookings() {
                             <option key={s} value={s}>{s}</option>
                           ))}
                         </select>
-                        <select
-                          className="form-select form-select-sm"
-                          style={{ maxWidth: 220 }}
-                          defaultValue=""
-                          onChange={(e) => handleAssignDriver(booking._id, e.target.value)}
-                        >
-                          <option value="">Assign driver...</option>
-                          {drivers.filter((d) => d.active).map((d) => (
-                            <option key={d._id} value={d._id}>{d.name} ({d.status})</option>
-                          ))}
-                        </select>
+                        {!isInternalTest && (
+                          <select
+                            className="form-select form-select-sm"
+                            style={{ maxWidth: 220 }}
+                            defaultValue=""
+                            onChange={(e) => handleAssignDriver(booking._id, e.target.value)}
+                          >
+                            <option value="">Assign driver...</option>
+                            {drivers.filter((d) => d.active).map((d) => (
+                              <option key={d._id} value={d._id}>{d.name} ({d.status})</option>
+                            ))}
+                          </select>
+                        )}
                       </div>
                       <div style={{ marginTop: '8px', textAlign: 'right' }}>
                         <button

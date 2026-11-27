@@ -26,6 +26,7 @@ function toCheckoutBooking(booking) {
     paymentStatus: doc.paymentStatus,
     bookingStatus: doc.bookingStatus,
     customQuoteRequired: Boolean(doc.customQuoteRequired),
+    ...(doc.isInternalPaymentTest ? { isInternalPaymentTest: true } : {}),
   };
 }
 
@@ -44,6 +45,7 @@ function toPaymentConfirmationBooking(booking, payment) {
     paymentStatus: base.paymentStatus,
     bookingStatus: base.bookingStatus,
     customQuoteRequired: base.customQuoteRequired,
+    ...(base.isInternalPaymentTest ? { isInternalPaymentTest: true } : {}),
     quotedPrice: amount,
     pricing: {
       totalAmount: amount,

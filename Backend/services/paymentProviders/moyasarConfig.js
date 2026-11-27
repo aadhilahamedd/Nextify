@@ -19,6 +19,10 @@ function moyasarMode() {
   return mode;
 }
 
+function customerLivePaymentsEnabled() {
+  return String(process.env.MOYASAR_CUSTOMER_LIVE_PAYMENTS_ENABLED || '').trim().toLowerCase() === 'true';
+}
+
 function assertMoyasarCredentials({ force = false } = {}) {
   if (!force && (process.env.PAYMENT_PROVIDER || 'mock') !== 'moyasar') {
     return { skipped: true };
@@ -142,6 +146,7 @@ module.exports = {
   assertMoyasarCredentials,
   assertPaymentMode,
   assertWebhookMode,
+  customerLivePaymentsEnabled,
   evaluateWebhookMode,
   moyasarMode,
   webhookAllowedMode,

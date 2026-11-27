@@ -63,6 +63,7 @@ const bookingSchema = new mongoose.Schema(
     quotedPrice: { type: Number, default: null },
     pricingType: { type: String, enum: ['fixed', 'custom_quote', ''], default: 'fixed' },
     customQuoteRequired: { type: Boolean, default: false },
+    isInternalPaymentTest: { type: Boolean, default: false, index: true },
     pricingRuleId: { type: mongoose.Schema.Types.ObjectId, ref: 'PricingRule', default: null },
     pickup: { type: locationSchema, default: () => ({}) },
     destination: { type: locationSchema, default: () => ({}) },

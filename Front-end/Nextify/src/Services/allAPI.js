@@ -355,6 +355,24 @@ export const getPaymentsAPI = async () => {
   }
 };
 
+export const getAdminLivePaymentTestStatusAPI = async () => {
+  try {
+    const response = await commonAPI("GET", `${serverURL}/api/admin/payments/live-test`, "", getAuthHeaders());
+    return unwrap(response);
+  } catch (err) {
+    return handleError(err, "Failed to fetch live payment test status");
+  }
+};
+
+export const startAdminLivePaymentTestAPI = async () => {
+  try {
+    const response = await commonAPI("POST", `${serverURL}/api/admin/payments/live-test`, {}, getAuthHeaders());
+    return unwrap(response);
+  } catch (err) {
+    return handleError(err, "Failed to start 1 SAR live payment test");
+  }
+};
+
 // ====== DRIVERS ======
 export const getDriversAPI = async () => {
   try {

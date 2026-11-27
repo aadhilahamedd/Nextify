@@ -1,8 +1,13 @@
 const Payment = require('../models/Payment');
 const Booking = require('../models/Booking');
 const paymentService = require('../services/paymentService');
-const { moyasarMode } = require('../services/paymentProviders/moyasarConfig');
+const {
+  assertMoyasarCredentials,
+  customerLivePaymentsEnabled,
+  moyasarMode,
+} = require('../services/paymentProviders/moyasarConfig');
 const { mockPaymentEndpointsEnabled } = require('../services/paymentProviders/mockPaymentGuard');
+const { generateBookingNumber } = require('../utils/bookingNumber');
 const { success, error } = require('../utils/apiResponse');
 const { toCheckoutBooking, toPaymentConfirmationBooking } = require('../utils/checkoutBooking');
 const {
@@ -11,7 +16,12 @@ const {
   isValidObjectIdString,
 } = require('../utils/checkoutToken');
 
+const ADMIN_LIVE_TEST_AMOUNT_SAR = 1;
+const ADMIN_LIVE_TEST_CURRENCY = 'SAR';
+let adminLiveTestInFlight = null;
+
 function notifyWhatsAppPayment(result) {
+  if (result?.booking?.isInternalPaymentTest) return;
   setImmediate(() => {
     Promise.resolve()
       .then(() => require('../services/whatsapp/whatsappBookingService').notifyPaymentResult(result))
@@ -45,11 +55,24 @@ exports.createPayment = async (req, res, next) => {
         }
       }
     }
+    if ((process.env.PAYMENT_PROVIDER || 'mock') === 'moyasar') {
+      const activeMode = moyasarMode();
+      if (activeMode === 'live' && !customerLivePaymentsEnabled()) {
+        return error(
+          res,
+          503,
+          'Online card payments are currently unavailable. Please complete your booking via WhatsApp assistance.'
+        );
+      }
+    }
     if (!isValidObjectIdString(String(bookingId))) {
       return error(res, 403, CHECKOUT_UNAUTHORIZED_MESSAGE);
     }
 
     const booking = await Booking.findById(bookingId).select('+checkoutTokenHash +checkoutTokenExpiresAt');
+    if (booking?.isInternalPaymentTest) {
+      return error(res, 403, CHECKOUT_UNAUTHORIZED_MESSAGE);
+    }
     const auth = await authorizeBookingCheckout(req, booking);
     if (!auth.authorized) {
       return error(res, auth.statusCode, auth.message);
@@ -235,8 +258,168 @@ exports.getPaymentByBooking = async (req, res, next) => {
 
 exports.getAllPayments = async (req, res, next) => {
   try {
-    const payments = await Payment.find().populate('booking', 'bookingNumber customer bookingStatus').sort({ createdAt: -1 });
+    const payments = await Payment.find()
+      .populate('booking', 'bookingNumber customer bookingStatus isInternalPaymentTest')
+      .sort({ createdAt: -1 });
     return success(res, 200, 'Payments fetched', { payments });
+  } catch (err) {
+    next(err);
+  }
+};
+
+function toAdminTestBookingSummary(booking) {
+  if (!booking) return null;
+  const doc = typeof booking.toObject === 'function' ? booking.toObject() : booking;
+  return {
+    _id: doc._id,
+    bookingNumber: doc.bookingNumber,
+    isInternalPaymentTest: Boolean(doc.isInternalPaymentTest),
+    paymentStatus: doc.paymentStatus,
+    bookingStatus: doc.bookingStatus,
+    quotedPrice: doc.quotedPrice ?? doc.pricing?.totalAmount ?? ADMIN_LIVE_TEST_AMOUNT_SAR,
+    pricing: {
+      totalAmount: doc.pricing?.totalAmount ?? doc.quotedPrice ?? ADMIN_LIVE_TEST_AMOUNT_SAR,
+      currency: doc.pricing?.currency || ADMIN_LIVE_TEST_CURRENCY,
+    },
+    createdAt: doc.createdAt,
+    updatedAt: doc.updatedAt,
+  };
+}
+
+exports.getAdminLivePaymentTestStatus = async (req, res, next) => {
+  try {
+    const provider = process.env.PAYMENT_PROVIDER || 'mock';
+    let mode = null;
+    if (provider === 'moyasar') {
+      try {
+        mode = moyasarMode();
+      } catch {
+        mode = null;
+      }
+    }
+
+    const latestBooking = await Booking.findOne({ isInternalPaymentTest: true }).sort({ createdAt: -1 });
+    const latestPayment = latestBooking
+      ? await Payment.findOne({ booking: latestBooking._id }).sort({ createdAt: -1 })
+      : null;
+
+    const activePending = await Booking.findOne({
+      isInternalPaymentTest: true,
+      paymentStatus: 'PENDING',
+    }).sort({ createdAt: -1 });
+
+    return success(res, 200, 'Admin live payment test status fetched', {
+      provider,
+      moyasarMode: mode,
+      customerLivePaymentsEnabled: customerLivePaymentsEnabled(),
+      hasActivePendingTest: Boolean(activePending),
+      latestTest: latestBooking
+        ? {
+            booking: toAdminTestBookingSummary(latestBooking),
+            payment: paymentService.toSafePayment(latestPayment),
+          }
+        : null,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+async function createOrReuseAdminLivePaymentTest() {
+  const provider = process.env.PAYMENT_PROVIDER || 'mock';
+  if (provider !== 'moyasar') {
+    const err = new Error('Moyasar payment provider must be active for the LIVE payment test');
+    err.statusCode = 409;
+    throw err;
+  }
+
+  const { mode } = assertMoyasarCredentials({ force: true });
+  if (mode !== 'live') {
+    const err = new Error('Admin 1 SAR LIVE payment test requires MOYASAR_ENV=live');
+    err.statusCode = 409;
+    throw err;
+  }
+
+  const existingPending = await Booking.findOne({
+    isInternalPaymentTest: true,
+    paymentStatus: 'PENDING',
+  }).sort({ createdAt: -1 });
+
+  if (existingPending) {
+    const checkoutResult = await paymentService.createOrReuseCheckout(existingPending);
+    return {
+      reused: true,
+      booking: toAdminTestBookingSummary(checkoutResult.booking),
+      payment: paymentService.toSafePayment(checkoutResult.payment),
+      checkout: checkoutResult.checkout,
+    };
+  }
+
+  const bookingNumber = generateBookingNumber().replace(/^NXT-/, 'NXT-TEST-');
+  const testBooking = new Booking({
+    bookingNumber,
+    isInternalPaymentTest: true,
+    customer: {
+      name: 'ADMIN PAYMENT TEST',
+      email: 'internal-payment-test@nextifylimo.invalid',
+      mobile: '0000000000',
+    },
+    user: null,
+    serviceType: 'city_transfer',
+    origin: 'INTERNAL ADMIN LIVE PAYMENT TEST',
+    destinationText: 'INTERNAL ADMIN LIVE PAYMENT TEST',
+    vehicleCategory: 'internal_test',
+    quotedPrice: ADMIN_LIVE_TEST_AMOUNT_SAR,
+    pricingType: 'fixed',
+    customQuoteRequired: false,
+    pickup: { address: 'INTERNAL ADMIN LIVE PAYMENT TEST' },
+    destination: { address: 'INTERNAL ADMIN LIVE PAYMENT TEST' },
+    schedule: { pickupDateTime: new Date(Date.now() + 24 * 60 * 60 * 1000) },
+    vehicle: {
+      carId: null,
+      name: 'ADMIN PAYMENT TEST',
+      type: 'internal_test',
+    },
+    pricing: {
+      basePrice: ADMIN_LIVE_TEST_AMOUNT_SAR,
+      totalAmount: ADMIN_LIVE_TEST_AMOUNT_SAR,
+      currency: ADMIN_LIVE_TEST_CURRENCY,
+      breakdown: {
+        pricingType: 'internal_payment_test',
+        label: 'ADMIN PAYMENT TEST',
+      },
+    },
+    paymentStatus: 'PENDING',
+    bookingStatus: 'PAYMENT_PENDING',
+    specialRequests: 'Internal admin 1 SAR LIVE payment verification test — do not dispatch.',
+  });
+
+  await testBooking.save();
+
+  const checkoutResult = await paymentService.createOrReuseCheckout(testBooking);
+  return {
+    reused: false,
+    booking: toAdminTestBookingSummary(checkoutResult.booking),
+    payment: paymentService.toSafePayment(checkoutResult.payment),
+    checkout: checkoutResult.checkout,
+  };
+}
+
+exports.createAdminLivePaymentTest = async (req, res, next) => {
+  try {
+    // Strictly ignore req.body — amount (1 SAR), currency (SAR), provider, and mode are server-enforced.
+    if (!adminLiveTestInFlight) {
+      adminLiveTestInFlight = createOrReuseAdminLivePaymentTest().finally(() => {
+        adminLiveTestInFlight = null;
+      });
+    }
+    const result = await adminLiveTestInFlight;
+    return success(
+      res,
+      result.reused ? 200 : 201,
+      result.reused ? 'Active 1 SAR LIVE payment test resumed' : '1 SAR LIVE payment test created',
+      result
+    );
   } catch (err) {
     next(err);
   }

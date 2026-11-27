@@ -88,6 +88,12 @@ function PaymentResult() {
 
         if (verified && booking?.bookingNumber) {
           clearCheckoutToken(booking._id);
+          if (booking.isInternalPaymentTest) {
+            navigate(`/admin/payments?testBooking=${encodeURIComponent(booking.bookingNumber)}&paymentStatus=PAID`, {
+              replace: true,
+            });
+            return;
+          }
           navigate(`/booking-confirmation/${booking.bookingNumber}`, {
             state: {
               booking,
@@ -101,6 +107,12 @@ function PaymentResult() {
         }
 
         if (booking?.bookingNumber && ['FAILED', 'CANCELLED'].includes(status)) {
+          if (booking.isInternalPaymentTest) {
+            navigate(`/admin/payments?testBooking=${encodeURIComponent(booking.bookingNumber)}&paymentStatus=${encodeURIComponent(status)}`, {
+              replace: true,
+            });
+            return;
+          }
           storeRetryBooking(booking);
           navigate(`/booking-confirmation/${booking.bookingNumber}`, {
             state: { booking, paymentSuccess: false },

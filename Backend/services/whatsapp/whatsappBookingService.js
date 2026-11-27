@@ -288,7 +288,7 @@ async function retrySessionPayment(session, { now = Date.now(), cooldownMs } = {
 }
 
 async function notifyPaymentResult({ payment, booking, mappedStatus }) {
-  if (!booking?._id) return;
+  if (!booking?._id || booking.isInternalPaymentTest) return;
   const session = await WhatsAppSession.findOne({ bookingId: booking._id });
   if (!session) return;
 

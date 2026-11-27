@@ -38,8 +38,11 @@ exports.getPublicPayBooking = async (req, res, next) => {
     }
     // Lean + no populate: avoid accidental driver/customer leakage via refs.
     const booking = await Booking.findById(req.params.id).select(
-      '_id bookingNumber user serviceType vehicle vehicleName quotedPrice pricing paymentStatus bookingStatus customQuoteRequired +checkoutTokenHash +checkoutTokenExpiresAt'
+      '_id bookingNumber user serviceType vehicle vehicleName quotedPrice pricing paymentStatus bookingStatus customQuoteRequired isInternalPaymentTest +checkoutTokenHash +checkoutTokenExpiresAt'
     ).lean();
+    if (booking?.isInternalPaymentTest) {
+      return error(res, 403, CHECKOUT_UNAUTHORIZED_MESSAGE);
+    }
     const auth = await authorizeBookingCheckout(req, booking);
     if (!auth.authorized) {
       return error(res, auth.statusCode, auth.message);
@@ -153,7 +156,7 @@ exports.trackBooking = async (req, res, next) => {
     }
 
     const booking = await Booking.findOne({ bookingNumber }).populate('driver', 'name phone status');
-    if (!booking) return error(res, 404, 'Booking not found');
+    if (!booking || booking.isInternalPaymentTest) return error(res, 404, 'Booking not found');
 
     const customerEmail = normalizeTrackEmail(booking.customer?.email || booking.email);
     const customerMobile = booking.customer?.mobile || booking.mobile || '';
@@ -176,6 +179,10 @@ exports.updateBooking = async (req, res, next) => {
   try {
     const booking = await Booking.findById(req.params.id);
     if (!booking) return error(res, 404, 'Booking not found');
+
+    if (booking.isInternalPaymentTest && req.body.driver) {
+      return error(res, 400, 'Cannot assign a driver to an internal payment test booking');
+    }
 
     if (req.body.paymentStatus !== undefined) {
       const nextPayment = String(req.body.paymentStatus).toUpperCase();
@@ -238,6 +245,10 @@ exports.assignDriver = async (req, res, next) => {
     const booking = await Booking.findById(req.params.id);
     if (!booking) return error(res, 404, 'Booking not found');
 
+    if (booking.isInternalPaymentTest) {
+      return error(res, 400, 'Cannot assign a driver to an internal payment test booking');
+    }
+
     if (['CANCELLED', 'cancelled'].includes(booking.bookingStatus)) {
       return error(res, 400, 'Cannot assign a driver to a cancelled booking');
     }
@@ -288,7 +299,7 @@ exports.deleteBooking = async (req, res, next) => {
 
 exports.getDashboardStats = async (req, res, next) => {
   try {
-    const bookings = await Booking.find({});
+    const bookings = await Booking.find({ isInternalPaymentTest: { $ne: true } });
     const stats = {
       totalBookings: bookings.length,
       pendingBookings: bookings.filter((b) =>
