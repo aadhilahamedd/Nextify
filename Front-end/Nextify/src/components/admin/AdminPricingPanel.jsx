@@ -8,7 +8,13 @@ import {
 } from '../../Services/allAPI';
 import { FLEET_VEHICLES, findFleetVehicle, normalizeVehicleCategory, toCategorySlug } from '../../data/fleetVehicles';
 import { AIRPORT_FIXED_ROUTES, LOCATIONS as FIXED_ROUTE_LOCATIONS } from '../../data/airportFixedRoutes';
-import { formatSarAndUsd, sarToUsd } from '../../utils/currency';
+import {
+  formatMoney,
+  formatSarAndUsd,
+  parseOptionalPositiveUsd,
+  resolveUsdDisplay,
+  sarToUsd,
+} from '../../utils/currency';
 
 const ADMIN_SERVICE_LABELS = {
   airport_transfer: 'Airport Transfer',
@@ -272,7 +278,7 @@ export default function AdminPricingPanel() {
       durationType: prefill.durationType || 'hourly',
       pricingMode: prefill.pricingMode || 'fixed',
       price: prefill.price != null ? String(prefill.price) : '',
-      priceUsd: prefill.price != null ? String(sarToUsd(Number(prefill.price)) ?? '') : '',
+      priceUsd: prefill.priceUsd != null ? String(prefill.priceUsd) : '',
       taxIncluded: Boolean(prefill.taxIncluded),
       active: true,
       notes: prefill.notes || '',
@@ -340,9 +346,12 @@ export default function AdminPricingPanel() {
         setFormError('Please enter a valid positive price in SAR.');
         return;
       }
-      numericUsd = form.priceUsd !== '' && Number.isFinite(Number(form.priceUsd))
-        ? Number(form.priceUsd)
-        : sarToUsd(numericPrice);
+      const usdCheck = parseOptionalPositiveUsd(form.priceUsd);
+      if (!usdCheck.valid) {
+        setFormError(usdCheck.message);
+        return;
+      }
+      numericUsd = usdCheck.value;
     }
 
     const vehLabel = getVehicleDisplayName(form.vehicleCategory, fleetList);
@@ -595,6 +604,21 @@ export default function AdminPricingPanel() {
                           <span style={{ fontWeight: 700, color: '#eeb012', fontSize: 14 }}>
                             {formatSarAndUsd(rule.price, rule.priceUsd)}
                           </span>
+                          {(() => {
+                            const usdInfo = resolveUsdDisplay(rule.price, rule.priceUsd);
+                            if (usdInfo.amount == null) return null;
+                            return (
+                              <span
+                                style={{
+                                  marginLeft: 8,
+                                  fontSize: 11,
+                                  color: usdInfo.isOverride ? '#f6d26e' : 'rgba(255,255,255,0.55)',
+                                }}
+                              >
+                                ({usdInfo.isOverride ? 'Manual USD' : 'Auto USD'})
+                              </span>
+                            );
+                          })()}
                           {rule.taxIncluded && (
                             <span style={{ marginLeft: 8, fontSize: 11, color: '#7ee2a8' }}>Incl. Tax</span>
                           )}
@@ -774,18 +798,39 @@ export default function AdminPricingPanel() {
                         min="1"
                         step="1"
                         value={form.price}
-                        onChange={(e) => {
-                          const price = e.target.value;
-                          const usd = sarToUsd(Number(price));
-                          setForm({ ...form, price, priceUsd: usd != null ? String(usd) : '' });
-                        }}
+                        onChange={(e) => setForm({ ...form, price: e.target.value })}
                         placeholder="e.g. 1800"
                         style={inputStyle}
                         required
                       />
                     </div>
-                    <div className="col-md-6 d-flex align-items-end">
-                      <label className="d-flex align-items-center gap-2 mb-2" style={{ color: 'rgba(255,255,255,0.8)', cursor: 'pointer', fontSize: 13 }}>
+                    <div className="col-md-6">
+                      <label style={labelStyle}>USD Price (optional)</label>
+                      <input
+                        type="number"
+                        min="0.01"
+                        step="0.01"
+                        value={form.priceUsd}
+                        onChange={(e) => setForm({ ...form, priceUsd: e.target.value })}
+                        placeholder={(() => {
+                          const autoUsd = sarToUsd(Number(form.price));
+                          return autoUsd != null ? `Auto: ${formatMoney(autoUsd, 'USD')}` : 'Leave empty for auto (SAR ÷ 3.75)';
+                        })()}
+                        style={inputStyle}
+                      />
+                      <div style={{ fontSize: 11, marginTop: 4, color: String(form.priceUsd || '').trim() ? '#f6d26e' : '#7ee2a8' }}>
+                        {String(form.priceUsd || '').trim()
+                          ? 'Manual USD override active — clear this field to return to automatic conversion.'
+                          : (() => {
+                              const autoUsd = sarToUsd(Number(form.price));
+                              return autoUsd != null
+                                ? `Automatic USD (SAR ÷ 3.75): ${formatMoney(autoUsd, 'USD')}`
+                                : 'Automatic USD (SAR ÷ 3.75)';
+                            })()}
+                      </div>
+                    </div>
+                    <div className="col-12">
+                      <label className="d-flex align-items-center gap-2 mb-1" style={{ color: 'rgba(255,255,255,0.8)', cursor: 'pointer', fontSize: 13 }}>
                         <input
                           type="checkbox"
                           checked={form.taxIncluded}

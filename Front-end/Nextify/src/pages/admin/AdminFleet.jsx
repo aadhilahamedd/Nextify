@@ -8,7 +8,13 @@ import {
 } from '../../Services/allAPI';
 import { applyLocalCarImages, getCarImageUrl } from '../../utils/carsStorage';
 import { FLEET_VEHICLES } from '../../data/fleetVehicles';
-import { parsePriceNumber, sarToUsd } from '../../utils/currency';
+import {
+  formatMoney,
+  parseOptionalPositiveUsd,
+  parsePriceNumber,
+  resolveUsdDisplay,
+  sarToUsd,
+} from '../../utils/currency';
 
 const EMPTY_FORM = {
   name: '',
@@ -138,14 +144,7 @@ export default function AdminFleet() {
   };
 
   const handleField = (field, value) => {
-    setForm((prev) => {
-      const next = { ...prev, [field]: value };
-      if (field === 'price') {
-        const sar = parsePriceNumber(value);
-        if (sar != null && !prev.priceUsd) next.priceUsd = String(sarToUsd(sar));
-      }
-      return next;
-    });
+    setForm((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleImageSelect = (event) => {
@@ -192,6 +191,12 @@ export default function AdminFleet() {
       return;
     }
 
+    const usdCheck = parseOptionalPositiveUsd(form.priceUsd);
+    if (!usdCheck.valid) {
+      setError(usdCheck.message);
+      return;
+    }
+
     const extraImages = form.imagesText
       .split('\n')
       .map((line) => line.trim())
@@ -206,7 +211,7 @@ export default function AdminFleet() {
       seats: form.seats.trim() || '4 passengers',
       luggage: form.luggage.trim() || '3 Bags',
       price: form.price.trim() || 'SAR 0',
-      priceUsd: form.priceUsd.trim(),
+      priceUsd: usdCheck.value != null ? String(usdCheck.value) : '',
       description: form.description.trim(),
       img: form.img.trim(),
       images: extraImages,
@@ -365,7 +370,19 @@ export default function AdminFleet() {
                       <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>{car.luggage}</div>
                     </td>
                     <td style={{ padding: '12px 16px', fontSize: 13, color: '#eeb012', fontWeight: 600 }}>
-                      {car.price}
+                      <div>{car.price}</div>
+                      {(() => {
+                        const usdInfo = resolveUsdDisplay(car.price, car.priceUsd);
+                        if (usdInfo.amount == null) return null;
+                        return (
+                          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.65)', fontWeight: 500, marginTop: 2 }}>
+                            {formatMoney(usdInfo.amount, 'USD')}{' '}
+                            <span style={{ color: usdInfo.isOverride ? '#f6d26e' : '#7ee2a8' }}>
+                              ({usdInfo.isOverride ? 'Manual USD' : 'Auto USD'})
+                            </span>
+                          </div>
+                        );
+                      })()}
                     </td>
                     <td style={{ padding: '12px 16px' }}>
                       <span
@@ -475,11 +492,32 @@ export default function AdminFleet() {
                 </div>
                 <div className="col-md-6">
                   <label style={labelStyle}>Display Rate (SAR) *</label>
-                  <input value={form.price} onChange={(e) => handleField('price', e.target.value)} style={inputStyle} placeholder="e.g. SAR 1125" required />
+                  <input value={form.price} onChange={(e) => handleField('price', e.target.value)} style={inputStyle} placeholder="e.g. SAR 1400" required />
                 </div>
                 <div className="col-md-6">
-                  <label style={labelStyle}>Display Rate (USD)</label>
-                  <input value={form.priceUsd} onChange={(e) => handleField('priceUsd', e.target.value)} style={inputStyle} placeholder="e.g. 300" />
+                  <label style={labelStyle}>USD Price (optional)</label>
+                  <input
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    value={form.priceUsd}
+                    onChange={(e) => handleField('priceUsd', e.target.value)}
+                    style={inputStyle}
+                    placeholder={(() => {
+                      const autoUsd = sarToUsd(parsePriceNumber(form.price));
+                      return autoUsd != null ? `Auto: ${formatMoney(autoUsd, 'USD')}` : 'Leave empty for auto (SAR ÷ 3.75)';
+                    })()}
+                  />
+                  <div style={{ fontSize: 11, marginTop: 4, color: form.priceUsd.trim() ? '#f6d26e' : '#7ee2a8' }}>
+                    {form.priceUsd.trim()
+                      ? 'Manual USD override active — clear this field to return to automatic conversion.'
+                      : (() => {
+                          const autoUsd = sarToUsd(parsePriceNumber(form.price));
+                          return autoUsd != null
+                            ? `Automatic USD (SAR ÷ 3.75): ${formatMoney(autoUsd, 'USD')}`
+                            : 'Automatic USD (SAR ÷ 3.75)';
+                        })()}
+                  </div>
                 </div>
                 <div className="col-12">
                   <label style={labelStyle}>Description</label>

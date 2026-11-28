@@ -1,5 +1,10 @@
-import { findFleetVehicle } from '../data/fleetVehicles';
-import { parsePriceNumber, roundSarDisplay, roundUsdDisplay, sarToUsd } from '../utils/currency';
+import { findFleetVehicle } from '../data/fleetVehicles.js';
+import {
+  parsePriceNumber,
+  resolveUsdDisplay,
+  roundSarDisplay,
+  roundUsdDisplay,
+} from '../utils/currency.js';
 
 const ARABIC_DIGITS = {
   0: '٠',
@@ -34,9 +39,13 @@ export function formatSarForLang(amount, lang = 'en') {
 }
 
 export function formatUsdForLang(amount, lang = 'en') {
-  const n = Number(amount);
-  if (!Number.isFinite(n)) return '';
-  const num = formatNumberForLang(n, lang);
+  const n = roundUsdDisplay(amount);
+  if (n == null || !Number.isFinite(n)) return '';
+  const hasDecimals = Math.abs(n % 1) > 1e-9;
+  const num = formatNumberForLang(n, lang, {
+    minimumFractionDigits: hasDecimals ? 2 : 0,
+    maximumFractionDigits: 2,
+  });
   return `$${num}`;
 }
 
@@ -67,12 +76,16 @@ export function formatDateTimeForLang(value, lang = 'en') {
 export function formatCarDayPriceForLang(car, lang = 'en') {
   if (!car) return '';
   const fleet = findFleetVehicle(car);
-  const fromFleet = fleet?.full != null;
-  const sar = fromFleet ? fleet.full : parsePriceNumber(car.price);
-  const usd = parsePriceNumber(car.priceUsd) ?? (sar != null ? sarToUsd(sar) : null);
+  const rawPrice = String(car.price || '').trim();
+  const hasExplicitSar = /\bsar\b/i.test(rawPrice) || /^\d[\d,]*(?:\.\d+)?$/.test(rawPrice);
+  const parsedCarSar = hasExplicitSar ? parsePriceNumber(rawPrice) : null;
+  const hasCarSar = parsedCarSar != null && parsedCarSar > 0;
+  const fromFleet = !hasCarSar && fleet?.full != null;
+  const sar = hasCarSar ? parsedCarSar : (fromFleet ? fleet.full : parsePriceNumber(rawPrice));
+  const { amount: usd } = resolveUsdDisplay(sar, car.priceUsd);
   if (sar == null && usd == null) return car.price || '';
   const parts = [];
-  if (sar != null) parts.push(formatSarForLang(fromFleet ? sar : roundSarDisplay(sar), lang));
-  if (usd != null) parts.push(formatUsdForLang(roundUsdDisplay(usd), lang));
+  if (sar != null) parts.push(formatSarForLang(hasCarSar || fromFleet ? sar : roundSarDisplay(sar), lang));
+  if (usd != null) parts.push(formatUsdForLang(usd, lang));
   return parts.join(' · ');
 }

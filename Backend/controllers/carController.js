@@ -1,4 +1,5 @@
 const Car = require('../models/Car');
+const { parseOptionalPositiveUsd } = require('../utils/currency');
 
 const initialCars = [
   {
@@ -77,8 +78,8 @@ const initialCars = [
     id: 10,
     name: 'GMC Yukon',
     img: '/images/car/GMC Yukon.png',
-    price: 'SAR 1125',
-    priceUsd: '300',
+    price: 'SAR 1400',
+    priceUsd: '',
     type: 'Full-Size SUV',
     seats: '7–8 passengers',
     luggage: '1,175 Liters'
@@ -174,6 +175,17 @@ async function remapLegacyCarImages() {
     let changed = false;
     if (/^gmc$/i.test(String(car.name || '').trim())) {
       car.name = 'GMC Yukon';
+      changed = true;
+    }
+    // Migrate untouched legacy GMC Yukon seed (SAR 1125 / $300) to SAR 1400 with automatic USD ($373.33).
+    // Does not overwrite intentional admin USD overrides on updated records.
+    if (
+      /gmc\s*yukon/i.test(String(car.name || '').trim())
+      && String(car.price || '').trim() === 'SAR 1125'
+      && String(car.priceUsd || '').trim() === '300'
+    ) {
+      car.price = 'SAR 1400';
+      car.priceUsd = '';
       changed = true;
     }
     const remapped = IMAGE_REMAP[car.img] || IMAGE_REMAP[String(car.img || '').split('?')[0]];
@@ -306,6 +318,11 @@ exports.addCar = async (req, res) => {
       return res.status(400).json({ message: 'All fields must be filled' });
     }
 
+    const usdCheck = parseOptionalPositiveUsd(priceUsd);
+    if (!usdCheck.valid) {
+      return res.status(400).json({ message: usdCheck.message });
+    }
+
     // Determine the next sequential ID
     const lastCar = await Car.findOne().sort({ id: -1 });
     const nextId = lastCar ? lastCar.id + 1 : 1;
@@ -319,7 +336,7 @@ exports.addCar = async (req, res) => {
       model: String(model || '').trim(),
       category: resolvedCategory,
       price: String(price).trim(),
-      priceUsd: String(priceUsd || '').trim(),
+      priceUsd: usdCheck.value != null ? String(usdCheck.value) : '',
       type: String(type).trim(),
       seats: String(seats).trim(),
       luggage: String(luggage).trim(),
@@ -373,7 +390,13 @@ exports.updateCar = async (req, res) => {
     if (model !== undefined) existing.model = String(model || '').trim();
     if (category !== undefined) existing.category = String(category || '').trim();
     if (price !== undefined) existing.price = String(price).trim();
-    if (priceUsd !== undefined) existing.priceUsd = String(priceUsd || '').trim();
+    if (priceUsd !== undefined) {
+      const usdCheck = parseOptionalPositiveUsd(priceUsd);
+      if (!usdCheck.valid) {
+        return res.status(400).json({ message: usdCheck.message });
+      }
+      existing.priceUsd = usdCheck.value != null ? String(usdCheck.value) : '';
+    }
     if (type !== undefined) existing.type = String(type).trim();
     if (seats !== undefined) existing.seats = String(seats).trim();
     if (luggage !== undefined) existing.luggage = String(luggage).trim();

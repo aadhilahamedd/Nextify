@@ -213,8 +213,8 @@ export const initialCars = [
     id: 10,
     name: 'GMC Yukon',
     img: '/images/car/GMC Yukon.png',
-    price: 'SAR 1125',
-    priceUsd: '300',
+    price: 'SAR 1400',
+    priceUsd: '',
     type: 'Full-Size SUV',
     seats: '7–8 passengers',
     luggage: '1,175 Liters'

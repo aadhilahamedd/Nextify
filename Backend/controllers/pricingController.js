@@ -4,6 +4,7 @@ const { SERVICE_TYPES, PRICING_MODES } = PricingRule;
 const { calculatePrice, getPublicPricingSummary, normalizeVehicleCat } = require('../services/pricingService');
 const { normalizeServiceType } = require('../utils/vehicleCategories');
 const { resolveFixedRouteLocation } = require('../data/airportFixedRoutes');
+const { parseOptionalPositiveUsd } = require('../utils/currency');
 const { success, error } = require('../utils/apiResponse');
 
 const CHAUFFEUR_DURATIONS = ['hourly', 'half_day', 'full_day'];
@@ -96,13 +97,11 @@ function validatePricingPayload(body = {}, existing = null) {
     price = numericPrice;
 
     const rawUsd = body.priceUsd !== undefined ? body.priceUsd : existing?.priceUsd;
-    if (rawUsd !== '' && rawUsd != null) {
-      const numericUsd = Number(rawUsd);
-      if (!Number.isFinite(numericUsd) || numericUsd < 0) {
-        return { valid: false, status: 400, message: 'priceUsd must be a valid non-negative number.' };
-      }
-      priceUsd = numericUsd;
+    const usdCheck = parseOptionalPositiveUsd(rawUsd);
+    if (!usdCheck.valid) {
+      return { valid: false, status: 400, message: usdCheck.message };
     }
+    priceUsd = usdCheck.value;
   }
 
   const active = body.active !== undefined ? Boolean(body.active) : (existing ? Boolean(existing.active) : true);
